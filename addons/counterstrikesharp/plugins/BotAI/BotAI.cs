@@ -23,7 +23,7 @@ public static class BotOffsets
 public class BotAI : BasePlugin
 {
     public override string ModuleName        => "Patches - Bot AI";
-    public override string ModuleVersion     => "1.7.1";
+    public override string ModuleVersion     => "1.7.2";
     public override string ModuleAuthor      => "K4ryuu & Austin (updated by ed0ard)";
     public override string ModuleDescription =>
         "Improve and fix bots' behavior comprehensively";
@@ -100,7 +100,7 @@ public class BotAI : BasePlugin
 
 
         ["SprayAllDistances_FireDecision1"] = (
-            signature:        "F3 0F 10 87 A0 00 00 00 0F 2F C7 76 12 48 8B 05",
+            signature:        "F3 0F 10 87 ? 00 00 00 0F 2F C7 76 12 48 8B 05",
             patch:            "90 90",
             expectedOriginal: "76 12",
             patchOffset:      11    // RVA 0x2f0d53
@@ -114,7 +114,7 @@ public class BotAI : BasePlugin
         ),
 
         ["AttackState_SkipFireRateCheck"] = (
-            signature:        "0F 2F 8B AC 00 00 00 0F 82",
+            signature:        "0F 2F 8B ? ? 00 00 0F 82",
             patch:            "90 90 90 90 90 90",
             expectedOriginal: "0F 82 87 00 00 00",
             patchOffset:      7    // VA 0x1802f22a0
@@ -129,7 +129,7 @@ public class BotAI : BasePlugin
         ),
  
         ["AttackState_SkipZoomFireShortcut"] = (
-            signature:        "FF 90 A0 02 00 00 84 C0 74 15 48 8D 8B 88 00 00 00 48 89 AB",
+            signature:        "FF 90 ? ? 00 00 84 C0 74 15 48 8D 8B ? ? 00 00 48 89 AB",
             patch:            "90 90",
             expectedOriginal: "74 15",
             patchOffset:      8    // RVA 0x2f1c0c: je+15 → NOP (remove IsWaitingForZoom fire shortcut)
@@ -165,7 +165,7 @@ public class BotAI : BasePlugin
         ),
 
         ["SprayAllDistances_ja4"] = (
-            signature:        "0F 10 94 AB 80 00 00 00 0F 2F FA 77 13 48",
+            signature:        "0F 10 94 AB ? 00 00 00 0F 2F FA 77 13 48",
             patch:            "90 90",
             expectedOriginal: "77 13",
             patchOffset:      11
@@ -180,14 +180,14 @@ public class BotAI : BasePlugin
 
 
         ["AttackState_DodgeDuringReload"] = (
-            signature:        "E9 ? ? ? ? 0F 2F BB A4 00 00 00 76 74",
+            signature:        "E9 ? ? ? ? 0F 2F BB ? 00 00 00 76 74",
             patch:            "EB 74",
             expectedOriginal: "76 74",
             patchOffset:      12    // BLOCK_TIMER_A jbe→jmp
         ),
 
         ["SniperCrouchDodge_jb"] = (
-            signature:        "0F 2F BB A4 00 00 00 0F 28 7C 24 30 76 74",
+            signature:        "0F 2F BB ? 00 00 00 0F 28 7C 24 30 76 74",
             patch:            "90 90",
             expectedOriginal: "76 74",
             patchOffset:      12    // BLOCK_TIMER_B NOP jbe → DODGE_B (RVA 0x2f2420)
@@ -287,8 +287,8 @@ public class BotAI : BasePlugin
         //  directly to the planted site instead of random searching.
         ["TBot_BombsiteSearch_UseKnownPlantedSite"] = (
             signature:        "48 8B 8E ? ? 00 00 E8 ? ? ? ? 49 8B CC E8 ? ? ? ? 4C 8B 05 ? ? ? ? 85 C0",
-            patch:            "E8 55 4A F9 FF",
-            expectedOriginal: "E8 D5 43 F9 FF",
+            patch:            "E8 55 46 F9 FF",
+            expectedOriginal: "E8 D5 3F F9 FF",
             patchOffset:      15
         ),
 
