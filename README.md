@@ -44,14 +44,17 @@ Aims to enhance your experience when playing against bots offline or with friend
 
 ### Aim
 
-`bot_aim_mixed`  
-Bots would aim for head and body (recommended)
+`bot_aim mixed`  
+Bots select aiming spots flexibly based on situations (default)
 
-`bot_aim_head`  
-Bots would only aim for head
+`bot_aim head`  
+Bots prioritize aiming at the head
 
-`bot_aim_body`  
-Bots would only aim for stomach (default)
+`bot_aim body`  
+Bots prioritize aiming at the torso
+
+`bot_aim`  
+Check the current aim mode
 
 ### Buy
 
