@@ -36,15 +36,15 @@ bot_add_t "jL";bot_add_t "torzsi";bot_add_t "Spinx";bot_add_t "xelex";bot_add_t 
 
 5. FaZe Clan
 
-bot_add_ct "karrigan";bot_add_ct "frozen";bot_add_ct "Twistzz";bot_add_ct "broky";bot_add_ct "jcobbb";mp_teamlogo_1 faze;mp_teamname_1 FaZe Clan
+bot_add_ct "enkay J";bot_add_ct "frozen";bot_add_ct "Twistzz";bot_add_ct "broky";bot_add_ct "jcobbb";mp_teamlogo_1 faze;mp_teamname_1 FaZe Clan
 
-bot_add_t "karrigan";bot_add_t "frozen";bot_add_t "Twistzz";bot_add_t "broky";bot_add_t "jcobbb";mp_teamlogo_2 faze;mp_teamname_2 FaZe Clan
+bot_add_t "enkay J";bot_add_t "frozen";bot_add_t "Twistzz";bot_add_t "broky";bot_add_t "jcobbb";mp_teamlogo_2 faze;mp_teamname_2 FaZe Clan
 
 6. The MongolZ
 
-bot_add_ct "bLitz";bot_add_ct "Techno";bot_add_ct "mzinho";bot_add_ct "910";bot_add_ct "cobrazera";mp_teamlogo_1 mngz;mp_teamname_1 The MongolZ
+bot_add_ct "bLitz";bot_add_ct "Techno4K";bot_add_ct "mzinho";bot_add_ct "910";bot_add_ct "cobrazera";mp_teamlogo_1 mngz;mp_teamname_1 The MongolZ
 
-bot_add_t "bLitz";bot_add_t "Techno";bot_add_t "mzinho";bot_add_t "910";bot_add_t "cobrazera";mp_teamlogo_2 mngz;mp_teamname_2 The MongolZ
+bot_add_t "bLitz";bot_add_t "Techno4K";bot_add_t "mzinho";bot_add_t "910";bot_add_t "cobrazera";mp_teamlogo_2 mngz;mp_teamname_2 The MongolZ
 
 7. Natus Vincere
 
