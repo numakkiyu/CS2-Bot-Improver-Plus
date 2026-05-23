@@ -1,5 +1,5 @@
 # CS2-Bot-Improver
-CS2-Bot-Improver is a plugin for Counter-Strike 2 that improves bots' aim, movement, personalities, strategies, etc.
+CS2-Bot-Improver is a plugin for Counter-Strike 2 that improves bots' aim, movement, nade throwing, personalities, strategies, etc.
 
 Aims to enhance your experience when playing against bots offline or with friends. It can be installed on both clients and servers.
 
@@ -8,16 +8,17 @@ Aims to enhance your experience when playing against bots offline or with friend
 ## Features
 
 1. Makes bots aim better and more human-like
-2. Fixes most bot stuck issues
-3. Improves bots' movement
-4. Allows bots to buy everything and overhauls their economy management
-5. Assigns each bot their own agent model, music kit and avatar
+2. Allows bots to throw nades deftly according to the situation
+3. Fixes most bot stuck issues
+4. Improves bots' movement
+5. Allows bots to buy everything and overhauls their economy management
 6. Refines bot behavior, allowing them to spray, flick, spam smokes and anti-flash
-7. Makes bots smarter, more organized, and more alert to their surroundings
-8. Changes bot names to pro and random players. (the characteristics of each pro player are based on stats from [HLTV](https://www.hltv.org/))
-9. Removes the prefix from bot names
-10. Tweaks game rules to make them more friendly to bots
-11. Adds some commands to make the game more fun
+7. Assigns each bot their own agent model, music kit and avatar
+8. Makes bots smarter, more organized, and more alert to their surroundings
+9. Changes bot names to pro and random players. (the characteristics of each pro player are based on stats from [HLTV](https://www.hltv.org/))
+10. Removes the prefix from bot names
+11. Tweaks game rules to make them more friendly to bots
+12. Adds some commands to make the game more fun
 
 ## Installation
 
@@ -55,6 +56,23 @@ Bots prioritize aiming at the torso
 
 `bot_aim`  
 Check the current aim mode
+
+### Nades
+
+`bot_nades off`  
+Bots won't throw any nades
+
+`bot_nades normal`  
+Bots follow almost the same count limits as human players (default)
+
+`bot_nades more`  
+Bots use the same decision logic as normal mode with higher count limits (recommended)
+
+`bot_nades max`  
+Bots have minimal limitations and think less before throwing nades
+
+`bot_nades`  
+Shows the current nade throwing mode
 
 ### Buy
 
@@ -155,6 +173,7 @@ Run `sv_standable_normal 0.7` in your game console
 [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp)  
 [Ray-Trace](https://github.com/FUNPLAY-pro-CS2/Ray-Trace)  
 [CS2-Bullseye-Bot](https://github.com/ed0ard/CS2-Bullseye-Bot)  
+[CS2-Bot-NadeSystem](https://github.com/ed0ard/CS2-Bot-NadeSystem)  
 [CS2_ExecAfter_No_Admin](https://github.com/ed0ard/CS2_ExecAfter_No_Admin) forked from [kus](https://github.com/kus)  
 [CS2-Bot-Randomizer](https://github.com/ed0ard/CS2-Bot-Randomizer)  
 [CS2-Smarter-Bot](https://github.com/ed0ard/CS2-Smarter-Bot)  
