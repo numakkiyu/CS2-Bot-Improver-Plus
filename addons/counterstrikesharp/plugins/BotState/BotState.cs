@@ -15,11 +15,11 @@ namespace BotState;
 public class BotState : BasePlugin
 {
     public override string ModuleName => "Smarter-Bot";
-    public override string ModuleVersion => "1.7.0";
+    public override string ModuleVersion => "1.7.1";
     public override string ModuleAuthor => "ed0ard & XBribo";
     public override string ModuleDescription => "Make bots smarter";
 
-    private const float ExpandedValue = 4000f;
+    private const float ExpandedValue = 500f;
     private const float NormalValue = 50f;
     private const float RestoreDelay = 1.0f;
 
@@ -48,6 +48,9 @@ public class BotState : BasePlugin
 
     private readonly HashSet<int> _hasFiredThisAttack = new();
     private readonly Dictionary<int, bool> _prevIsAttacking = new();
+
+    private readonly Dictionary<int, bool> _cachedInAir = new();
+    private readonly Dictionary<int, bool> _cachedNearLadder = new();
 
     // Flashbang avoidance via Ray-Trace
     private static readonly PluginCapability<CRayTraceInterface> RayTraceCap =
@@ -205,7 +208,7 @@ public class BotState : BasePlugin
     {
         if (_defuseExpandTimer != null) return;
 
-        _defuseExpandTimer = AddTimer(4.0f, () =>
+        _defuseExpandTimer = AddTimer(3.5f, () =>
         {
             _defuseExpandTimer = null;
             if (!_isBombBeingDefused) return;
@@ -213,7 +216,7 @@ public class BotState : BasePlugin
             _isDefuseExpanded = true;
             SetSmokeLength(ExpandedValue);
 
-            AddTimer(1.0f, () =>
+            AddTimer(1.5f, () =>
             {
                 _isDefuseExpanded = false;
                 SetSmokeLength(NormalValue);
@@ -596,7 +599,9 @@ public class BotState : BasePlugin
                 isCrouching = false;
             }
             _prevInAir[idx] = inAir;
-
+            // cache the parameters for counter-strafe
+            _cachedInAir[idx] = inAir;
+            _cachedNearLadder[idx] = nearLadder;
             // Normal Un-Stuck Process
             ref bool isStuck = ref bot.IsStuck;
             if (isStuck)
@@ -794,6 +799,46 @@ public class BotState : BasePlugin
         if (bot == null) return HookResult.Continue;
         // Sniper Peek
         _hasFiredThisAttack.Add(idx);
+
+        // Counter-strafe on fire
+        bool cachedInAir = _cachedInAir.GetValueOrDefault(idx, false);
+        bool cachedNearLadder = _cachedNearLadder.GetValueOrDefault(idx, false);
+        if (!cachedInAir && !cachedNearLadder)
+        {
+            string? wpnFire = pawn.WeaponServices?.ActiveWeapon?.Value?.DesignerName;
+            if (wpnFire != null)
+            {
+                float vx = pawn.AbsVelocity.X;
+                float vy = pawn.AbsVelocity.Y;
+                float speed2D = MathF.Sqrt(vx * vx + vy * vy);
+
+                if (wpnFire is "weapon_glock" or "weapon_hkp2000" or "weapon_p250"
+                            or "weapon_fiveseven" or "weapon_cz75a" or "weapon_tec9"
+                            or "weapon_mac10" or "weapon_mp9")
+                {
+                    if (speed2D > 70f)
+                    {
+                        float scale = 70f / speed2D;
+                        pawn.AbsVelocity.X = vx * scale;
+                        pawn.AbsVelocity.Y = vy * scale;
+                    }
+                }
+                else if (wpnFire is "weapon_usp_silencer" or "weapon_deagle"
+                                or "weapon_ssg08" or "weapon_awp"
+                                or "weapon_scar20" or "weapon_g3sg1"
+                                or "weapon_galilar" or "weapon_ak47" or "weapon_sg556"
+                                or "weapon_famas" or "weapon_m4a1" or "weapon_m4a1_silencer"
+                                or "weapon_aug" or "weapon_m249" or "weapon_negev")
+                {
+                    if (speed2D > 0f)
+                    {
+                        pawn.AbsVelocity.X = 0f;
+                        pawn.AbsVelocity.Y = 0f;
+                    }
+                }
+                // Other weapons: no speed change
+            }
+        }
 
         if (pawn.IsDefusing || !bot.IsAttacking) return HookResult.Continue;
         // Random combat crouch
