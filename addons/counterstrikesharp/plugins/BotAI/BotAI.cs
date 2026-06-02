@@ -23,7 +23,7 @@ public static class BotOffsets
 public class BotAI : BasePlugin
 {
     public override string ModuleName        => "Patches - Bot AI";
-    public override string ModuleVersion     => "1.8.0";
+    public override string ModuleVersion     => "1.8.1";
     public override string ModuleAuthor      => "K4ryuu & Austin (updated by ed0ard)";
     public override string ModuleDescription =>
         "Improve and fix bots' behavior comprehensively";
@@ -160,18 +160,22 @@ public class BotAI : BasePlugin
             patchOffset:      13    // RVA 0x2f4587: jbe +11 → jmp +40 to non-jump 
         ),
 
-        ["AllSkill_DodgeChance100_OnOutnumberedOrSniper"] = (
+        // Source: AttackState::OnEnter
+        // skill>0.5 && (Outnumbered || CanSeeSniper) → dodgeChance=100
+        ["AttackState_DodgeChance100_Always"] = (
             signature:        "0F 28 F0 F3 0F 59 35 ? ? ? ? 76 15",
-            patch:            "90 90",
+            patch:            "EB 11",
             expectedOriginal: "76 15",
-            patchOffset:      11   // RVA 0x319d73: jbe +14 → NOP
+            patchOffset:      11
         ),
 
-        ["DodgeChance_Flat80"] = (
-            signature:        "0F 28 F0 F3 0F 59 35 ? ? ? ? 76 15",
-            patch:            "10",
-            expectedOriginal: "59",
-            patchOffset:      5    // RVA 0x319d66: MULSS(59) → MOVSS(10)
+        // Source: AttackState::OnUpdate
+        // (CanSeeSniper && !IsSniper) → retreat
+        ["AttackState_RetreatOnSniper_Disable"] = (
+            signature:        "44 38 B6 ? 5C 00 00 74 0C 48 8B CE E8 ? ? ? ? 84 C0",
+            patch:            "EB 0C",
+            expectedOriginal: "74 0C",
+            patchOffset:      7
         ),
 
         ["AllSkill_KeepMoving_WhenSeeSniper"] = (
