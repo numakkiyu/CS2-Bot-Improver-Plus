@@ -1,19 +1,21 @@
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using CounterStrikeSharp.API.Modules.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace BotRandomizer;
 
 public class BotRandomizerPlugin : BasePlugin
 {
     public override string ModuleName        => "BotRandomizer";
-    public override string ModuleVersion     => "1.0.8";
-    public override string ModuleAuthor      => "ed0ard";
+    public override string ModuleVersion     => "1.1.0";
+    public override string ModuleAuthor      => "ed0ard & Misaka17032";
     public override string ModuleDescription => "Randomize agent model, music kit, knife skins, and gloves for bots";
 
     private readonly Random _rng = new();
@@ -242,22 +244,15 @@ public class BotRandomizerPlugin : BasePlugin
     {
         try
         {
-            var sig = GameData.GetSignature("CAttributeList_SetOrAddAttributeValueByName");
-            if (string.IsNullOrEmpty(sig))
-            {
-                Console.WriteLine("[BotRandomizer] CAttributeList_SetOrAddAttributeValueByName: empty signature returned (gamedata file not loaded?)");
-                _setAttrByName = null;
-            }
-            else
-            {
-                _setAttrByName = new MemoryFunctionVoid<nint, string, float>(sig);
-                Console.WriteLine($"[BotRandomizer] CAttributeList_SetOrAddAttributeValueByName loaded, sig len={sig.Length}");
-            }
+            _setAttrByName = new MemoryFunctionVoid<nint, string, float>(
+                RuntimeInformation.IsOSPlatform(OSPlatform.Linux) // 2026.06.08 verified
+                    ? "55 48 89 E5 41 57 41 56 49 89 FE 41 55 41 54 53 48 89 F3 48 83 EC ? F3 0F 11 85"
+                    : "40 53 55 41 56 48 81 EC 90 00 00 00");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[BotRandomizer] CAttributeList_SetOrAddAttributeValueByName signature lookup failed: {ex.Message} (skins/gloves disabled)");
             _setAttrByName = null;
+            Logger.LogError($"[BotRandomizer] SetOrAddAttributeValueByName signature failed: {ex.Message} (skins/gloves disabled)");
         }
 
         RegisterListener<Listeners.OnMapStart>(_ =>
@@ -403,7 +398,7 @@ public class BotRandomizerPlugin : BasePlugin
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[BotRandomizer] ReplaceKnife failed: {ex.Message}");
+            Logger.LogError($"[BotRandomizer] ReplaceKnife failed: {ex.Message}");
         }
     }
 
@@ -411,7 +406,7 @@ public class BotRandomizerPlugin : BasePlugin
     {
         if (_setAttrByName == null)
         {
-            Console.WriteLine("[BotRandomizer] ApplyGloves skipped: CAttributeList_SetOrAddAttributeValueByName not loaded");
+            Logger.LogInformation("[BotRandomizer] ApplyGloves skipped: CAttributeList_SetOrAddAttributeValueByName not loaded");
             return;
         }
         try
@@ -444,7 +439,7 @@ public class BotRandomizerPlugin : BasePlugin
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[BotRandomizer] ApplyGloves failed: {ex.Message}");
+            Logger.LogError($"[BotRandomizer] ApplyGloves failed: {ex.Message}");
         }
     }
 
