@@ -22,4 +22,7 @@ public interface IBotHiderApi
 
     // Global disguise toggle; off lets the bot manager spawn bots on aim_*/practice maps
     bool SetDisguise(bool enabled);
+
+    // Display-name source toggle; true=bot_info.json name, false=botprofile name (affects newly created bots)
+    bool SetNameSource(bool useBotInfo);
 }

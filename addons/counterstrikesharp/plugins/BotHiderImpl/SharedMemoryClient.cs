@@ -38,6 +38,10 @@ public sealed class SharedMemoryClient : IBotHiderApi, IDisposable
     private const byte CmdSetSteamId = 1;
     private const byte CmdSetPersona = 2;
     private const byte CmdSetDisguise = 3;
+    private const byte CmdRebuild = 4;
+    private const byte CmdKickAll = 5;
+    private const byte CmdRefill = 6;
+    private const byte CmdSetNameSource = 7;
 
     // Sentinel slot for global commands
     private const byte SlotAll = 255;
@@ -141,12 +145,44 @@ public sealed class SharedMemoryClient : IBotHiderApi, IDisposable
         return ok;
     }
 
-    // Global disguise toggle (slot-agnostic)
+    // Global disguise toggle
     public bool SetDisguise(bool enabled)
     {
         if (_view == null) TryConnect();
         if (_view == null) return false;
         return PostCommand(CmdSetDisguise, SlotAll, enabled ? 1UL : 0UL, null);
+    }
+
+    // Global display-name source toggle (1=bot_info name, 0=botprofile name)
+    public bool SetNameSource(bool useBotInfo)
+    {
+        if (_view == null) TryConnect();
+        if (_view == null) return false;
+        return PostCommand(CmdSetNameSource, SlotAll, useBotInfo ? 1UL : 0UL, null);
+    }
+
+    // Request a clean bot rebuild
+    public bool RequestRebuild()
+    {
+        if (_view == null) TryConnect();
+        if (_view == null) return false;
+        return PostCommand(CmdRebuild, SlotAll, 0UL, null);
+    }
+
+    // Match-end
+    public bool RequestKickAll()
+    {
+        if (_view == null) TryConnect();
+        if (_view == null) return false;
+        return PostCommand(CmdKickAll, SlotAll, 0UL, null);
+    }
+
+    // Match-begin
+    public bool RequestRefill()
+    {
+        if (_view == null) TryConnect();
+        if (_view == null) return false;
+        return PostCommand(CmdRefill, SlotAll, 0UL, null);
     }
 
     private bool PostCommand(byte type, int slot, ulong sid, string? name)

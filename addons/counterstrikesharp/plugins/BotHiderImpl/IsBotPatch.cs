@@ -5,9 +5,6 @@ using HarmonyLib;
 namespace BotHiderImpl;
 
 // Harmony postfix on CCSPlayerController.get_IsBot
-//
-// Disguised bots keep m_bFakePlayer cleared and FL_FAKECLIENT unset
-// This patch is global: any CSS plugin reading player.IsBot sees the override
 
 [HarmonyPatch(typeof(CCSPlayerController), nameof(CCSPlayerController.IsBot), MethodType.Getter)]
 public static class IsBotPatch

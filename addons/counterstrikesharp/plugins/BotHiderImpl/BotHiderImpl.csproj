@@ -17,18 +17,15 @@
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
-    <PackageReference Include="Lib.Harmony" Version="2.3.3" GeneratePathProperty="true">
-      <Private>true</Private>
+    <PackageReference Include="Lib.Harmony" Version="2.4.2" GeneratePathProperty="true">
+      <Private>false</Private>
     </PackageReference>
-    <ProjectReference Include="..\..\shared\BotHiderApi\BotHiderApi.csproj">
+    <ProjectReference Include="..\BotHiderApi\BotHiderApi.csproj">
       <Private>false</Private>
     </ProjectReference>
   </ItemGroup>
 
   <Target Name="CopyHarmony" AfterTargets="Build;Publish">
-    <Copy SourceFiles="$(PkgLib_Harmony)\lib\net8.0\0Harmony.dll"
-          DestinationFolder="$(OutDir)"
-          SkipUnchangedFiles="true" />
     <Copy SourceFiles="$(PkgLib_Harmony)\lib\net8.0\0Harmony.dll"
           DestinationFolder="$(OutDir)shared\0Harmony"
           SkipUnchangedFiles="true" />

@@ -13,7 +13,7 @@ namespace BotHiderImpl;
 public class BotHiderImplPlugin : BasePlugin
 {
     public override string ModuleName => "BotHiderImpl";
-    public override string ModuleVersion => "0.2.0";
+    public override string ModuleVersion => "0.2.4";
     public override string ModuleAuthor => "XBribo";
     public override string ModuleDescription =>
         "BotHider CSS Plugin";
@@ -48,6 +48,17 @@ public class BotHiderImplPlugin : BasePlugin
         _harmony = null;
         IsBotPatch.Api = null;
         _client?.Dispose();
+    }
+
+    // Match end
+    [GameEventHandler]
+    public HookResult OnWinPanelMatch(EventCsWinPanelMatch @event, GameEventInfo info)
+    {
+        // 16.6s
+        AddTimer(16.6f, () => _client?.RequestKickAll());
+        // 16.8s
+        AddTimer(16.8f, () => _client?.RequestRefill());
+        return HookResult.Continue;
     }
 
     // Set CCSPlayerController.m_iszPlayerName
@@ -121,7 +132,7 @@ public class BotHiderImplPlugin : BasePlugin
         }
     }
 
-    // bh_status — dump every managed slot's state (sid + persona name)
+    // bh_status — dump every managed slot's state
     [ConsoleCommand("bh_status", "List all BotHider-managed slots")]
     public void OnStatus(CCSPlayerController? player, CommandInfo cmd)
     {
@@ -163,7 +174,7 @@ public class BotHiderImplPlugin : BasePlugin
         cmd.ReplyToCommand($"[BotHider] SetPersonaName({slot},'{name}') -> {ok}");
     }
 
-    // bh_disguise <0|1> — toggle the m_bFakePlayer disguise (turn off on aim_*/practice maps)
+    // bh_disguise <0|1> — toggle the m_bFakePlayer disguise
     [ConsoleCommand("bh_disguise", "Toggle disguise: bh_disguise <0|1>")]
     public void OnDisguise(CCSPlayerController? player, CommandInfo cmd)
     {
@@ -173,5 +184,17 @@ public class BotHiderImplPlugin : BasePlugin
         bool enabled = v != 0;
         bool ok = _client.SetDisguise(enabled);
         cmd.ReplyToCommand($"[BotHider] disguise -> {(enabled ? "ON" : "OFF")} ({ok})");
+    }
+
+    // bh_namesource <0|1> — 0=botprofile name (default), 1=bot_info.json name
+    [ConsoleCommand("bh_namesource", "Set display-name source: bh_namesource <0|1> (0=botprofile 1=bot_info)")]
+    public void OnNameSource(CCSPlayerController? player, CommandInfo cmd)
+    {
+        if (_client == null) { cmd.ReplyToCommand("[BotHider] not initialized"); return; }
+        if (cmd.ArgCount < 2 || !int.TryParse(cmd.GetArg(1), out int v))
+        { cmd.ReplyToCommand("usage: bh_namesource <0|1> (0=botprofile 1=bot_info)"); return; }
+        bool useBotInfo = v != 0;
+        bool ok = _client.SetNameSource(useBotInfo);
+        cmd.ReplyToCommand($"[BotHider] name source -> {(useBotInfo ? "bot_info" : "botprofile")} ({ok})");
     }
 }
