@@ -14,7 +14,7 @@ namespace BotRandomizer;
 public class BotRandomizerPlugin : BasePlugin
 {
     public override string ModuleName        => "BotRandomizer";
-    public override string ModuleVersion     => "1.2.1";
+    public override string ModuleVersion     => "1.2.2";
     public override string ModuleAuthor      => "ed0ard & Misaka17032";
     public override string ModuleDescription => "Randomize knives, gloves, weapon skins, agent models, music kits for bots";
 
@@ -554,9 +554,10 @@ public class BotRandomizerPlugin : BasePlugin
                 if (string.IsNullOrEmpty(name)) continue;
                 if (!(name.Contains("knife") || name == "weapon_bayonet")) continue;
 
-                // Engine-side subclass swap: re-resolves model/anim/HUD without re-creating the entity.
-                if (w.AttributeManager?.Item?.ItemDefinitionIndex != defIndex)
-                    w.AcceptInput("ChangeSubclass", value: defIndex.ToString());
+                // Force subclass (model/anim) to match itemdef (name) on every pass.
+                // ChangeSubclass is async and may miss on a not-yet-deployed entity;
+                // gating it on itemdef would leave them permanently out of sync.
+                w.AcceptInput("ChangeSubclass", value: defIndex.ToString());
 
                 var item = w.AttributeManager?.Item;
                 if (item == null) break;
@@ -700,8 +701,11 @@ public class BotRandomizerPlugin : BasePlugin
         if (pawn == null || !pawn.IsValid)
             return HookResult.Continue;
 
-        // Deferred a frame so the picked-up knife entity is fully settled.
+        // Deferred + retried so a frame where ChangeSubclass doesn't take can't
+        // leave the knife's subclass permanently out of sync.
         Server.NextFrame(() => SyncPickedUpKnife(pawn));
+        AddTimer(0.10f, () => { if (pawn != null && pawn.IsValid) SyncPickedUpKnife(pawn); });
+        AddTimer(0.25f, () => { if (pawn != null && pawn.IsValid) SyncPickedUpKnife(pawn); });
         return HookResult.Continue;
     }
 
