@@ -93,6 +93,28 @@
   box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.4);
 }
 
+/* Copy confirmation flash — a brief Apple-blue pulse (#007AFF) on the clicked
+   line, matching the existing click-highlight / selected-block blue. */
+@keyframes cmdCopiedFlash {
+  0% {
+    background: rgba(0, 122, 255, 0.22);
+  }
+  100% {
+    background: transparent;
+  }
+}
+.cmd__line.is-copied {
+  animation: cmdCopiedFlash 0.55s ease-out;
+}
+
+/* Non-selectable placeholder hint after a command (e.g. "[bot name]") — it is
+   explanatory only, so it is excluded from drag-selection and copying. */
+.cmd__ph {
+  user-select: none;
+  -webkit-user-select: none;
+  color: var(--text-tertiary);
+}
+
 /* Highlighted substring within a match — Apple-yellow. */
 .cmd__hl {
   background: var(--c-yellow);
