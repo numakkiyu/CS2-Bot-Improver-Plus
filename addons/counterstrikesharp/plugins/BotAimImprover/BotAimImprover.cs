@@ -17,7 +17,7 @@ namespace BotAimImprover;
 public class BotAimImprover : BasePlugin
 {
     public override string ModuleName => "BotAimImprover";
-    public override string ModuleVersion => "2.1.1";
+    public override string ModuleVersion => "2.1.2";
     public override string ModuleAuthor => "ed0ard & htfy96";
     public override string ModuleDescription => "Restores intelligent aim part selection for CS2 bots.";
 
@@ -85,8 +85,8 @@ public class BotAimImprover : BasePlugin
 
     private static readonly int[] _priorityBody =
     {
-        3, 4, 5,         // CHEST, GUT, PELVIS
-        6, 7, 10, 11,    // L_CHEST, R_CHEST, L_GUT, R_GUT
+        4, 5, 3,         // GUT, PELVIS, CHEST,  
+        10, 11, 6, 7,    // L_GUT, R_GUT, L_CHEST, R_CHEST
         8, 9,            // L_SHOULDER, R_SHOULDER
         2, 1, 0,         // JAW, NECK, HEAD
         12, 13, 14, 15,  // L_THIGH, R_THIGH, L_SHIN, R_SHIN
