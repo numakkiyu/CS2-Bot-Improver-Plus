@@ -7,6 +7,7 @@ export const DEVS: string[] = [
   "newbie046",
   "XBribo",
   "Misaka17032",
+  "unicbm",
   "YYBN",
   "htfy96",
   "DANK1NG1I45l4",
