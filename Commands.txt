@@ -18,6 +18,17 @@ bot_nades more
 bot_nades max
 bot_nades off
 
+BOT MANAGEMENT
+
+bot_kick
+bot_kick t
+bot_kick ct
+bot_add
+bot_add_t
+bot_add_ct
+bot_quota
+mp_restartgame 1
+
 ADD TEAMS
 
 1.Team Vitality
