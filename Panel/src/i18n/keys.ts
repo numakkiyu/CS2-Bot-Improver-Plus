@@ -15,6 +15,7 @@ export const EN = {
   "st.notLocated": "game/csgo not located",
   "st.multiple": "Multiple installs — choose in Settings",
   "st.viewMissing": "View missing files",
+  "st.wrongLocation": "Files are in the wrong folder — move them into game\\csgo",
 
   "mode.title": "Mode",
   "mode.online": "Online Mode",
@@ -46,8 +47,12 @@ export const EN = {
   "cmd.h.connection": "CONNECTION",
   "cmd.h.aimStyle": "BOT AIM STYLE",
   "cmd.h.nadeThrowing": "BOT NADE THROWING",
+  "cmd.h.botManagement": "BOT MANAGEMENT",
   "cmd.h.addTeams": "ADD TEAMS",
   "cmd.h.coordinatedBuy": "COORDINATED BUY",
+  // Placeholder hints shown (non-selectable) after certain bot commands.
+  "cmd.hint.botName": "bot name",
+  "cmd.hint.number": "number",
 
   "set.title": "Settings",
   "set.devs": "Devs",
