@@ -11,9 +11,17 @@
     "signatures": {
       "library": "server",
       "windows": "48 89 5C 24 ? 55 56 57 41 56 41 57 48 8B EC 48 83 EC ? 48 8B 05",
-      "linux": "55 48 89 E5 41 55 41 54 53 89 FB 48 83 EC 08 E8 ? ? ? ? 41 89 C4 85 DB 74 ? 48 8D 05 ? ? ? ? 44 89 E6 45 31 C0 89 DA B9 0C 00 00 00 48 8B 38 E8 ? ? ? ? 49 89 C4 48 85 C0"
+      "linux": "55 48 89 E5 41 57 41 56 41 55 41 89 FD 41 54 53 48 83 EC 58 4C 8D 25 ? ? ? ? 89 7D A0 C7 45 90 00 00 00 00 C7 45 A4 01 00 00 00 49 8B 14 24 8B 7A 10 85 FF"
     },
-    "comment": "picks and kicks one client from team. Linux sig targets the body after the RIP-relative precheck so the inline trampoline can safely copy the prologue."
+    "comment": "picks and kicks one client from team. Linux signature targets the bool kick helper that disconnects with NETWORK_DISCONNECT_KICKED, not the bot-add helper."
+  },
+  "CCSBotManager::MaintainBotQuota": {
+    "signatures": {
+      "library": "server",
+      "windows": "40 55 41 56 48 8D 6C 24 ? 48 81 EC ? ? ? ? 4C 8B F1 FF 15",
+      "linux": "55 31 F6 48 89 E5 41 57 41 56 49 89 FE 31 FF 41 55 41 54 53 48 83 EC 28"
+    },
+    "comment": "runs the bot_quota pass each think. Detoured to set disguised bots' controller fakeclient bit so the human/bot counters agree and the quota target is computed correctly."
   },
   "CNetworkGameServerBase::m_Clients": {
     "offsets": {
@@ -21,6 +29,13 @@
       "linux": 592
     },
     "comment": "CUtlVector<CServerSideClient*> base offset."
+  },
+  "CBasePlayerController::FakeClientFlags": {
+    "offsets": {
+      "windows": 904,
+      "linux": 904
+    },
+    "comment": "controller fakeclient flags."
   },
   "CServerSideClient::m_UserIDString": {
     "offsets": {

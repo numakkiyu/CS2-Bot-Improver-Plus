@@ -6,6 +6,7 @@ using CounterStrikeSharp.API.Core.Capabilities;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Timers;
+using CounterStrikeSharp.API.Modules.Utils;
 using HarmonyLib;
 
 namespace BotHiderImpl;
@@ -13,7 +14,7 @@ namespace BotHiderImpl;
 public class BotHiderImplPlugin : BasePlugin
 {
     public override string ModuleName => "BotHiderImpl";
-    public override string ModuleVersion => "0.2.4";
+    public override string ModuleVersion => "0.2.5";
     public override string ModuleAuthor => "XBribo";
     public override string ModuleDescription =>
         "BotHider CSS Plugin";
@@ -54,11 +55,62 @@ public class BotHiderImplPlugin : BasePlugin
     [GameEventHandler]
     public HookResult OnWinPanelMatch(EventCsWinPanelMatch @event, GameEventInfo info)
     {
-        // 16.6s
-        AddTimer(16.6f, () => _client?.RequestKickAll());
-        // 16.8s
-        AddTimer(16.8f, () => _client?.RequestRefill());
         return HookResult.Continue;
+    }
+
+    // Round start — respawn managed bots that ended the prior round dead.
+    // bot dead at match end is not auto-respawned by the engine on the new match; pull it back in here.
+    [GameEventHandler]
+    public HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
+    {
+        AddTimer(0.3f, RespawnDeadManagedBots);
+        return HookResult.Continue;
+    }
+
+    // Respawn any managed bot that is not alive
+    private void RespawnDeadManagedBots()
+    {
+        if (_client == null) return;
+
+        // Current team headcount across everyone, for balancing unassigned bots
+        int tCount = 0, ctCount = 0;
+        foreach (var pl in Utilities.GetPlayers())
+        {
+            if (pl == null || !pl.IsValid) continue;
+            if (pl.Team == CsTeam.Terrorist) ++tCount;
+            else if (pl.Team == CsTeam.CounterTerrorist) ++ctCount;
+        }
+
+        foreach (int slot in _client.GetManagedSlots())
+        {
+            var player = Utilities.GetPlayerFromSlot(slot);
+            if (player == null || !player.IsValid || player.PawnIsAlive) continue;
+
+            // Dead but unassigned (team=None/Spectator): give it the smaller team first
+            if (player.Team != CsTeam.Terrorist && player.Team != CsTeam.CounterTerrorist)
+            {
+                CsTeam target = (tCount <= ctCount) ? CsTeam.Terrorist : CsTeam.CounterTerrorist;
+                try
+                {
+                    player.SwitchTeam(target);
+                    if (target == CsTeam.Terrorist) ++tCount; else ++ctCount;
+                }
+                catch (Exception e)
+                {
+                    Server.PrintToConsole($"[BotHider] SwitchTeam failed slot={slot}: {e.Message}");
+                    continue;
+                }
+            }
+
+            try
+            {
+                player.Respawn();
+            }
+            catch (Exception e)
+            {
+                Server.PrintToConsole($"[BotHider] respawn failed slot={slot}: {e.Message}");
+            }
+        }
     }
 
     // Set CCSPlayerController.m_iszPlayerName

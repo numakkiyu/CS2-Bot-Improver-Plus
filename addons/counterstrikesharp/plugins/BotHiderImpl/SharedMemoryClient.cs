@@ -39,8 +39,7 @@ public sealed class SharedMemoryClient : IBotHiderApi, IDisposable
     private const byte CmdSetPersona = 2;
     private const byte CmdSetDisguise = 3;
     private const byte CmdRebuild = 4;
-    private const byte CmdKickAll = 5;
-    private const byte CmdRefill = 6;
+    // 5 (KickAll) and 6 (Refill) retired — match-end clean-rebuild removed
     private const byte CmdSetNameSource = 7;
 
     // Sentinel slot for global commands
@@ -167,22 +166,6 @@ public sealed class SharedMemoryClient : IBotHiderApi, IDisposable
         if (_view == null) TryConnect();
         if (_view == null) return false;
         return PostCommand(CmdRebuild, SlotAll, 0UL, null);
-    }
-
-    // Match-end
-    public bool RequestKickAll()
-    {
-        if (_view == null) TryConnect();
-        if (_view == null) return false;
-        return PostCommand(CmdKickAll, SlotAll, 0UL, null);
-    }
-
-    // Match-begin
-    public bool RequestRefill()
-    {
-        if (_view == null) TryConnect();
-        if (_view == null) return false;
-        return PostCommand(CmdRefill, SlotAll, 0UL, null);
     }
 
     private bool PostCommand(byte type, int slot, ulong sid, string? name)
