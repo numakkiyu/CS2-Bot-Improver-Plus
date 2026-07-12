@@ -8,7 +8,7 @@ type Props = {
   onSettings: () => void;
 };
 
-export default function TitleBar({ title = "CS2 Bot Improver v1.4.0", onSettings }: Props) {
+export default function TitleBar({ title = "CS2 Bot Improver v1.4.2", onSettings }: Props) {
   const appWindow = getCurrentWindow();
   const t = useT();
 
