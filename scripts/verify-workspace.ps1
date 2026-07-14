@@ -98,6 +98,29 @@ foreach ($relative in $requiredSources) {
     Assert-File (Join-Path $repo $relative) $relative
 }
 
+$playerCosmetics = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.cs") -Raw
+$giveHookStart = $playerCosmetics.IndexOf("private HookResult OnGiveNamedItemPost", [StringComparison]::Ordinal)
+$deferredApplyStart = $playerCosmetics.IndexOf("private void TryApplyPurchasedWeapon", [StringComparison]::Ordinal)
+if ($giveHookStart -lt 0 -or $deferredApplyStart -le $giveHookStart) {
+    Add-Failure "PlayerCosmetics purchased-weapon lifecycle guard is missing."
+}
+else {
+    $giveHook = $playerCosmetics.Substring($giveHookStart, $deferredApplyStart - $giveHookStart)
+    if ($giveHook -match "ApplyPresetForCurrentDefinition" -or
+        $giveHook -notmatch "Server\.NextFrame\(\(\) => TryApplyPurchasedWeapon\(handle, defIndex\)\)") {
+        Add-Failure "PlayerCosmetics must not invoke native econ setters inside GiveNamedItem post-hook."
+    }
+}
+if ($playerCosmetics -notmatch "private static bool HasReadyAttributeLists\(CEconItemView item\)" -or
+    ([regex]::Matches($playerCosmetics, "HasReadyAttributeLists\(item\)").Count -lt 3)) {
+    Add-Failure "PlayerCosmetics native attribute handles are not validated at every write entry point."
+}
+if ($playerCosmetics -match "RegisterListener<Listeners\.OnEntitySpawned>" -or
+    $playerCosmetics -match "TryApplyDroppedKnife" -or
+    $playerCosmetics -match "Server\.NextWorldUpdate") {
+    Add-Failure "PlayerCosmetics must not retain raw entity pointers across world updates for dropped knives."
+}
+
 $jsonFiles = @(
     "addons/BotHider/bot_info.json",
     "addons/BotHider/gamedata.json",
@@ -163,7 +186,7 @@ if ($PackageRoot) {
         "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.dll",
         "addons/counterstrikesharp/shared/0Harmony/0Harmony.dll",
         "addons/counterstrikesharp/shared/BotHiderApi/BotHiderApi.dll",
-        "CS2BotImproverPlus v1.4.2.exe",
+        "CS2BotImproverPlus v1.4.2.1.exe",
         "README.md",
         "README.zh-CN.md",
         "LICENSE"
@@ -171,7 +194,7 @@ if ($PackageRoot) {
     foreach ($relative in $requiredPackageFiles) {
         Assert-File (Join-Path $package $relative) "package file $relative"
     }
-    $packagedPanel = Join-Path $package "CS2BotImproverPlus v1.4.2.exe"
+    $packagedPanel = Join-Path $package "CS2BotImproverPlus v1.4.2.1.exe"
     $builtPanel = Join-Path $repo "Panel/src-tauri/target/release/cs2-bot-improver-plus-panel.exe"
     if ((Test-Path -LiteralPath $packagedPanel) -and (Test-Path -LiteralPath $builtPanel) -and
         ((Get-FileHash -LiteralPath $packagedPanel -Algorithm SHA256).Hash -ne

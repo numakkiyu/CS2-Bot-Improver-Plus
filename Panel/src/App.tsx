@@ -98,7 +98,7 @@ export default function App() {
 
           <div className="sidebar__footer">
             <span>PLUS</span>
-            <small>v1.4.2</small>
+            <small>v1.4.2.1</small>
           </div>
         </aside>
 

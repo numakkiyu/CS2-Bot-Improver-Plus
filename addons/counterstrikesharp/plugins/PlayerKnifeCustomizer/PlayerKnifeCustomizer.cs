@@ -15,7 +15,7 @@ namespace PlayerKnifeCustomizer;
 public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
 {
     public override string ModuleName => "PlayerCosmetics";
-    public override string ModuleVersion => "0.3.0";
+    public override string ModuleVersion => "0.3.1";
     public override string ModuleAuthor => "CS2BotImproverPlus contributors";
     public override string ModuleDescription => "Applies Panel-defined player cosmetic presets";
 
@@ -61,7 +61,6 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             _setAttrByName = null;
         }
 
-        RegisterListener<Listeners.OnEntitySpawned>(OnEntitySpawned);
         RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
         RegisterEventHandler<EventRoundMvp>(OnRoundMvp, HookMode.Pre);
         RegisterEventHandler<EventItemPickup>(OnItemPickup);
@@ -89,17 +88,41 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             if (defIndex == 0 || IsKnifeDefIndex(defIndex) || !_config.GunPresets.ContainsKey(defIndex))
                 return HookResult.Continue;
 
-            ApplyPresetForCurrentDefinition(weapon);
-            Server.NextFrame(() =>
-            {
-                if (weapon.IsValid) ApplyPresetForCurrentDefinition(weapon);
-            });
+            // A GiveNamedItem post-hook can expose an entity before both econ
+            // attribute lists are initialized. Calling the native setter here
+            // caused repeatable CoreCLR access violations. Resolve the entity
+            // from its handle on the next frame, after engine initialization.
+            nint handle = weapon.Handle;
+            if (handle != nint.Zero)
+                Server.NextFrame(() => TryApplyPurchasedWeapon(handle, defIndex));
         }
         catch (Exception ex)
         {
             LogApplyError("purchased weapon", ex);
         }
         return HookResult.Continue;
+    }
+
+    private void TryApplyPurchasedWeapon(nint handle, ushort expectedDefIndex)
+    {
+        try
+        {
+            if (handle == nint.Zero) return;
+
+            var weapon = new CBasePlayerWeapon(handle);
+            if (!weapon.IsValid || !HasEligibleHumanOwner(weapon)) return;
+
+            var item = weapon.AttributeManager?.Item;
+            if (item == null || !HasReadyAttributeLists(item) ||
+                item.ItemDefinitionIndex != expectedDefIndex)
+                return;
+
+            ApplyPresetForCurrentDefinition(weapon);
+        }
+        catch (Exception ex)
+        {
+            LogApplyError("deferred purchased weapon", ex);
+        }
     }
 
     private static CCSPlayerController? GetPlayerFromItemServices(CCSPlayer_ItemServices itemServices)
@@ -109,41 +132,6 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             return null;
         var player = new CCSPlayerController(pawn.Controller.Value.Handle);
         return player.IsValid ? player : null;
-    }
-
-    private void OnEntitySpawned(CEntityInstance entity)
-    {
-        if (!_config.Enabled || !_config.ApplyToDroppedKnives || !IsKnifeName(entity.DesignerName))
-            return;
-
-        nint handle = entity.Handle;
-        Server.NextWorldUpdate(() => TryApplyDroppedKnife(handle, 0));
-    }
-
-    private void TryApplyDroppedKnife(nint handle, int attempt)
-    {
-        try
-        {
-            var weapon = new CBasePlayerWeapon(handle);
-            if (!weapon.IsValid || HasBotOwner(weapon)) return;
-            if (ApplyPresetForCurrentDefinition(weapon)) return;
-
-            float[] retryDelays = [0.05f, 0.15f, 0.30f];
-            if (attempt < retryDelays.Length)
-            {
-                AddTimer(retryDelays[attempt], () => TryApplyDroppedKnife(handle, attempt + 1), TimerFlags.STOP_ON_MAPCHANGE);
-            }
-            else
-            {
-                ushort defIndex = weapon.AttributeManager?.Item?.ItemDefinitionIndex ?? 0;
-                Logger.LogDebug("[PlayerKnifeCustomizer] Dropped knife {DesignerName} remained unmatched at defindex {DefIndex}",
-                    weapon.DesignerName, defIndex);
-            }
-        }
-        catch (Exception ex)
-        {
-            LogApplyError("entity spawn", ex);
-        }
     }
 
     [GameEventHandler]
@@ -298,7 +286,7 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         try
         {
             var item = weapon.AttributeManager?.Item;
-            if (item == null) return false;
+            if (item == null || !HasReadyAttributeLists(item)) return false;
 
             item.ItemDefinitionIndex = defIndex;
             item.EntityQuality = preset.SouvenirEnabled ? (byte)12
@@ -351,6 +339,7 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         try
         {
             var item = pawn.EconGloves;
+            if (!HasReadyAttributeLists(item)) return;
             item.NetworkedDynamicAttributes.Attributes.RemoveAll();
             item.AttributeList.Attributes.RemoveAll();
             item.ItemDefinitionIndex = preset.DefIndex;
@@ -380,6 +369,7 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
 
     private void SetTextureAttributes(nint handle, int paint, int seed, float wear)
     {
+        if (handle == nint.Zero) return;
         _setAttrByName!.Invoke(handle, "set item texture prefab", paint);
         _setAttrByName.Invoke(handle, "set item texture seed", seed);
         _setAttrByName.Invoke(handle, "set item texture wear", wear);
@@ -391,11 +381,15 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         var item = weapon.AttributeManager?.Item;
         if (item == null) return;
 
+        nint networkedHandle = item.NetworkedDynamicAttributes.Handle;
+        nint attributeHandle = item.AttributeList.Handle;
+        if (networkedHandle == nint.Zero || attributeHandle == nint.Zero) return;
+
         float count = BitConverter.Int32BitsToSingle(preset.StatTrakCount);
-        _setAttrByName.Invoke(item.NetworkedDynamicAttributes.Handle, "kill eater", count);
-        _setAttrByName.Invoke(item.NetworkedDynamicAttributes.Handle, "kill eater score type", 0);
-        _setAttrByName.Invoke(item.AttributeList.Handle, "kill eater", count);
-        _setAttrByName.Invoke(item.AttributeList.Handle, "kill eater score type", 0);
+        _setAttrByName.Invoke(networkedHandle, "kill eater", count);
+        _setAttrByName.Invoke(networkedHandle, "kill eater score type", 0);
+        _setAttrByName.Invoke(attributeHandle, "kill eater", count);
+        _setAttrByName.Invoke(attributeHandle, "kill eater score type", 0);
         Utilities.SetStateChanged(weapon, "CEconEntity", "m_AttributeManager");
     }
 
@@ -423,7 +417,7 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
 
     private static bool IsKnifeDefIndex(ushort defIndex) => defIndex is >= 500 and <= 526;
 
-    private static bool HasBotOwner(CBasePlayerWeapon weapon)
+    private bool HasEligibleHumanOwner(CBasePlayerWeapon weapon)
     {
         try
         {
@@ -432,14 +426,17 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             var pawn = new CCSPlayerPawn(owner.Handle);
             var controller = pawn.Controller.Value;
             if (controller == null || !controller.IsValid) return false;
-            var player = new CCSPlayerController(controller.Handle);
-            return player.IsValid && player.IsBot;
+            return CanApplyToPlayer(new CCSPlayerController(controller.Handle));
         }
         catch
         {
             return false;
         }
     }
+
+    private static bool HasReadyAttributeLists(CEconItemView item) =>
+        item.AttributeList.Handle != nint.Zero &&
+        item.NetworkedDynamicAttributes.Handle != nint.Zero;
 
     private void AssignItemId(CEconItemView item)
     {
@@ -592,9 +589,6 @@ public sealed class KnifeConfig
 
     [JsonPropertyName("apply_to_human_players")]
     public bool ApplyToHumanPlayers { get; set; } = true;
-
-    [JsonPropertyName("apply_to_dropped_knives")]
-    public bool ApplyToDroppedKnives { get; set; } = true;
 
     [JsonPropertyName("apply_on_pickup")]
     public bool ApplyOnPickup { get; set; } = true;

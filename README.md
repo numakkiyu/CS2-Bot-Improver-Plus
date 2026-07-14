@@ -6,7 +6,7 @@ CS2BotImproverPlus is a downstream distribution of
 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver). It retains the upstream bot systems and
 `game/csgo` installation layout while adding player cosmetic presets.
 
-Current version: **1.4.2**<br>
+Current version: **1.4.2.1**<br>
 
 ## Plus Features
 
@@ -50,9 +50,9 @@ The Panel writes the selected values to `player_knife_presets.json` and `player_
 
 ## Plus Installation (Windows)
 
-1. Download and extract `CS2BotImproverPlus-v1.4.2-windows.zip` from the
+1. Download and extract `CS2BotImproverPlus-v1.4.2.1-windows.zip` from the
    [Plus releases](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases).
-2. Keep `CS2BotImproverPlus v1.4.2.exe` in any convenient location.
+2. Keep `CS2BotImproverPlus v1.4.2.1.exe` in any convenient location.
 3. Copy `addons`, `cfg`, and `overrides` to the CS2 `game/csgo` directory.
 4. Open the Plus Panel and select the installed `game/csgo` directory if it is not detected automatically.
 5. Close CS2 before switching between **Enhanced Bots** and **Online Mode**.
@@ -82,7 +82,7 @@ The Panel writes the selected values to `player_knife_presets.json` and `player_
 
    (If you run a dedicated server that is not only for bot matches, please download **CS2BotImprover_rules_unchanged.zip**)
 
-2. Put **Panel v1.4.2.exe** anywhere convenient
+2. Put **Panel v1.4.2.1.exe** anywhere convenient
 
 <img width="128" height="128" alt="App" src="https://github.com/user-attachments/assets/7271dc7d-2436-484b-8359-6531f4abd710" />
 
@@ -94,7 +94,7 @@ The Panel writes the selected values to `player_knife_presets.json` and `player_
 
 <img width="540" height="181" alt="snap_windows" src="https://github.com/user-attachments/assets/6a8645fc-78e7-4f3a-92d3-5d1b6d913918" />
 
-4. Open **Panel v1.4.2.exe**, select **Bot Mode**, then click **Launch CS2** 
+4. Open **Panel v1.4.2.1.exe**, select **Bot Mode**, then click **Launch CS2**
 
 <img width="339" height="129" alt="Panel_1" src="https://github.com/user-attachments/assets/dc806991-c940-43cf-a614-f49012fae4a7" />
 

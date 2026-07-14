@@ -104,7 +104,7 @@ $upstreamPayload = $payloadCandidates |
     Select-Object -First 1
 if (-not $upstreamPayload) { throw "Could not locate the upstream game/csgo payload." }
 
-$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2-windows"
+$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2.1-windows"
 $payload = $releaseRoot
 Copy-Tree $upstreamPayload.FullName $releaseRoot
 Get-ChildItem -LiteralPath $releaseRoot -Filter "Panel*.exe" -File | Remove-Item -Force
@@ -216,7 +216,7 @@ if ($nativeHash -ne $manifest.botHider.windowsDllSha256.ToLowerInvariant()) {
 }
 
 $panelExe = Join-Path $repo "Panel\src-tauri\target\release\cs2-bot-improver-plus-panel.exe"
-Copy-Item -LiteralPath $panelExe -Destination (Join-Path $releaseRoot "CS2BotImproverPlus v1.4.2.exe") -Force
+Copy-Item -LiteralPath $panelExe -Destination (Join-Path $releaseRoot "CS2BotImproverPlus v1.4.2.1.exe") -Force
 $webViewLoader = Join-Path $repo "Panel\src-tauri\target\release\WebView2Loader.dll"
 if (Test-Path -LiteralPath $webViewLoader) {
     Copy-Item -LiteralPath $webViewLoader -Destination (Join-Path $releaseRoot "WebView2Loader.dll") -Force
@@ -229,7 +229,7 @@ Copy-Item -LiteralPath (Join-Path $repo "LICENSE") -Destination (Join-Path $rele
 if ($LASTEXITCODE -ne 0) { throw "Package verification failed." }
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
-$zip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2-windows.zip"
+$zip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2.1-windows.zip"
 if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
 Compress-Archive -Path $releaseRoot -DestinationPath $zip -CompressionLevel Optimal
 

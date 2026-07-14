@@ -3,13 +3,15 @@
 ## Base
 
 - Project: `ed0ard/CS2-Bot-Improver`
-- Base tag: `v1.4.1`
-- Base commit: `9fd1bd6a59668d8ba72243580130a39d1605fb1f`
-- Plus release line: `1.4.2`
+- Packaged runtime base: `v1.4.1`
+- Synced upstream source version: `1.4.2`
+- Synced upstream commit: `43c455c6f85bbb6ffe80f137a5e911cfe0c903f2`
+- Plus release line: `1.4.2.1`
 
-The repository stores source and configuration deltas. The Windows package script obtains the official v1.4.1
-layout, then overlays pinned engine-compatible runtimes and current source builds instead of committing generated or
-third-party binaries.
+The repository stores source and configuration deltas. Upstream has marked its Panel and source tree as 1.4.2 but has
+not published a v1.4.2 release archive. The Windows package script therefore obtains the last official v1.4.1 layout,
+then overlays the synced 1.4.2 sources, BotHider v0.3.0 data, pinned engine-compatible runtimes, and current Plus builds
+instead of committing generated or third-party binaries.
 
 ## Pinned Runtime Inputs
 

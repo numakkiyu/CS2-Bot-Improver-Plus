@@ -131,7 +131,6 @@ impl Default for GlovePreset {
 struct KnifeCustomizerConfig {
     enabled: bool,
     apply_to_human_players: bool,
-    apply_to_dropped_knives: bool,
     apply_on_pickup: bool,
     default_knife_defindex: u16,
     presets: BTreeMap<String, KnifePreset>,
@@ -145,7 +144,7 @@ struct KnifeCustomizerConfig {
 
 impl Default for KnifeCustomizerConfig {
     fn default() -> Self {
-        Self { enabled: false, apply_to_human_players: true, apply_to_dropped_knives: true,
+        Self { enabled: false, apply_to_human_players: true,
             apply_on_pickup: true, default_knife_defindex: 0, presets: BTreeMap::new(),
             gun_presets: BTreeMap::new(),
             music_kit_id: 0,
@@ -563,7 +562,6 @@ mod tests {
         let mut config = KnifeCustomizerConfig {
             enabled: true,
             apply_to_human_players: true,
-            apply_to_dropped_knives: true,
             apply_on_pickup: true,
             default_knife_defindex: 515,
             presets,
@@ -607,6 +605,7 @@ mod tests {
             "presets": {}
         }"#;
         let config: KnifeCustomizerConfig = serde_json::from_str(json).unwrap();
+        assert!(!serde_json::to_string(&config).unwrap().contains("apply_to_dropped_knives"));
         assert!(!config.glove.enabled);
         assert_eq!(config.glove.defindex, DEFAULT_GLOVE_DEFINDEX);
         assert_eq!(config.glove.paint, DEFAULT_GLOVE_PAINT);

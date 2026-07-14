@@ -640,7 +640,7 @@ dependencies = [
 
 [[package]]
 name = "cs2-bot-improver-plus-panel"
-version = "1.4.2"
+version = "1.4.2+1"
 dependencies = [
  "serde",
  "serde_json",

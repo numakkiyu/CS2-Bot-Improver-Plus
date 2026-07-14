@@ -6,7 +6,7 @@ CS2BotImproverPlus 是
 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver) 的下游发行版。项目保留上游的人机系统和
 `game/csgo` 安装目录结构，并添加玩家饰品预设
 
-当前版本：**1.4.2**<br>
+当前版本：**1.4.2.1**<br>
 
 ## Plus 功能
 
@@ -48,8 +48,8 @@ CS2BotImproverPlus 是
 ## Plus 安装（Windows）
 
 1. 从 [Plus Releases](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases) 下载并解压
-   `CS2BotImproverPlus-v1.4.2-windows.zip`。
-2. 将 `CS2BotImproverPlus v1.4.2.exe` 放在任意方便的位置。
+   `CS2BotImproverPlus-v1.4.2.1-windows.zip`。
+2. 将 `CS2BotImproverPlus v1.4.2.1.exe` 放在任意方便的位置。
 3. 将 `addons`、`cfg` 和 `overrides` 复制到 CS2 的 `game/csgo` 目录。
 4. 打开 Plus 面板；如果未自动识别安装目录，请手动选择 `game/csgo`。
 5. 在**增强人机**和**正常匹配**之间切换前必须先关闭 CS2。
@@ -78,7 +78,7 @@ CS2BotImproverPlus 是
 
    （如果运行的专用服务器不只用于人机对局，请下载 **CS2BotImprover_rules_unchanged.zip**）
 
-2. 将 **Panel v1.4.2.exe** 放在任意方便的位置
+2. 将 **Panel v1.4.2.1.exe** 放在任意方便的位置
 
 <img width="128" height="128" alt="App" src="https://github.com/user-attachments/assets/7271dc7d-2436-484b-8359-6531f4abd710" />
 
@@ -90,7 +90,7 @@ CS2BotImproverPlus 是
 
 <img width="540" height="181" alt="snap_windows" src="https://github.com/user-attachments/assets/6a8645fc-78e7-4f3a-92d3-5d1b6d913918" />
 
-4. 打开 **Panel v1.4.2.exe**，选择 **Bot Mode**，然后点击 **Launch CS2**
+4. 打开 **Panel v1.4.2.1.exe**，选择 **Bot Mode**，然后点击 **Launch CS2**
 
 <img width="339" height="129" alt="Panel_1" src="https://github.com/user-attachments/assets/dc806991-c940-43cf-a614-f49012fae4a7" />
 

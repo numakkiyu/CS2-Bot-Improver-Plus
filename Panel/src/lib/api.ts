@@ -135,7 +135,6 @@ export type GlovePreset = {
 export type KnifeCustomizerConfig = {
   enabled: boolean;
   apply_to_human_players: boolean;
-  apply_to_dropped_knives: boolean;
   apply_on_pickup: boolean;
   default_knife_defindex: number;
   presets: Record<string, KnifePreset>;
