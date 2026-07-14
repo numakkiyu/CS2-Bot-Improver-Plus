@@ -7,6 +7,7 @@
     },
     "comment": "destroys leftover bot controllers"
   },
+
   "CCSBotManager::MaintainBotQuota": {
     "signatures": {
       "library": "server",
