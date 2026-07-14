@@ -23,9 +23,15 @@ BOT MANAGEMENT
 bot_kick
 bot_kick t
 bot_kick ct
+bot_kick <bot name>
 bot_add
+bot_add <bot name>
 bot_add_t
 bot_add_ct
+bot_add_t <bot name>
+bot_add_ct <bot name>
+bot_randombuy 1
+bot_randombuy 0
 bot_quota
 mp_restartgame 1
 
@@ -279,7 +285,7 @@ fn57
 deagle
 cz75a
 r8
-bison
+bizon
 p90
 mp5sd
 mp9

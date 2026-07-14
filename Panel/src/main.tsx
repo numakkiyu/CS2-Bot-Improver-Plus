@@ -12,17 +12,15 @@ import { AppStateProvider } from "./state/store";
 import { applyGlassSupport } from "./lib/glass";
 import "./styles/global.css";
 
-// The UI is designed for a 460×720 logical-pixel viewport and scaled up to 125%
-// (zoom 1.25 → a 575×900 window). On smaller screens a full 900px-tall window is
-// clamped by the OS work area, which forced an internal scrollbar. So we fit the
-// window to the monitor: pick the largest zoom (≤1.25) whose window still fits the
-// available work area, size the window to exactly the scaled design (so the main
-// view never needs to scroll), and centre it. The design always lays out at
-// 460×720 regardless of zoom, so the content fits at any zoom we choose.
-const DESIGN_W = 460;
-const DESIGN_H = 720;
-const MAX_ZOOM = 1.25;
+// Desktop Plus layout: fixed logical canvas with a persistent left navigation
+// rail and a wide work area. Smaller displays scale the complete tool while
+// preserving the two-column information architecture.
+const DESIGN_W = 1300;
+const DESIGN_H = 800;
+const MAX_ZOOM = 1;
 const MIN_ZOOM = 0.7;
+const SCREEN_FILL = 0.88;
+const TASKBAR_RESERVE = 48;
 
 // The window is created hidden (visible:false). We size + centre it while still
 // hidden, then add the `app-ready` class (kicks off the liquid entrance) and
@@ -40,15 +38,22 @@ function reveal() {
 }
 
 async function fitWindowToScreen() {
+  const win = getCurrentWindow();
+  await win.setFullscreen(false).catch(() => {});
+  await win.unmaximize().catch(() => {});
+
   let zoom = MAX_ZOOM;
   try {
     const mon = await currentMonitor();
     if (mon) {
       const sf = mon.scaleFactor || 1;
-      // Logical work area, leaving room for the taskbar and a small margin.
-      const availH = mon.size.height / sf - 64;
-      const availW = mon.size.width / sf - 32;
-      zoom = Math.min(MAX_ZOOM, availH / DESIGN_H, availW / DESIGN_W);
+      const logicalW = mon.size.width / sf;
+      const logicalH = Math.max(0, mon.size.height / sf - TASKBAR_RESERVE);
+      // Preserve visible desktop margins even on high-DPI displays where the
+      // 1300 x 800 logical canvas would otherwise look almost maximized.
+      const targetW = logicalW * SCREEN_FILL;
+      const targetH = logicalH * SCREEN_FILL;
+      zoom = Math.min(MAX_ZOOM, targetH / DESIGN_H, targetW / DESIGN_W);
       zoom = Math.max(MIN_ZOOM, zoom);
     }
   } catch {
@@ -58,7 +63,6 @@ async function fitWindowToScreen() {
     .setZoom(zoom)
     .catch(() => {});
   try {
-    const win = getCurrentWindow();
     await win.setSize(
       new LogicalSize(Math.round(DESIGN_W * zoom), Math.round(DESIGN_H * zoom))
     );

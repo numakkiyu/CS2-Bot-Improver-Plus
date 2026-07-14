@@ -14,7 +14,7 @@ const ITEMS: { key: BotItemKey; labelKey: I18nKey }[] = [
   { key: "music", labelKey: "bi.music" },
 ];
 
-export default function BotItemsPanel({ onBack }: { onBack: () => void }) {
+export default function BotItemsPanel({ onBack }: { onBack?: () => void }) {
   const { botItems, csgoPath, applyBotItem, botItemsPending } = useStore();
   const t = useT();
 
@@ -36,26 +36,28 @@ export default function BotItemsPanel({ onBack }: { onBack: () => void }) {
   return (
     <SubPage title={t("bi.title")} onBack={onBack} status={headStatus}>
       <Card>
-        {ITEMS.map(({ key, labelKey }) => {
-          const on = (botItems?.[key] as boolean | undefined) ?? false;
-          const tone: Tone = !cfgPresent
-            ? "red"
-            : itemYellow(key)
-            ? "yellow"
-            : "green";
-          return (
-            <div className="botitem" key={key}>
-              <span className="botitem__label">{t(labelKey)}</span>
-              <Toggle
-                ariaLabel={t(labelKey)}
-                checked={on}
-                tone={tone}
-                disabled={!csgoPath || !cfgPresent}
-                onChange={(next) => applyBotItem(key, next)}
-              />
-            </div>
-          );
-        })}
+        <div className="botitems-grid">
+          {ITEMS.map(({ key, labelKey }) => {
+            const on = (botItems?.[key] as boolean | undefined) ?? false;
+            const tone: Tone = !cfgPresent
+              ? "red"
+              : itemYellow(key)
+              ? "yellow"
+              : "green";
+            return (
+              <div className="botitem" key={key}>
+                <span className="botitem__label">{t(labelKey)}</span>
+                <Toggle
+                  ariaLabel={t(labelKey)}
+                  checked={on}
+                  tone={tone}
+                  disabled={!csgoPath || !cfgPresent}
+                  onChange={(next) => applyBotItem(key, next)}
+                />
+              </div>
+            );
+          })}
+        </div>
       </Card>
     </SubPage>
   );

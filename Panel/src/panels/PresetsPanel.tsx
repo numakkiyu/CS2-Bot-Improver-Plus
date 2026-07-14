@@ -1,12 +1,12 @@
 import Section from "../components/Section";
 import Segmented from "../components/Segmented";
 import SubPage from "../components/SubPage";
-import TeamsSection from "./TeamsSection";
 import DropKnivesSection from "./DropKnivesSection";
 import { useStore } from "../state/store";
 import { useT } from "../i18n";
 import type { AimValue, NadesValue } from "../lib/api";
 import type { Status } from "../components/StatusDot";
+import "./PresetsPanel.css";
 
 const AIM: { value: AimValue; label: string }[] = [
   { value: "head", label: "Head" },
@@ -20,7 +20,7 @@ const NADES: { value: NadesValue; label: string }[] = [
   { value: "off", label: "Off" },
 ];
 
-export default function PresetsPanel({ onBack }: { onBack: () => void }) {
+export default function PresetsPanel({ onBack }: { onBack?: () => void }) {
   const { presets, config, csgoPath, applyAim, applyNades, aimPending, nadesPending } =
     useStore();
   const t = useT();
@@ -47,35 +47,33 @@ export default function PresetsPanel({ onBack }: { onBack: () => void }) {
 
   return (
     <SubPage title={t("pre.title")} onBack={onBack}>
-      <Section title={t("pre.aim")} status={statusFor(aimPending)}>
-        <Segmented
-          layout="stack"
-          ariaLabel="Aim"
-          value={aim}
-          onChange={(v) => applyAim(v)}
-          disabled={disabled}
-          options={AIM.map((o) => ({
-            ...o,
-            tone: o.value === aim ? toneFor(aimPending) : undefined,
-          }))}
-        />
-      </Section>
+      <div className="presets__controls">
+        <Section title={t("pre.aim")} status={statusFor(aimPending)}>
+          <Segmented
+            ariaLabel="Aim"
+            value={aim}
+            onChange={(v) => applyAim(v)}
+            disabled={disabled}
+            options={AIM.map((o) => ({
+              ...o,
+              tone: o.value === aim ? toneFor(aimPending) : undefined,
+            }))}
+          />
+        </Section>
 
-      <Section title={t("pre.nades")} status={statusFor(nadesPending)}>
-        <Segmented
-          layout="stack"
-          ariaLabel="Nades"
-          value={nades}
-          onChange={(v) => applyNades(v)}
-          disabled={disabled}
-          options={NADES.map((o) => ({
-            ...o,
-            tone: o.value === nades ? toneFor(nadesPending) : undefined,
-          }))}
-        />
-      </Section>
-
-      <TeamsSection />
+        <Section title={t("pre.nades")} status={statusFor(nadesPending)}>
+          <Segmented
+            ariaLabel="Nades"
+            value={nades}
+            onChange={(v) => applyNades(v)}
+            disabled={disabled}
+            options={NADES.map((o) => ({
+              ...o,
+              tone: o.value === nades ? toneFor(nadesPending) : undefined,
+            }))}
+          />
+        </Section>
+      </div>
       <DropKnivesSection />
     </SubPage>
   );

@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -13,20 +13,20 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="CounterStrikeSharp.API" Version="1.0.368">
+    <PackageReference Include="CounterStrikeSharp.API" Version="1.0.371">
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
     <PackageReference Include="Lib.Harmony" Version="2.4.2" GeneratePathProperty="true">
       <Private>false</Private>
     </PackageReference>
-    <ProjectReference Include="..\BotHiderApi\BotHiderApi.csproj">
+    <ProjectReference Include="..\..\shared\BotHiderApi\BotHiderApi.csproj">
       <Private>false</Private>
     </ProjectReference>
   </ItemGroup>
 
   <Target Name="CopyHarmony" AfterTargets="Build;Publish">
-    <Copy SourceFiles="$(PkgLib_Harmony)\lib\net8.0\0Harmony.dll"
+    <Copy SourceFiles="$(PkgLib_Harmony)\lib\net10.0\0Harmony.dll"
           DestinationFolder="$(OutDir)shared\0Harmony"
           SkipUnchangedFiles="true" />
   </Target>

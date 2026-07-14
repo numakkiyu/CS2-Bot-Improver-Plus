@@ -10,6 +10,18 @@
   color: var(--text-secondary);
 }
 
+.errm__detail {
+  max-height: 120px;
+  margin: -4px 0 14px;
+  overflow: auto;
+  color: var(--text-secondary);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .errm__code {
   display: inline-flex;
   align-items: center;

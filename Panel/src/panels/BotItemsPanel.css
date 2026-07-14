@@ -1,9 +1,25 @@
+.botitems-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .botitem {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 2px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r-md);
+  background: var(--panel-muted);
+}
+
+@media (max-width: 760px) {
+  .botitems-grid {
+    grid-template-columns: 1fr;
+  }
 }
 .botitem__label {
   font-size: 15px;

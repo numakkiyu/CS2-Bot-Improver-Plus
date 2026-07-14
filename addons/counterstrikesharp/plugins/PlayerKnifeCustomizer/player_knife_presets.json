@@ -1,0 +1,18 @@
+{
+  "enabled": false,
+  "apply_to_human_players": true,
+  "apply_to_dropped_knives": true,
+  "apply_on_pickup": true,
+  "default_knife_defindex": 515,
+  "music_kit_id": 0,
+  "presets": {
+    "515": {
+      "paint": 568,
+      "seed": 0,
+      "wear": 0.01,
+      "name_tag": "",
+      "stattrak_enabled": false,
+      "stattrak_count": 0
+    }
+  }
+}

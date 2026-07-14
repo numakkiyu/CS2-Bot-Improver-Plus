@@ -1,0 +1,608 @@
+[
+  {
+    "def_index": 1,
+    "name_en": "Valve, Counter-Strike 2",
+    "name_zh": "Valve，反恐精英",
+    "image": "https://cdn.steamstatic.com/apps/730/icons/econ/music_kits/valve_cs2_01.6958879a95853a86e8fbaebc9efe4518712cb3f9.png"
+  },
+  {
+    "def_index": 2,
+    "name_en": "Valve, CS:GO",
+    "name_zh": "Valve，反恐精英：全球攻势",
+    "image": "https://cdn.steamstatic.com/apps/730/icons/econ/music_kits/valve_02.731a1c0b47d69a7d7deb5fbfdd04d74bf3378f9c.png"
+  },
+  {
+    "def_index": 3,
+    "name_en": "Music Kit | Daniel Sadowski, Crimson Assault",
+    "name_zh": "音乐盒 | Daniel Sadowski - 深红突击",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMXqZ7FN554bw5U70ShTOzseu_HBZ6aurOvI5cPWSXGOSw-gjtLE4GHCxwktx6jjVw4msJHzGaQIgAowwG7B47VZqDQ"
+  },
+  {
+    "def_index": 4,
+    "name_en": "Music Kit | Noisia, Sharpened",
+    "name_zh": "音乐盒 | Noisia - 尖峰时刻",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuO3Se9l90y9elpF_iFE-knZW1-HACuqD7P_Q1JqSXDTfHwr536bk_TnjixU1w5jvSw9m3MSXAtbhIJfc"
+  },
+  {
+    "def_index": 5,
+    "name_en": "Music Kit | Robert Allaire, Insurgency",
+    "name_zh": "音乐盒 | Robert Allaire - 叛乱",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJ3SV4ERh9Yv461D1RCKhz9i2rCNa6fb8P_U8JqWVWmaUk7gm47g5SXznwxsismrXntqueHmeZwYgFNIuEkQzDnuI"
+  },
+  {
+    "def_index": 6,
+    "name_en": "Music Kit | Sean Murray, A*D*8",
+    "name_zh": "音乐盒 | Sean Murray - A*D*8",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJn6W61tg5pX182a3EFOkm87k-HUI7PCvMac1d6XDVjLDlrxw5bNvGHmwlx50523Rn9n9IiiWcEZ-XdLc0038"
+  },
+  {
+    "def_index": 7,
+    "name_en": "Music Kit | Feed Me, High Noon",
+    "name_zh": "音乐盒 | Feed Me - 如日中天",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuM36S4Vtwy9elpAHhQhunysPlriAI7aD5PfBvJKmQWjDIxb8j57drHXmwl04k4mWDm9m3MSXA9LcoLxM"
+  },
+  {
+    "def_index": 8,
+    "name_en": "Music Kit | Dren, Death's Head Demolition",
+    "name_zh": "音乐盒 | Dren - 骷髅爆破",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMWmS62klpcny6Qu2Fkj3n8S4pCBftqv7O6BuI6eXWGTGlrx357RtFiznxxtx42TW1J_3JonMHxrk"
+  },
+  {
+    "def_index": 9,
+    "name_en": "Music Kit | Austin Wintory, Desert Fire",
+    "name_zh": "音乐盒 | Austin Wintory - 沙漠之焰",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuNG6E8V974476_lb1WCKhz9i1-HFZ6qWqP6ZpcvXCXDSUlrgv5rhsGC3iwkt25GjRz9epdSqRPQByFNIuEoOD6xBW"
+  },
+  {
+    "def_index": 10,
+    "name_en": "Music Kit | Sasha, LNOE",
+    "name_zh": "音乐盒 | Sasha - 地球末夜",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJnqE7VdKpNa6sljjEB6jn5Pi-XMMt_aoO6BrJqDKDTOWkLcmsrY5GX23wUsj4mnXn8HpLyzD8oHEQA"
+  },
+  {
+    "def_index": 11,
+    "name_en": "Music Kit | Skog, Metal",
+    "name_zh": "音乐盒 | Skog - 金属",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJnCY4mklpcmgsg--QhmlzMGw_3QOvqH7baJrd6WXXzXBkb8ktOM5Fn2xlxtz6mrW1J_3JjSDCT4B"
+  },
+  {
+    "def_index": 12,
+    "name_en": "Music Kit | Midnight Riders, All I Want for Christmas",
+    "name_zh": "音乐盒 | Midnight Riders - 圣诞之欲",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuOHKT619y_JPm413iUw7Ozseur3Ba66v6avw9IaDGVmaUku104bI-HC-wk00h5WSAzNahcn-ebwEmD4wwG7Dv5VTfwA"
+  },
+  {
+    "def_index": 13,
+    "name_en": "Music Kit | Matt Lange, IsoRhythm",
+    "name_zh": "音乐盒 | Matt Lange - 同型节奏",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuOHqD8Vp0-oDx1Qm2DxykzcSx-3Bf7auobPw5I6nACzTIlesk6OU_H33rwkVz6mzWm4mhciqJLlh3-4p3w34"
+  },
+  {
+    "def_index": 14,
+    "name_en": "Music Kit | Mateo Messina, For No Mankind",
+    "name_zh": "音乐盒 | Mateo Messina - 无人之境",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuOHqD4Fl48ZTn41fmfk2g0M-0-HUDuPD9bPY_d6jHX2KRlu8ls-U9Fy21l0R24mzWy46oIymWO1A-SswnqhmYKNo"
+  },
+  {
+    "def_index": 15,
+    "name_en": "Music Kit | Various Artists, Hotline Miami",
+    "name_zh": "音乐盒 | 多名作曲家 - 迈阿密热线",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPXSD6V978Yr961Tufk2g0JLmpXsLt6T8OfxsJPOSCDfAw7Ygs-dvSS_kzUx-4jvXnNr7IimSbgY-SswntCV3CPU"
+  },
+  {
+    "def_index": 16,
+    "name_en": "Music Kit | Daniel Sadowski, Total Domination",
+    "name_zh": "音乐盒 | Daniel Sadowski - 绝对统御",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMXqZ7FN554bw5U70ShTOzsSuqCMJuqKrbvRseaKQDGLAluwntuU8S3vllBsj4juBm9qrJXqXO1MoXowwG7D37VA97g"
+  },
+  {
+    "def_index": 17,
+    "name_en": "Music Kit | Damjan Mravunac, The Talos Principle",
+    "name_zh": "音乐盒 | Damjan Mravunac - 塔罗斯的法则",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMXqa71d7-ZX1_EzpQB7OzseuqHED7aT2bvY7JPGXCmOVku0u4-c_TiznwRki6mTRzY77di6fPQR0CowwG7A3iRcaNw"
+  },
+  {
+    "def_index": 18,
+    "name_en": "Music Kit | Proxy, Battlepack",
+    "name_zh": "音乐盒 | Proxy - 万夫莫敌包",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJWmY_U9KpNa6uwuwGEv0zs_m-3YM7KOqbPY4d6XEDWGWkbkg4eNvGCvrzU0jtT_WmMHpLyx6Oq1mFg"
+  },
+  {
+    "def_index": 19,
+    "name_en": "Music Kit | Ki:Theory, MOLOTOV",
+    "name_zh": "音乐盒 | Ki:Theory - 莫洛托夫烈火",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPnKD7VN65p7LugipEU30x8Hi-ScPv6D7Mfw6c_SVCzLCx-hz6LEwTHmyxUhz4mWBy97_J2XXMFElSD7z3A"
+  },
+  {
+    "def_index": 20,
+    "name_en": "Music Kit | Troels Folmann, Uber Blasto Phone",
+    "name_zh": "音乐盒 | Troels Folmann - 超爆话筒",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuIWmY4Fpm8oj451jpTyKhz9i2ryEKtvf_bvBoJKOQXTeVwrwl6OU5F3G3kR534GvTzd78dHyTZwEiFNIuEg48vcSn"
+  },
+  {
+    "def_index": 21,
+    "name_en": "Music Kit | Kelly Bailey, Hazardous Environments",
+    "name_zh": "音乐盒 | Kelly Bailey - 有害物质环境",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPn6b6U939Y7470DYEUy_y5C2r3IIvvCsav1pdqjGV2OSk-gntrloGn7mlEsjsDnUytigInKVZhhgVMWDIHfBEw"
+  },
+  {
+    "def_index": 22,
+    "name_en": "Music Kit | Skog, II-Headshot",
+    "name_zh": "音乐盒 | Skog - II-爆头",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJnCY4mklpsnx71u-RRnzzcKw-3pav_D7O_RvcKnECDGRlugl5-JtFnvhxk5ztWjW1J_3JggDF25u"
+  },
+  {
+    "def_index": 23,
+    "name_en": "Music Kit | Daniel Sadowski, The 8-Bit Kit",
+    "name_zh": "音乐盒 | Daniel Sadowski - 8 位音乐盒",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMXqZ7FN554bw5U70ShTOzsWur3FduaX-bvw7JKPDXD7Alusn6bc8GHHjlxt3tT7Uztr4I3iUagQjD4wwG7CloiQLEg"
+  },
+  {
+    "def_index": 24,
+    "name_en": "Music Kit | AWOLNATION, I Am",
+    "name_zh": "音乐盒 | AWOLNATION - 就是我",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuNGyY6Vh04I775Ga3EFOjmJDjrHQOv_OsbKFseaDKVzLHk70hsbc4GSvrlEVytWWGm9mhdy6TcEZ-XZaQ4-De"
+  },
+  {
+    "def_index": 25,
+    "name_en": "Music Kit | Mord Fustang, Diamonds",
+    "name_zh": "音乐盒 | Mord Fustang - 永恒之钻",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuOHSF4VBg55P15F7YEUy_z8_irHdetqqtOfw-JaSQCDbBx74gteQwS3zqlEV-4zncy9qociqfPBhgVMVYMXeUSA"
+  },
+  {
+    "def_index": 26,
+    "name_en": "Music Kit | Michael Bross, Invasion!",
+    "name_zh": "音乐盒 | Michael Bross - 大举入侵！",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuOHKU7Vdw-IXm5Ur0fk2g0Jfk-yQI7ParafU9IvOSVzORmLwm4rRqTHi1kU1y4T_Qm92qc3zGZlI-SswnxR50Dnw"
+  },
+  {
+    "def_index": 27,
+    "name_en": "Music Kit | Ian Hultquist, Lion's Mouth",
+    "name_zh": "音乐盒 | Ian Hultquist - 雄狮之口",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPHqZ7UN54Jbh40rzfk2g0MWxqHVduKT_bfw5d_KSWjXIw-xw6LNvTS-ywht35D7Sw934dC-RbAA-SswnHSbFbTg"
+  },
+  {
+    "def_index": 28,
+    "name_en": "Music Kit | New Beat Fund, Sponge Fingerz",
+    "name_zh": "音乐盒 | New Beat Fund - 海绵手指",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuO36A51N04IHh5F3YEUy_mMGxrCBY66L9P6c9I_OQXzXBw71ztrVtHy3nwB9w5WnTmI6qIijEOxhgVMW0Zuhv-w"
+  },
+  {
+    "def_index": 29,
+    "name_en": "Music Kit | Beartooth, Disgusting",
+    "name_zh": "音乐盒 | Beartooth - 令人发指",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuN36W90J6-5P81Qm2D0ryxsS3ryMKu_P6P_08dvOWDDOSlLd0s7AxTXi1xxl3427TmNqsc3iJLlh34_7J-SA"
+  },
+  {
+    "def_index": 30,
+    "name_en": "Music Kit | Lennie Moore, Java Havana Funkaloo",
+    "name_zh": "音乐盒 | Lennie Moore - 爪哇哈瓦那放克乐",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuOX6Z619w-Yj7-FzYEUy_xsPl-yFevKGsbvFpc6DHWzWRmesu5OQ9Tnzmlkp_sGSHztuudn7DbRhgVMXA6cDp0w"
+  },
+  {
+    "def_index": 31,
+    "name_en": "Music Kit | Darude, Moments CS:GO",
+    "name_zh": "音乐盒 | Darude - CSGO 精彩时刻",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMXqF8FJwy9elpA7kGE_wy8awr3ULvKL_aaY7eKjACDGRkLoitrQwTCrhzUhw4mjXy4u3MSXAdefS6m8"
+  },
+  {
+    "def_index": 32,
+    "name_en": "StatTrak™ Music Kit | Beartooth, Aggressive",
+    "name_zh": "StatTrak™ 音乐盒 | Beartooth - 咄咄逼人",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuN36W90J6-5P81Qm1D0v0ncXjpHcDuqT5OfY1JKnHWjLFx7l147U8Fivhxxwj4W3Ty46ocyiJLlh39UDB3WA"
+  },
+  {
+    "def_index": 33,
+    "name_en": "StatTrak™ Music Kit | Blitz Kids, The Good Youth",
+    "name_zh": "StatTrak™ 音乐盒 | Blitz Kids - 有为青年",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuN3ee8Ux-_YPn1Qm2D0j3zsK4rXYNt_T5avA7IajAVmWSlrgntOdtSSjjwkV_52vcn9z8cHyJLlh3QAIUPxY"
+  },
+  {
+    "def_index": 34,
+    "name_en": "StatTrak™ Music Kit | Hundredth, FREE",
+    "name_zh": "StatTrak™ 音乐盒 | Hundredth - 冲破藩篱",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPW6Z4URw8JP81Qm2DxunzsWypXcL7qD4bf1vcfaXDT6Vmbol5eA8GH3hzU8l4WrSw92udXyJLlh3C_9f1qc"
+  },
+  {
+    "def_index": 35,
+    "name_en": "StatTrak™ Music Kit | Neck Deep, Life's Not Out To Get You",
+    "name_zh": "StatTrak™ 音乐盒 | Neck Deep - 人生何处不青山",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuO36U7lJw8ZfLugipR0_zzMCzqHsMvKSoOvI-I6XCV2GSlOxwtuNoSXzqxR5ysD-BmYuodmXXMFGQ36ERJg"
+  },
+  {
+    "def_index": 36,
+    "name_en": "StatTrak™ Music Kit | Roam, Backbone",
+    "name_zh": "StatTrak™ 音乐盒 | Roam - 决心",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJ3SW6Gklpcnw7wC2GEujx5Cx-SQMuqSqOv01JKjCDWOSk7pz5rQxSiiwk0p36m2G1J_3JhtobOCh"
+  },
+  {
+    "def_index": 37,
+    "name_en": "StatTrak™ Music Kit | Twin Atlantic, GLA",
+    "name_zh": "StatTrak™ 音乐盒 | Twin Atlantic - GLA",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuIWye61dh-Ib6_lDkfk2g0Jez-HQLuqT3bPQ4cqfBXzXHlLci4-M-SSjjlEhx4DjQw4v9cy2WbgM-SswnmggWEWw"
+  },
+  {
+    "def_index": 38,
+    "name_en": "StatTrak™ Music Kit | Skog, III-Arena",
+    "name_zh": "StatTrak™ 音乐盒 | Skog - III-竞技场",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJnCY4mklp8mm6w_lF0j3m8S0qXFY66D5PPU5I6iWDzPIl78is7VrFnrrwx505GqE1J_3JpXwBPe8"
+  },
+  {
+    "def_index": 39,
+    "name_en": "Music Kit | The Verkkars, EZ4ENCE",
+    "name_zh": "音乐盒 | The Verkkars - EZ4ENCE",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuIXOS81Nn_4z1-ErYEUy_ncG2pHQC66qtOfBsefHEWmTHkOgmtLRsSSq2w0ly4DvSmNipIy2TbRhgVMXK454YZg"
+  },
+  {
+    "def_index": 40,
+    "name_en": "Halo, The Master Chief Collection",
+    "name_zh": "《光环：士官长合集》",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPXqb6mklpcn1vgC-FE_3ypOwqHsDuKOtOPFrdvTLXD6Wl-gk6eA4Tnuwlh8jtz7X1J_3JlK1Y0Yt"
+  },
+  {
+    "def_index": 41,
+    "name_en": "Music Kit | Scarlxrd: King, Scar",
+    "name_zh": "音乐盒 | Scarlxrd - 疤王",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJniW91pt5oPLugipR0z1m5fl-XUI7KP9OvY7cPPLXTLEkLcusuI7SXvgkER06j_Uydb7cmXXMFHBwRoo_g"
+  },
+  {
+    "def_index": 42,
+    "name_en": "Half-Life: Alyx, Anti-Citizen",
+    "name_zh": "《半衰期：爱莉克斯》，反叛者",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPXeW6U9ty9elpA--FBihnMa3-3EMtqr-PvE9JKTDVmGUkrwg4LY6GC21zU9yt2yDw963MSXAJjr9su4"
+  },
+  {
+    "def_index": 43,
+    "name_en": "Music Kit | Austin Wintory, Bachram",
+    "name_zh": "音乐盒 | Austin Wintory - 巴克拉姆",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuNG6E8V974476_lb1WCKhzNjjpSRZuKr3bqVveKjGVjGUl7d04uNqF3vhxk51smqEwtn4JymfbVN0FNIuEmZnQsKn"
+  },
+  {
+    "def_index": 44,
+    "name_en": "Music Kit | Dren, Gunman Taco Truck",
+    "name_zh": "音乐盒 | Dren - 枪手的卷饼卡车",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMWmS62klpsmiuQ-zFh7ympPlrXQCvaf7bvU0dajKCjCTxLxy5eM-SyzmzEwmsmuH1J_3JsSHwbhj"
+  },
+  {
+    "def_index": 45,
+    "name_en": "Music Kit | Daniel Sadowski, Eye of the Dragon",
+    "name_zh": "音乐盒 | Daniel Sadowski - 巨龙之眼",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMXqZ7FN554bw5U70ShTOzsKuqyBevaD_PvY_cqnBC2aSx-sitOA9Hy3iw0shsmrQm9n9cS_EO1UlD4wwG7C42cYiFA"
+  },
+  {
+    "def_index": 46,
+    "name_en": "Music Kit | Tree Adams and Ben Bromfield, M.U.D.D. FORCE",
+    "name_zh": "音乐盒 | Tree Adams 和 Ben Bromfield - M.U.D.D. 军团",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuIWmS4Fdx9Yrn1VviTx_jkZvm9CdX683-Oeo9ePOSVj-Tmegg5bFrGnvnk0p36jzWn938cX7CbQcmCpd3TOANs0O7jJS5YPSqCPlw"
+  },
+  {
+    "def_index": 47,
+    "name_en": "Music Kit | Tim Huling, Neo Noir",
+    "name_zh": "音乐盒 | Tim Huling - 新黑色电影",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuIXKa7UN5_Ynz1Qm2D0igxpfhqyAPufGra_RpeKDKCzaVmLYi4LU4TH_lkxl34zvXyI2pcX6JLlh3SgiXjNY"
+  },
+  {
+    "def_index": 48,
+    "name_en": "Music Kit | Sam Marshall, Bodacious",
+    "name_zh": "音乐盒 | Sam Marshall - 大胆尝试",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJnqa6Fdn54_15lXYEUy_zsPh-SEJtqCvbvBsIvOVCzGTxbh04uU-GSjlxU93sj_dyt6rcyrDPxhgVMX0GDfl6g"
+  },
+  {
+    "def_index": 49,
+    "name_en": "Music Kit | Matt Levine, Drifter",
+    "name_zh": "音乐盒 | Matt Levine - 漂泊者",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuOHqD8Vpw4o7672a3EFOoycLiqXcL6qT-PvE5d_HCXT-VkLt35bU5GnDkxEtzsT6Bzd_4eS6fcEZ-XQTUt-o7"
+  },
+  {
+    "def_index": 50,
+    "name_en": "Music Kit | Amon Tobin, All for Dust",
+    "name_zh": "音乐盒 | Amon Tobin - 尘归尘",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuNHaY60J69o761Qm2D0_ymMLmpSACt_P_OfVrI6jHWTLHl-x05uAxSSyxxk5x5zzXmYn4cCmJLlh3qmNAx_w"
+  },
+  {
+    "def_index": 51,
+    "name_en": "Darren Korb, Hades Music Kit",
+    "name_zh": "Darren Korb，黑帝斯音乐盒",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPXqT4EVKpNa6vgi0EkugzcO2q3Nfu6D8OPc0JvXEXjeVkexw5OIxHn7lzUVx4mTRn8HpLyy5vFaXRw"
+  },
+  {
+    "def_index": 52,
+    "name_en": "Music Kit | Neck Deep, The Lowlife Pack",
+    "name_zh": "音乐盒 | Neck Deep - 躺平青年",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuO36U7lJw8ZfLugupRU2hm8W4_3AP66etafY1dfaXXTPEkL93tuI6GyvrwkkmsWXVmYuoI2XXMFG1wALONw"
+  },
+  {
+    "def_index": 53,
+    "name_en": "Music Kit | Scarlxrd, CHAIN$AW.LXADXUT.",
+    "name_zh": "音乐盒 | Scarlxrd - 电锯·追命",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJniW91pt5oPLugupGBmnzcbkqCEPtqr6Oac-damWWGOVx750s7NsGyzhwR9x4T_XnN2qcmXXMFFfP0kuIw"
+  },
+  {
+    "def_index": 54,
+    "name_en": "Music Kit | Austin Wintory, Mocha Petal",
+    "name_zh": "音乐盒 | Austin Wintory - 咖啡拉花",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuNG6E8V974476_lb1WCKhzdixpSQNvaP9avU8JfOQCmXBk7wl57Q9GCjkzR51sD_Syon7dH_DZgQpFNIuEpzXvuPa"
+  },
+  {
+    "def_index": 55,
+    "name_en": "Music Kit | Chipzel, ~Yellow Magic~",
+    "name_zh": "音乐盒 | Chipzel - 黄色魔法",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuNnOe9Uxw-LikuxeyR0n1x5C1_HYPv_P3avI7eKDEDDSRkO135LFrSSzlxB8jtz7Rwtz6bzvJOed42IOv"
+  },
+  {
+    "def_index": 56,
+    "name_en": "Music Kit | Freaky DNA, Vici",
+    "name_zh": "音乐盒 | Freaky DNA - 征服",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuM2mS5F1s8In11Qm2D0Snn5DhqXII6aevMaE9cqPHXj-VmbYi6bc6GXDgw0wl5zvQz9j_dX-JLlh3U7PBHho"
+  },
+  {
+    "def_index": 57,
+    "name_en": "Music Kit | Jesse Harlin, Astro Bellum",
+    "name_zh": "音乐盒 | Jesse Harlin - 战火星空",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuP36E9lN99ZX441fYEUy_xsC5pSMIvfGqbaZvJfXCWDXClO0k47BrTi3ml0l14W_QzI6tJS3CbBhgVMVNIuoA8w"
+  },
+  {
+    "def_index": 58,
+    "name_en": "Music Kit | Laura Shigihara: Work Hard, Play Hard",
+    "name_zh": "音乐盒 | Laura Shigihara - 好好干，好好活",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuOXqC91dm_I7z41HmUxzOzseuqyFY66CqOf09dKXAXjDHkr8n5eNoF3Gwxx4lsW7dw4uqJSqTaFJ2CYwwG7C58tQJhA"
+  },
+  {
+    "def_index": 59,
+    "name_en": "Music Kit | Sarah Schachner, KOLIBRI",
+    "name_zh": "音乐盒 | Sarah Schachner - 蜂鸟",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJnqF5F5m94_16VHpRA_OzseuqCMO7feoO_Q9IaTHCD-WlLp0sbJtF3jkx0lysD_WyImvdy-WPQ4lXIwwG7Cq-4RO3A"
+  },
+  {
+    "def_index": 60,
+    "name_en": "Music Kit | bbno$, u mad!",
+    "name_zh": "音乐盒 | bbno$ - 你急了！",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuN3mZ6kVKpNa6vgjlRByknJOw-CEK7KP_bPZrefPGVmSTk7py4bY8Tivlx0Vw4z_SzsHpLyyu3lGzoA"
+  },
+  {
+    "def_index": 61,
+    "name_en": "Music Kit | The Verkkars & n0thing, Flashbang Dance",
+    "name_zh": "音乐盒 | The Verkkars & n0thing - 闪光舞",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuIXOS81Nn_4z1-ErYEU-_zcS5rXEP7KT2PvU_JaiVXjeWkegn6OQ7Hy3klEVztWqByI2veX2VaRhgVMWDR-PWmQ"
+  },
+  {
+    "def_index": 62,
+    "name_en": "Music Kit | 3kliksphilip, Heading for the Source",
+    "name_zh": "音乐盒 | 3kliksphilip - 追溯起源",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuZnCb7F1m5I_95lD3fk2g0MW3q3IKvqr4P6BsJPHHXjeSkLl147Q-GH3rkU5z5z7UztaoIHmfZgc-SswnBcYXqSs"
+  },
+  {
+    "def_index": 63,
+    "name_en": "Music Kit | Humanity's Last Breath, Void",
+    "name_zh": "音乐盒 | Humanity's Last Breath - 虚空",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPXeV2gYkutf2ugHjR0T1yc7ir3EL6aD4av1od_WRWmHIxe134bBvHXDrl053tjvLioH-59nm0rc"
+  },
+  {
+    "def_index": 64,
+    "name_en": "Music Kit | Juelz, Shooters",
+    "name_zh": "音乐盒 | Juelz - 神枪手",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuP26S6UxKpNa6ul2yGE3zzZLkqyEOt_asafQ4dPWWXjeWlLx36LA_GnDlwx8isW7UysHpLyxdw4RVEg"
+  },
+  {
+    "def_index": 65,
+    "name_en": "Music Kit | Knock2, dashstar*",
+    "name_zh": "音乐盒 | Knock2 - 冲击星*",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPnWY5l0ny9elpFuwQhugx8G0qXVavqT_avw_I6HCDT-Vk-oi5rFtGnjjkBxy6zyGmNu3MSXAuEzdSoI"
+  },
+  {
+    "def_index": 66,
+    "name_en": "Music Kit | Meechy Darko, Gothic Luxury",
+    "name_zh": "音乐盒 | Meechy Darko - 哥特浮华",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuOH6S5l5s8Ibm4VbYEUy_y5Li-HsC6fT2afZoJqnKXDWUmbp3s7c4TSyxzB4j5WXQzduvI3OfaBhgVMWCMDEthw"
+  },
+  {
+    "def_index": 67,
+    "name_en": "Music Kit | Sullivan King, Lock Me Up",
+    "name_zh": "音乐盒 | Sullivan King - 困兽",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJm6b6V9j9Yn_41fgfk2g0MG3rXUMvfH3OKc8IfOVXTPJxbwgs-BqTSuykUwm6mvTm9erdHmTbVU-SswnLnCCc2g"
+  },
+  {
+    "def_index": 68,
+    "name_en": "Music Kit | Perfect World, 花脸 Hua Lian (Painted Face)",
+    "name_zh": "音乐盒 | 完美世界 - 花脸",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJX6F41N24JD7-FXjfk2g0MLlqScOt6L7PPxrdfTLX2HDkbgi4OM7TX2wkRsm6j-Ewor8InueOwY-Sswnc1NbBcg"
+  },
+  {
+    "def_index": 69,
+    "name_en": "Music Kit | Denzel Curry, ULTIMATE",
+    "name_zh": "音乐盒 | Denzel Curry - 终极",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMX6Z_1N595Lm-EDYEUy_ncCzrXpZ6qf_avA9I6bADTeRxep05bA7SS-1wBl1sGTSy9z4Ii7EPxhgVMXpTAlXoQ"
+  },
+  {
+    "def_index": 70,
+    "name_en": "Valve, CS:GO",
+    "name_zh": "Valve，反恐精英：全球攻势",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuI3qb81NKpNa66wu1Qx-mm8Kx-CYC6aD2bv0-IfPFWGHIkegh5LY4GXzlxU905W7UwsHpLywWgep6oQ"
+  },
+  {
+    "def_index": 71,
+    "name_en": "Music Kit | DRYDEN, Feel The Power",
+    "name_zh": "音乐盒 | DRYDEN - 触摸能量",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMWmO4VN7y9elpAiyEUynyZSwrSMOu6v-MaI8cqjCDzXIluwmtLRtHy2wzB4mtzuDyNi3MSXAPV825k0"
+  },
+  {
+    "def_index": 72,
+    "name_en": "Music Kit | ISOxo, inhuman",
+    "name_zh": "音乐盒 | ISOxo - 非人类",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPGiY_VlKpNa671zmERmmy5Pi_3YMtqr5aqBpJaXFWGSRlL916LUxGS3nwBwk52TUz8HpLyyhdGnKfw"
+  },
+  {
+    "def_index": 73,
+    "name_en": "Music Kit | KILL SCRIPT, All Night",
+    "name_zh": "音乐盒 | KILL SCRIPT - 通宵达旦",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPnKb6UV25o7k_ma3EFPym86wqSAKu_H7PKE4JKiWV2GVx71z57k6Sy3hzURwsWjXyouod3KfcEZ-XaDU2Jmf"
+  },
+  {
+    "def_index": 74,
+    "name_en": "Music Kit | Knock2, Make U SWEAT!",
+    "name_zh": "音乐盒 | Knock2 - 燥起来！",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPnWY5l0ny9empA21F0ijnMS3rXoO6qv2Oac4cKfDXz-Uw7p0tLk9TXHllkVx5W2HzNa3MSXAGLCr2ac"
+  },
+  {
+    "def_index": 75,
+    "name_en": "Music Kit | Rad Cat, Reason",
+    "name_zh": "音乐盒 | Rad Cat - 理由",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJ3qT5ldhy9elpFq0FEmgzpDh-3INuaqtaqU0cKmWCzSSlr9ysrI_TCq1xx5ztmqDyd23MSXAcELeXMM"
+  },
+  {
+    "def_index": 76,
+    "name_en": "Music Kit | TWERL, Ekko & Sidetrack, Under Bright Lights",
+    "name_zh": "音乐盒 | TWERL, Ekko & Sidetrack - 万众瞩目",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuIWyS91pKpNa6s13lE0-jn8-1pXJauqf4O_xrdaLHDzPBwugh4bgwGHvjxR9-4G6HnMHpLyxvON_2ZA"
+  },
+  {
+    "def_index": 78,
+    "name_en": "Music Kit | Austin Wintory, The Devil Went Clubbing In Georgia",
+    "name_zh": "音乐盒 | Austin Wintory，恶魔舞厅",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuNG6E8V974476_lb1WCKhytiwpXNYv_aoO6JoI6DGWDKSkb9ytONsTSvhzU505z-BzoyvdX3Da1MnFNIuEmHVT0Jg"
+  },
+  {
+    "def_index": 79,
+    "name_en": "Music Kit | Ben Bromfield, Rabbit Hole",
+    "name_zh": "音乐盒 | Ben Bromfield，兔子洞",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuN36Z50R6-YH971Xjfk2g0MGw_nMJvKWtO6I9eaDCDWbJxO0utLI6TXjrzU934W6An46vdXqUPFc-Sswnvkalcgc"
+  },
+  {
+    "def_index": 80,
+    "name_en": "Music Kit | Daniel Sadowski, Dead Shot",
+    "name_zh": "音乐盒 | Daniel Sadowski，致命一击",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMXqZ7FN554bw5U70ShTOzsOuqnACvKD5P6Fpd6SWCGPFlu0u4eA_SyqwzEwmsTvQyNapdi_CPFMlDYwwG7Abj54DYw"
+  },
+  {
+    "def_index": 81,
+    "name_en": "Music Kit | Dren McDonald, Coffee! Kofe! Kahveh!",
+    "name_zh": "音乐盒 | Dren McDonald，咖啡！加非！磕肥！",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMWmS62klp8n3vQjkFkXymJe4-Xtavqf6bvM_dqOSC2PBlr8us7JtTH_rx0Ul5m3V1J_3JsxLaZwf"
+  },
+  {
+    "def_index": 82,
+    "name_en": "Music Kit | Matt Levine, Agency",
+    "name_zh": "音乐盒 | Matt Levine，特工",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuOHqD8Vpw4o7672a3E1OnyJezrnNdu6r7bvNrI_HKVmGUw7h34eM8Hn_lxEVw6zuEyYqqd3vEcEZ-XfK-tm-7"
+  },
+  {
+    "def_index": 83,
+    "name_en": "Music Kit | Sam Marshall, Clutch",
+    "name_zh": "音乐盒 | Sam Marshall，危在旦夕",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJnqa6Fdn54_15lXYEU-_zJe0qnYJ66utOvI0c6LLWz7AmL8u4Lc9S3zjwUxwtW_dmdascCqSPxhgVMUkssBXcw"
+  },
+  {
+    "def_index": 84,
+    "name_en": "Music Kit | Tim Huling, Devil's Paintbrush",
+    "name_zh": "音乐盒 | Tim Huling，恶魔油漆刷",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuIXKa7UN5_Ynz1Qm1D0Six8Lh-SMDu6r5O6c8eaPBWzHJmb4i4-doFnvmxRl2tzvQy4yhJH2JLlh3Dy1Dksc"
+  },
+  {
+    "def_index": 85,
+    "name_en": "Music Kit | Tree Adams, Seventh Moon",
+    "name_zh": "音乐盒 | Tree Adams，柒月",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuIWmS4Fdx9Yrn1Qm2Dxz3zcKy-XFYv6P4PPQ_eaHCVjOSmep35rRrF32wwBh042vSmYmoInmJLlh3TYKTTis"
+  },
+  {
+    "def_index": 86,
+    "name_en": "Music Kit | Perfect World, Ay Hey",
+    "name_zh": "音乐盒 | 完美世界 - 诶嘿",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJX6F41N24JD7-FXjfk2j0M7ir3QOvKb8P6A1cPSSXzKSkbl14eU-GCu3x0V24jvWzo6veXuUbAQ-SswnjV5YWxY"
+  },
+  {
+    "def_index": 87,
+    "name_en": "Music Kit | Adam Beyer, Red Room",
+    "name_zh": "音乐盒 | Adam Beyer - 猩红密室",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuNH-W6FRw7YLm1Qm2D0ypm86w-CcL6vT-OP05caHDWmHHmOh35eI5HS_jwE4msmTXwtepcniJLlh3Piv7u7I"
+  },
+  {
+    "def_index": 88,
+    "name_en": "Music Kit | Ghost, Skeletá",
+    "name_zh": "音乐盒 | Ghost - 骸骨圣典",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuMnOY9kJKpNa6uwzmFkT1zMHlpXMMvKv5Oqc0caHBX2bCmb8ltbIxH37klE0h4W_cm8HpLyyghyHkLA"
+  },
+  {
+    "def_index": 89,
+    "name_en": "Music Kit | HEALTH, RAT WARS",
+    "name_zh": "音乐盒 | HEALTH - 鼠役",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPX6W6UJ9y9elpAHkF0_wz8C5r3BeuvH4Pfw8IaPACzWSmbkgtrI6Hy2xwBh34mrcyt63MSXA80s-Xh8"
+  },
+  {
+    "def_index": 90,
+    "name_en": "Music Kit | James and the Cold Gun, Chewing Glass",
+    "name_zh": "音乐盒 | James and the Cold Gun - 嚼玻璃",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuP3qa4EV0-oPg4lzkThH1mYPuwnIKofD-PPxseajKDTCTkbgg6OI4TCzmxURw42yDzI6hcy-ebgN1XJEiQ-MU8k7vPe1y5g0"
+  },
+  {
+    "def_index": 91,
+    "name_en": "Music Kit | Jonathan Young, Starship Velociraptor",
+    "name_zh": "音乐盒 | Jonathan Young - 星际战机速龙号",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuP3SZ5EJ99Ynt5UzpRiKhz9i0-3YCvvD7P_xrJanECDWTme0m5-drHn7hwkpw52zTzYv9cH2eOA4nFNIuEiP11Fka"
+  },
+  {
+    "def_index": 92,
+    "name_en": "Music Kit | Juelz, Floorspace",
+    "name_zh": "音乐盒 | Juelz - 无拘空间",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuP26S6UxKpNW661yyF0Xwyc7kryMIuqCtOqdudaPEDTeUw-11seQ4H3G3zRwk4DuGn8HpLyxF_Gg6fw"
+  },
+  {
+    "def_index": 93,
+    "name_en": "Music Kit | Killer Mike, MICHAEL",
+    "name_zh": "音乐盒 | Killer Mike - 迈克尔",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuPnKb6VNn-Y7_72a3EFOlz8biqnRd6ab3bvA_cvTDC2XImOwi4-U8S37nxk5y5D7Sw9v9I37DcEZ-XeFRCz_X"
+  },
+  {
+    "def_index": 94,
+    "name_en": "Music Kit | PVRIS, Evergreen",
+    "name_zh": "音乐盒 | PVRIS - 常青",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJW2F7EVKpNa671jlEk-pmpLj-HtZ6qv8Ofc6JaWRXGTIw750srVqSXCwlBgi423XmMHpLywuexEzEA"
+  },
+  {
+    "def_index": 95,
+    "name_en": "Music Kit | Selective Response, No Love Only Pleasure",
+    "name_zh": "音乐盒 | Selective Response - 纵欲狂欢",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJn6b4FVh_ZHx-Fz0URL_jZPfrXMVtqH2a_Q0cfLBDWbJk-p0sbNoHnrmxx8m42jdy9f7InieOgciDZZ1EPlK7EehqW9d7Q"
+  },
+  {
+    "def_index": 96,
+    "name_en": "Music Kit | Tigercub, The Perfume of Decay",
+    "name_zh": "音乐盒 | Tigercub - 腐朽香氛",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuIXKQ4ER24YXLugipQEn0mpPl_icD6qD4a6c7I6XGWTbFx7ZysbIxG3C3zEtz4G6BmImoImXXMFEshFifrQ"
+  },
+  {
+    "def_index": 98,
+    "name_en": "Music Kit | ALRT, DOPAMINE HIT",
+    "name_zh": "音乐盒 | ALRT, 多巴胺冲击",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuNHeF8Wklpcmtu120GR6hy8O5-3MJ7Pb6PaY_I_bBXjHJmbd1s7Y8FyrkwEty5jjS1J_3JrXfbNYF"
+  },
+  {
+    "def_index": 99,
+    "name_en": "Music Kit | Altare, Change My Mind",
+    "name_zh": "音乐盒 | Altare, 吾心不移",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuNHeD5ERwy9elpFq3Fx6hmJLlrHAJv_eqOKI1JKSVWDXGkLovtLJoF3Hik00htTzWyt-3MSXAv8iGC0E"
+  },
+  {
+    "def_index": 100,
+    "name_en": "Music Kit | borne, Give It To Me",
+    "name_zh": "音乐盒 | borne, 给我",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuN3SF61NKpNa66VrjQhigmpCx-Xdf7qWvO_0_IfHBCmHCkrcm6LgwS3vkzUlzsD_Vm8HpLywQpLob3g"
+  },
+  {
+    "def_index": 101,
+    "name_en": "Music Kit | Pirapus, EVERYNITE",
+    "name_zh": "音乐盒 | Pirapus, 每夜",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJXKF5EZg57ikuxewRUmkmMaw_yZY6qf3OPY6JKeRD2XIk78m5udtS3G1xhx-tT-Hy96obzvJOYRCqud0"
+  },
+  {
+    "def_index": 102,
+    "name_en": "Music Kit | Repiet & Julia Kleijn, On And On",
+    "name_zh": "音乐盒 | Repiet & Julia Kleijn, 循环不息",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJ36H7FNhy9elpFu3QkXyyZe3pHcI6_D8bPI0cvLCXzTCw7ovs7RtGXjhzEl-6z6Emda3MSXAtLvhCgA"
+  },
+  {
+    "def_index": 103,
+    "name_en": "Music Kit | ShockOne, Voices",
+    "name_zh": "音乐盒 | ShockOne, 声流",
+    "image": "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIijyEKzb_3d19nuJnOY5l16-oLLugipEE7zmM63-SFfuKv-MPc6eKfLWDHJk74l6eJoHC23zEh-t2yHyN_7dWXXMFFiTTCrFg"
+  }
+]

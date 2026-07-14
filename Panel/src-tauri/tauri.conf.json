@@ -1,0 +1,33 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CS2BotImproverPlus",
+  "version": "1.4.2",
+  "identifier": "com.cs2botimproverplus.panel",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "CS2BotImproverPlus",
+        "width": 1300,
+        "height": 800,
+        "minWidth": 860,
+        "minHeight": 620,
+        "resizable": true,
+        "decorations": false,
+        "transparent": true,
+        "shadow": true
+      }
+    ],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "windows": { "webviewInstallMode": { "type": "skip" } }
+  }
+}

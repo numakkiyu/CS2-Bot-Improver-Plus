@@ -13,12 +13,4 @@
     <PackageReference Include="CounterStrikeSharp.API" Version="1.0.367" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="Common">
-      <HintPath>..\..\..\..\Tmp\ArchiveV02\Common\bin\Debug\net8.0\Common.dll</HintPath>
-    </Reference>
-
-  </ItemGroup>
-
-
 </Project>

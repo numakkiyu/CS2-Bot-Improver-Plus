@@ -6,7 +6,7 @@ import { useT, type I18nKey } from "../i18n";
 import type { AppError } from "../lib/api";
 import "./ErrorModal.css";
 
-const KNOWN_CATS = ["path", "permission", "steam", "parse", "io", "config", "internal"];
+const KNOWN_CATS = ["path", "permission", "steam", "parse", "io", "config", "internal", "filesystem", "validation"];
 
 type Props = {
   error: AppError | null;
@@ -23,6 +23,8 @@ export default function ErrorModal({ error, onClose, message }: Props) {
   const localized = KNOWN_CATS.includes(error.category)
     ? t(`errcat.${error.category}` as I18nKey)
     : error.detail;
+  const primaryMessage = message ?? localized;
+  const showDetail = error.detail && error.detail !== primaryMessage;
 
   const copy = async () => {
     try {
@@ -48,7 +50,8 @@ export default function ErrorModal({ error, onClose, message }: Props) {
         </button>
       }
     >
-      <p className="errm__msg">{message ?? localized}</p>
+      <p className="errm__msg">{primaryMessage}</p>
+      {showDetail && <p className="errm__detail">{error.detail}</p>}
       <button className="errm__code" onClick={copy} title={t("err.copyCode")}>
         <span className="errm__code-text">{error.code}</span>
         <CopyIcon size={14} />

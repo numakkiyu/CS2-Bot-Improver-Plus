@@ -1,16 +1,19 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { GearIcon, MinusIcon, CloseIcon } from "./icons";
+import { Minus, Settings, X } from "lucide-react";
 import { useT } from "../i18n";
+import { useStore } from "../state/store";
 import "./TitleBar.css";
 
 type Props = {
   title?: string;
   onSettings: () => void;
+  showSettings?: boolean;
 };
 
-export default function TitleBar({ title = "CS2 Bot Improver v1.4.2", onSettings }: Props) {
+export default function TitleBar({ title = "CS2BotImproverPlus v1.4.2", onSettings, showSettings = true }: Props) {
   const appWindow = getCurrentWindow();
   const t = useT();
+  const { reportError } = useStore();
 
   return (
     <header className="titlebar" data-tauri-drag-region>
@@ -18,29 +21,29 @@ export default function TitleBar({ title = "CS2 Bot Improver v1.4.2", onSettings
         {title}
       </span>
       <div className="titlebar__controls">
-        <button
+        {showSettings && <button
           className="tl tl--green"
           title={t("tb.settings")}
           aria-label={t("tb.settings")}
           onClick={onSettings}
         >
-          <GearIcon size={12} />
-        </button>
+          <Settings size={14} />
+        </button>}
         <button
           className="tl tl--yellow"
           title={t("tb.minimize")}
           aria-label={t("tb.minimize")}
-          onClick={() => appWindow.minimize()}
+          onClick={() => void appWindow.minimize().catch(reportError)}
         >
-          <MinusIcon size={12} />
+          <Minus size={14} />
         </button>
         <button
           className="tl tl--red"
           title={t("tb.close")}
           aria-label={t("tb.close")}
-          onClick={() => appWindow.close()}
+          onClick={() => void appWindow.close().catch(reportError)}
         >
-          <CloseIcon size={12} />
+          <X size={14} />
         </button>
       </div>
     </header>

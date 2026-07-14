@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>PlayerKnifeCustomizer</AssemblyName>
+    <RootNamespace>PlayerKnifeCustomizer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CounterStrikeSharp.API" Version="1.0.371" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="player_knife_presets.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="player_gun_presets.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="skins_en.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="weapon_skins.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

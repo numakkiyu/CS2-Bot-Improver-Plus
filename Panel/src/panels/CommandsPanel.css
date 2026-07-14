@@ -1,124 +1,525 @@
-.cmd__searchbar {
+.cmd__toolbar {
   flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.42fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.cmd__tabs {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-sm);
+  background: rgba(120, 120, 128, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04), var(--sh-inset-top);
+}
+
+.cmd__tabs button {
+  min-width: 0;
+  height: 36px;
   display: flex;
   align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+.cmd__tabs button:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.42);
+}
+.cmd__tabs button:active {
+  transform: scale(0.97);
+}
+.cmd__tabs button.is-active {
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--c-blue);
+  box-shadow: var(--sh-soft), var(--glass-inset);
+}
+.cmd__tabs button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmd__search-wrap {
+  min-width: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--text-tertiary);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05), var(--sh-inset-top);
+}
+.cmd__search-wrap:focus-within {
+  color: var(--c-blue);
+  box-shadow: inset 0 0 0 1.5px var(--c-blue), var(--sh-inset-top);
+}
+.cmd__search {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cmd__search::-webkit-search-cancel-button {
+  cursor: pointer;
+}
+
+.cmd__content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 3px 3px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cmd-group {
+  display: grid;
+  gap: 9px;
+}
+.cmd-group__heading {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+}
+.cmd-group__heading-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  border-radius: 10px;
+  background: rgba(0, 122, 255, 0.11);
+  color: var(--c-blue);
+}
+.cmd-group__heading > span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.cmd-group__heading strong,
+.cmd__section-intro strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 750;
+}
+.cmd-group__heading small,
+.cmd__section-intro small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.cmd-group__count {
+  margin-left: auto;
+  min-width: 24px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0 7px;
+  border-radius: var(--r-pill);
+  background: rgba(120, 120, 128, 0.13);
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.cmd-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
-
-.cmd__search {
-  flex: 1 1 auto;
+.cmd-card {
   min-width: 0;
-  padding: 11px 14px;
-  border: none;
-  border-radius: var(--r-md);
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  outline: none;
+  min-height: 82px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow: var(--sh-card), var(--glass-inset);
+  color: var(--text-secondary);
+  text-align: left;
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
-.cmd__search:focus {
-  box-shadow: inset 0 0 0 1.5px var(--c-blue);
+.cmd-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 122, 255, 0.24);
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: var(--sh-pop);
 }
-
-.cmd__count {
-  flex: 0 0 auto;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
+.cmd-card:active {
+  transform: scale(0.985);
 }
-
-.cmd__nav {
-  flex: 0 0 auto;
+.cmd-card.is-copied {
+  border-color: rgba(52, 199, 89, 0.42);
+  background: rgba(52, 199, 89, 0.11);
+}
+.cmd-card__icon {
   width: 34px;
   height: 34px;
   display: grid;
   place-items: center;
-  border: none;
-  border-radius: var(--r-sm);
-  background: rgba(120, 120, 128, 0.16);
+  border-radius: 10px;
+  background: rgba(120, 120, 128, 0.11);
   color: var(--text-secondary);
 }
-.cmd__nav:hover:not(:disabled) {
-  background: rgba(120, 120, 128, 0.28);
+.cmd-card__body {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
 }
-.cmd__nav:active:not(:disabled) {
-  transform: scale(0.94);
-}
-.cmd__nav:disabled {
-  opacity: 0.4;
-}
-
-.cmd__list {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
-  padding: 8px;
-  border-radius: var(--r-md);
-  background: rgba(255, 255, 255, 0.5);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+.cmd-card code,
+.multiplayer-step code {
+  overflow: hidden;
+  color: var(--c-blue);
   font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   font-size: 12px;
-  line-height: 1.5;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
-.cmd__line {
-  padding: 2px 8px;
-  border-radius: var(--r-xs);
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--text-primary);
+.cmd-card__description {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.42;
+  text-wrap: pretty;
 }
-.cmd__line.is-blank {
-  padding: 0;
-  min-height: 6px;
-}
-
-/* Matched (but not current) blocks — subtle Apple-gray fill. */
-.cmd__line.is-match {
-  background: rgba(120, 120, 128, 0.16);
-}
-.cmd__line.is-clickable {
-  cursor: pointer;
-}
-.cmd__line.is-clickable:hover {
-  background: rgba(0, 122, 255, 0.12);
-}
-/* Currently selected match — Apple-blue fill. */
-.cmd__line.is-selected {
-  background: rgba(0, 122, 255, 0.18);
-  box-shadow: inset 0 0 0 1px rgba(0, 122, 255, 0.4);
-}
-
-/* Copy confirmation flash — a brief Apple-blue pulse (#007AFF) on the clicked
-   line, matching the existing click-highlight / selected-block blue. */
-@keyframes cmdCopiedFlash {
-  0% {
-    background: rgba(0, 122, 255, 0.22);
-  }
-  100% {
-    background: transparent;
-  }
-}
-.cmd__line.is-copied {
-  animation: cmdCopiedFlash 0.55s ease-out;
-}
-
-/* Non-selectable placeholder hint after a command (e.g. "[bot name]") — it is
-   explanatory only, so it is excluded from drag-selection and copying. */
-.cmd__ph {
-  user-select: none;
-  -webkit-user-select: none;
+.cmd-card__copy,
+.team-card__copy,
+.multiplayer-step__copy {
+  display: grid;
+  place-items: center;
   color: var(--text-tertiary);
 }
+.is-copied .cmd-card__copy,
+.is-copied .team-card__copy,
+.is-copied .multiplayer-step__copy {
+  color: var(--c-green);
+}
 
-/* Highlighted substring within a match — Apple-yellow. */
-.cmd__hl {
-  background: var(--c-yellow);
-  color: #1c1c1e;
-  border-radius: 3px;
-  padding: 0 1px;
+.cmd__section-intro {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 4px;
+}
+.cmd__section-intro > span:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.cmd__section-intro > span:last-child:not(:first-child) {
+  flex: 0 0 auto;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+.team-card {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.47);
+  box-shadow: var(--sh-card), var(--glass-inset);
+  outline: none;
+  cursor: pointer;
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.team-card:hover,
+.team-card:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(0, 122, 255, 0.28);
+  background: rgba(255, 255, 255, 0.69);
+  box-shadow: var(--sh-pop);
+}
+.team-card:active {
+  transform: scale(0.99);
+}
+.team-card.is-copied {
+  border-color: rgba(52, 199, 89, 0.44);
+  background: rgba(52, 199, 89, 0.1);
+}
+.team-card__head {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 10px;
+}
+.team-card__logo-wrap {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+}
+.team-card__logo {
+  width: 38px;
+  height: 38px;
+  display: block;
+  object-fit: contain;
+}
+.team-card__identity {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.team-card__identity strong {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.team-card__identity span {
+  color: var(--text-tertiary);
+  font-size: 10px;
+}
+.team-card__players {
+  min-height: 42px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 5px;
+}
+.team-card__players span {
+  max-width: 100%;
+  overflow: hidden;
+  padding: 4px 7px;
+  border-radius: 8px;
+  background: rgba(120, 120, 128, 0.1);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.team-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.team-card__sides {
+  display: grid;
+  grid-template-columns: repeat(2, 38px);
+  gap: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(120, 120, 128, 0.12);
+}
+.team-card__sides button {
+  height: 25px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 10px;
+  font-weight: 800;
+}
+.team-card__sides button.is-active {
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--c-blue);
+  box-shadow: var(--sh-soft);
+}
+.team-card__source {
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-weight: 700;
+}
+.team-card__command {
+  min-width: 0;
+  height: 38px;
+  overflow: hidden;
+  padding: 7px 8px;
+  border-radius: 9px;
+  background: rgba(28, 28, 30, 0.05);
+  color: var(--text-secondary);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 9px;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.multiplayer-guide {
+  display: grid;
+  gap: 12px;
+}
+.multiplayer-guide__steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.multiplayer-step {
+  min-width: 0;
+  min-height: 190px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 24px;
+  align-items: start;
+  gap: 10px;
+  padding: 15px;
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.49);
+  box-shadow: var(--sh-card), var(--glass-inset);
+  color: var(--text-secondary);
+  text-align: left;
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.multiplayer-step:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 122, 255, 0.26);
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: var(--sh-pop);
+}
+.multiplayer-step:active {
+  transform: scale(0.99);
+}
+.multiplayer-step.is-copied {
+  border-color: rgba(52, 199, 89, 0.44);
+  background: rgba(52, 199, 89, 0.1);
+}
+.multiplayer-step__number {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: rgba(0, 122, 255, 0.11);
+  color: var(--c-blue);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.multiplayer-step__body {
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.multiplayer-step__body strong {
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 750;
+}
+.multiplayer-step__body small {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+.multiplayer-step code {
+  margin-top: auto;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: rgba(28, 28, 30, 0.06);
+  color: var(--c-blue);
+}
+.multiplayer-guide__note {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 204, 0, 0.12);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.multiplayer-guide__note svg {
+  flex: 0 0 auto;
+  color: var(--c-orange);
+}
+
+.cmd__empty {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.35);
+  color: var(--text-tertiary);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+@media (max-width: 1080px) {
+  .cmd__toolbar {
+    grid-template-columns: 1fr;
+  }
+  .cmd-grid,
+  .team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .multiplayer-guide__steps {
+    grid-template-columns: 1fr;
+  }
+  .multiplayer-step {
+    min-height: 120px;
+  }
+}
+
+@media (max-width: 780px) {
+  .cmd__tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .cmd-grid,
+  .team-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmd__tabs button,
+  .cmd-card,
+  .team-card,
+  .multiplayer-step {
+    transition: none;
+  }
 }

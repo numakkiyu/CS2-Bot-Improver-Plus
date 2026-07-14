@@ -58,7 +58,7 @@ export default function ModeCard() {
         }))}
       />
       <button className="mode__launch" disabled={!csgoPath} onClick={launch}>
-        {t("mode.launch")}
+        {current === "online" ? t("mode.launchOnline") : t("mode.launchBots")}
       </button>
     </Card>
   );

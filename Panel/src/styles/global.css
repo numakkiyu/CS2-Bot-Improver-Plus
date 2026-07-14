@@ -1,4 +1,3 @@
-@import "./fonts.css";
 @import "./tokens.css";
 @import "./glass.css";
 
@@ -7,9 +6,8 @@
 }
 
 :root {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
-    sans-serif;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI",
+    system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   color: var(--text-primary);
@@ -34,8 +32,6 @@ html {
 
 body {
   overflow: hidden;
-  /* Soft Apple-style backdrop with colour blobs so glass has depth & hue to
-     refract through its blur — richer blobs make the liquid-glass read better. */
   background:
     radial-gradient(58% 48% at 16% 6%, rgba(0, 122, 255, 0.2), transparent 72%),
     radial-gradient(52% 44% at 92% 2%, rgba(52, 199, 89, 0.16), transparent 72%),
@@ -49,6 +45,11 @@ body {
 button {
   font-family: inherit;
   cursor: pointer;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--c-blue) 72%, white);
+  outline-offset: 2px;
 }
 
 a {

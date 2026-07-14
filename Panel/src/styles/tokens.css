@@ -1,14 +1,14 @@
 :root {
-  /* ---- Apple-style palette (from Resources/Apple Style Color Pallete.png) ---- */
-  --c-light-gray: #e5e5ea; /* dividers & cards */
-  --c-mid-gray: #8e8e93; /* disabled text */
-  --c-dark-gray-2: #3a3a3c; /* secondary text */
-  --c-dark-gray: #1c1c1e; /* primary text */
-  --c-blue: #007aff; /* primary / links / buttons */
-  --c-green: #34c759; /* success / confirmations */
-  --c-orange: #ff9500; /* warnings */
-  --c-red: #ff3b30; /* errors */
-  --c-yellow: #ffcc00; /* caution / notifications */
+  /* Original Panel palette. */
+  --c-light-gray: #e5e5ea;
+  --c-mid-gray: #8e8e93;
+  --c-dark-gray-2: #3a3a3c;
+  --c-dark-gray: #1c1c1e;
+  --c-blue: #007aff;
+  --c-green: #34c759;
+  --c-orange: #ff9500;
+  --c-red: #ff3b30;
+  --c-yellow: #ffcc00;
 
   /* ---- Semantic status (red / yellow / green dots & toggles) ---- */
   --st-green: var(--c-green);
@@ -62,4 +62,14 @@
   /* ---- Motion ---- */
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --dur: 220ms;
+
+  /* Desktop Plus layout surfaces, derived from the original glass system. */
+  --sidebar-bg: rgba(255, 255, 255, 0.38);
+  --sidebar-text: var(--text-primary);
+  --sidebar-muted: var(--text-secondary);
+  --sidebar-accent: var(--c-blue);
+  --workspace-bg: transparent;
+  --app-surface: transparent;
+  --panel-muted: rgba(255, 255, 255, 0.42);
+  --line-subtle: rgba(255, 255, 255, 0.58);
 }

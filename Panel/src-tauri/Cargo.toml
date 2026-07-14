@@ -1,0 +1,25 @@
+[package]
+name = "cs2-bot-improver-plus-panel"
+version = "1.4.2"
+description = "CS2BotImproverPlus Panel"
+authors = ["ed0ard", "CS2BotImproverPlus contributors"]
+edition = "2024"
+
+[lib]
+name = "cs2_bot_improver_plus_panel_lib"
+# Plus is a Windows desktop distribution. Building an unused GNU cdylib makes
+# ld auto-export more symbols than the PE ordinal table supports.
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.5.3", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = "0.33"
+tauri = { version = "2.11.2", features = [] }
+tauri-plugin-clipboard-manager = "2.3.2"
+tauri-plugin-dialog = "2.7.1"
+tauri-plugin-opener = "2.5.4"
+tauri-plugin-single-instance = "2.4.2"

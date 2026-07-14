@@ -1,40 +1,71 @@
-// Project link and the contributor credits shown in the Devs menu.
-export const PROJECT_URL = "https://github.com/ed0ard/CS2-Bot-Improver";
+export type ProjectLink = {
+  id: "plus" | "upstream";
+  name: string;
+  url: string;
+};
 
-// Contributors, in the order shown.
-export const DEVS: string[] = [
-  "ed0ard",
-  "newbie046",
-  "XBribo",
-  "Misaka17032",
-  "unicbm",
-  "YYBN",
-  "htfy96",
-  "DANK1NG1I45l4",
-  "XYC_KL",
-  "WanderDream",
-  "Gardevior",
-  "droyer57",
-  "T1mLuk0",
-  "Ch1ANnn1",
-  "zzf0607",
-  "HoshinoSatoshi",
-  "NJ",
-  "xuan",
-  "luochenlinyu",
-  "jessie",
-  "Floretteee",
-  "YuGeYu",
-  "Aurelius47",
-  "B1gcul",
-  "Kzen",
-  "tht",
-  "Mark William",
-  "Jw1zxm",
-  "Austin",
-  "StefanKunde",
-  "Manico",
-  "Zhang Weiwei",
-  "Omertosa",
-  "OLDSIX",
+export type Contributor = {
+  login: string;
+  avatar: string;
+  profileUrl: string;
+  role: "plusMaintainer" | "upstreamAuthor" | "contributor";
+  contributions?: number;
+};
+
+export const PROJECTS: ProjectLink[] = [
+  {
+    id: "plus",
+    name: "numakkiyu/CS2-Bot-Improver-Plus",
+    url: "https://github.com/numakkiyu/CS2-Bot-Improver-Plus",
+  },
+  {
+    id: "upstream",
+    name: "ed0ard/CS2-Bot-Improver",
+    url: "https://github.com/ed0ard/CS2-Bot-Improver",
+  },
+];
+
+// Snapshot of the Plus repository owner and GitHub contributor API on 2026-07-14.
+export const CONTRIBUTORS: Contributor[] = [
+  {
+    login: "numakkiyu",
+    avatar: "/contributors/numakkiyu.png",
+    profileUrl: "https://github.com/numakkiyu",
+    role: "plusMaintainer",
+  },
+  {
+    login: "ed0ard",
+    avatar: "/contributors/ed0ard.png",
+    profileUrl: "https://github.com/ed0ard",
+    role: "upstreamAuthor",
+    contributions: 325,
+  },
+  {
+    login: "XBribo",
+    avatar: "/contributors/xbribo.png",
+    profileUrl: "https://github.com/XBribo",
+    role: "contributor",
+    contributions: 5,
+  },
+  {
+    login: "Misaka17032",
+    avatar: "/contributors/misaka17032.png",
+    profileUrl: "https://github.com/Misaka17032",
+    role: "contributor",
+    contributions: 4,
+  },
+  {
+    login: "Floretteee",
+    avatar: "/contributors/floretteee.png",
+    profileUrl: "https://github.com/Floretteee",
+    role: "contributor",
+    contributions: 2,
+  },
+  {
+    login: "RaycarlLei",
+    avatar: "/contributors/raycarllei.png",
+    profileUrl: "https://github.com/RaycarlLei",
+    role: "contributor",
+    contributions: 1,
+  },
 ];

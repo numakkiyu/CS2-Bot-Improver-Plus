@@ -7,8 +7,6 @@
 .glass {
   position: relative;
   background: var(--glass-fill);
-  /* Vivid liquid-glass material: a deep blur with boosted saturation and a hint
-     of brightness so the surface glows and picks up colour from the backdrop. */
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)) brightness(1.04);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)) brightness(1.04);
   border: 1px solid var(--glass-stroke);

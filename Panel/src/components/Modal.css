@@ -16,6 +16,10 @@
 
 .modal {
   width: 100%;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: var(--r-xl);
   box-shadow: var(--sh-pop);
   animation: modal-in var(--dur) var(--ease);
@@ -28,6 +32,7 @@
 }
 
 .modal__head {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -53,12 +58,15 @@
 }
 
 .modal__body {
+  min-height: 0;
+  overflow-y: auto;
   padding: 6px 18px 16px;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.5;
 }
 .modal__footer {
+  flex: 0 0 auto;
   padding: 0 18px 18px;
   display: flex;
   justify-content: flex-end;

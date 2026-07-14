@@ -1,16 +1,23 @@
-// Eagerly bundle every knife icon as a URL, keyed by its subclass id.
-const modules = import.meta.glob("../assets/icons/*.png", {
-  eager: true,
-  query: "?url",
-  import: "default",
-});
+import skins from "./skinImages.json";
 
 export type KnifeIcon = { id: number; url: string };
 
-export const KNIFE_ICONS: KnifeIcon[] = Object.entries(modules)
-  .map(([path, url]) => {
-    const m = path.match(/(\d+)\.png$/);
-    return { id: m ? parseInt(m[1], 10) : -1, url: url as string };
-  })
-  .filter((k) => k.id >= 0)
-  .sort((a, b) => a.id - b.id);
+const KNIFE_IDS = [500, 503, 505, 506, 507, 508, 509, 512, 514, 515, 516,
+  517, 518, 519, 520, 521, 522, 523, 525, 526];
+
+type SkinRow = {
+  weapon_defindex: number;
+  paint: number | string;
+  image: string;
+};
+
+const rows = skins as SkinRow[];
+
+export const KNIFE_ICONS: KnifeIcon[] = KNIFE_IDS.map(
+  (id) => {
+    const base = rows.find(
+      (row) => Number(row.weapon_defindex) === id && Number(row.paint) === 0
+    );
+    return { id, url: base?.image ?? "" };
+  }
+);

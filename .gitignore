@@ -1,3 +1,73 @@
+# Build outputs and dependency trees
 **/bin/
 **/obj/
-.gitignore
+**/node_modules/
+**/dist/
+**/target/
+**/target-*/
+Panel/src-tauri/gen/schemas/
+artifacts/
+
+# Repository-local caches and portable toolchains
+.cache/
+.cargo/
+.rustup/
+.nuget/
+.xwin/
+toolchain/
+toolchains/
+xwin/
+llvm/
+*.nupkg
+*.snupkg
+
+# AI assistant and agent state
+.codex/
+**/.codex/
+.agents/
+**/.agents/
+.claude/
+**/.claude/
+.cursor/
+**/.cursor/
+.continue/
+**/.continue/
+.windsurf/
+**/.windsurf/
+.aider*
+AGENTS.md
+**/AGENTS.md
+CLAUDE.md
+**/CLAUDE.md
+GEMINI.md
+**/GEMINI.md
+CONTEXT.md
+.github/copilot-instructions.md
+
+# IDE and editor-local state
+.vs/
+**/.vs/
+.idea/
+**/.idea/
+.vscode/
+**/.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Logs, temporary files, and local environment overrides
+logs/
+**/logs/
+*.log
+*.tmp
+*.temp
+*.bak
+.env
+.env.*
+!.env.example
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

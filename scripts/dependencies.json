@@ -1,0 +1,64 @@
+{
+  "upstream": {
+    "repository": "https://github.com/ed0ard/CS2-Bot-Improver",
+    "baseCommit": "9fd1bd6a59668d8ba72243580130a39d1605fb1f",
+    "release": "v1.4.1",
+    "windowsAsset": {
+      "name": "CS2BotImprover.zip",
+      "url": "https://github.com/ed0ard/CS2-Bot-Improver/releases/download/v1.4.1/CS2BotImprover.zip",
+      "sha256": "8f4350d785b07af7adf3a978ceb23f2b4b6b49cf2c6592deba97ebb7b29c5981"
+    }
+  },
+  "metamod": {
+    "repository": "https://github.com/alliedmodders/metamod-source",
+    "release": "2.0.0-git1406",
+    "windowsAsset": {
+      "name": "mmsource-2.0.0-git1406-windows.zip",
+      "url": "https://mms.alliedmods.net/mmsdrop/2.0/mmsource-2.0.0-git1406-windows.zip",
+      "sha256": "e147d4cbe90bbd4be3264cffe2b028792165c38f49f77b21c7964be0f117b131"
+    },
+    "windowsLoaderSha256": "7d1d9f2ac5c486962b95e7334700d521816a44541b3d83d82146719f51f278f9"
+  },
+  "counterStrikeSharp": {
+    "repository": "https://github.com/roflmuffin/CounterStrikeSharp",
+    "release": "v1.0.371",
+    "windowsAsset": {
+      "name": "counterstrikesharp-with-runtime-windows-1.0.371.zip",
+      "url": "https://github.com/roflmuffin/CounterStrikeSharp/releases/download/v1.0.371/counterstrikesharp-with-runtime-windows-1.0.371.zip",
+      "sha256": "ab66ef273dfd41379f04777c80dd3c7fcae09c59cf3c689bd40b69b95b99af6e"
+    },
+    "windowsCoreSha256": "3faafeaf00f03774061b567f47be3a568c234cf130d4680d1106dd4a0818e708"
+  },
+  "rayTrace": {
+    "repository": "https://github.com/FUNPLAY-pro-CS2/Ray-Trace",
+    "release": "v1.0.16",
+    "cssAsset": {
+      "name": "RayTrace-CSS-API-v1.0.16.tar.gz",
+      "url": "https://github.com/FUNPLAY-pro-CS2/Ray-Trace/releases/download/v1.0.16/RayTrace-CSS-API-v1.0.16.tar.gz",
+      "sha256": "e865ca551da35af31dc70f271840d1dce932a84e1c1bd27aa5ad3191efe6e1d4"
+    },
+    "windowsAsset": {
+      "name": "RayTrace-MM-v1.0.16-windows.tar.gz",
+      "url": "https://github.com/FUNPLAY-pro-CS2/Ray-Trace/releases/download/v1.0.16/RayTrace-MM-v1.0.16-windows.tar.gz",
+      "sha256": "020b7b49cb249793a6840af3edfaf8d07c3c8a8069c8246972d113d047429c59"
+    },
+    "windowsDllSha256": "5b18a8d43acc500960368875dd8670b695b3ea3f467832bbf61fe4989ab44093",
+    "cssImplSha256": "301ac4ed23ae75c220ab88f6bb9604822eac32a94285fea8d2c388e5fd4420e0"
+  },
+  "upstreamPatches": {
+    "botAiWindowsSignatures": {
+      "pullRequest": 75,
+      "commit": "3db93baadc3489fbee73683fc90a3a162163178f"
+    }
+  },
+  "botHider": {
+    "repository": "https://github.com/XBribo/CS2-Bot-Hider",
+    "release": "v0.3.0",
+    "windowsAsset": {
+      "name": "BotHider-windows-0.3.0.zip",
+      "url": "https://github.com/XBribo/CS2-Bot-Hider/releases/download/v0.3.0/BotHider-windows-0.3.0.zip",
+      "sha256": "abdcb01a2466cf674a139efa9216a737e7a70024b024b1c8064ba81dca869e5f"
+    },
+    "windowsDllSha256": "9b9259dd2e22752680d944df978f92a45b2891ca92393be58b7e82ee42ffa898"
+  }
+}

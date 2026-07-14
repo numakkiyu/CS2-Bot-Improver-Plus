@@ -5,7 +5,7 @@ import "./SubPage.css";
 
 type Props = {
   title: string;
-  onBack: () => void;
+  onBack?: () => void;
   status?: Status;
   right?: ReactNode;
   children: ReactNode;
@@ -16,9 +16,11 @@ export default function SubPage({ title, onBack, status, right, children }: Prop
   return (
     <div className="subpage">
       <div className="subpage__head">
-        <button className="subpage__back" onClick={onBack} aria-label="Back">
-          <BackIcon size={20} />
-        </button>
+        {onBack && (
+          <button className="subpage__back" onClick={onBack} aria-label="Back">
+            <BackIcon size={20} />
+          </button>
+        )}
         <span className="subpage__title">{title}</span>
         <div className="subpage__actions">
           {status && <StatusDot status={status} />}

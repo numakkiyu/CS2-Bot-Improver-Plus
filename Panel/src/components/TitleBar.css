@@ -23,8 +23,6 @@
   gap: 10px;
 }
 
-/* macOS-style traffic-light buttons, ordered green / yellow / red.
-   Icons are always visible (white glyph), per spec. */
 .tl {
   width: 22px;
   height: 22px;

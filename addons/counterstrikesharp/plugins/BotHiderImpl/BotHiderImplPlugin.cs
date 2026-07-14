@@ -14,7 +14,7 @@ namespace BotHiderImpl;
 public class BotHiderImplPlugin : BasePlugin
 {
     public override string ModuleName => "BotHiderImpl";
-    public override string ModuleVersion => "0.2.5";
+    public override string ModuleVersion => "0.3.0";
     public override string ModuleAuthor => "XBribo";
     public override string ModuleDescription =>
         "BotHider CSS Plugin";
@@ -23,16 +23,27 @@ public class BotHiderImplPlugin : BasePlugin
         new("bothider:api");
 
     private SharedMemoryClient? _client;
+    private IBotHiderApi? _api;
     private readonly string[] _appliedCrosshair = new string[64];
+    private readonly uint[] _appliedScoreboardFlair = new uint[64];
+    private CounterStrikeSharp.API.Modules.Timers.Timer? _fastApplyTimer;
+    private int _fastApplyRemaining;
+    private bool _botInfoNameSourceQueued;
     private Harmony? _harmony;
 
     public override void Load(bool hotReload)
     {
         // Inject the visible-write actions so SetPersonaName / SetBotSteamId
         // also update the scoreboard
-        _client = new SharedMemoryClient(ApplyVisibleName, ApplyVisibleSid);
+        _client = new SharedMemoryClient(
+            ApplyVisibleName,
+            ApplyVisibleSid,
+            ApplyVisibleScoreboardFlair,
+            ApplyVisibleCrosshair);
+        _api = new BotHiderCapabilityApi(_client);
         _client.TryConnect();
-        Capabilities.RegisterPluginCapability(Capability, () => (IBotHiderApi)_client);
+        EnsureBotInfoNameSource();
+        Capabilities.RegisterPluginCapability(Capability, () => _api);
 
         // IsBot override
         IsBotPatch.Api = _client;
@@ -40,6 +51,7 @@ public class BotHiderImplPlugin : BasePlugin
         _harmony.PatchAll(typeof(BotHiderImplPlugin).Assembly);
 
         AddTimer(2.0f, ApplyManagedSlots, TimerFlags.REPEAT);
+        StartFastApplyWindow();
     }
 
     public override void Unload(bool hotReload)
@@ -48,6 +60,9 @@ public class BotHiderImplPlugin : BasePlugin
         _harmony?.UnpatchAll(_harmony.Id);
         _harmony = null;
         IsBotPatch.Api = null;
+        _api = null;
+        _fastApplyTimer?.Kill();
+        _fastApplyTimer = null;
         _client?.Dispose();
     }
 
@@ -59,11 +74,27 @@ public class BotHiderImplPlugin : BasePlugin
     }
 
     // Round start — respawn managed bots that ended the prior round dead.
-    // bot dead at match end is not auto-respawned by the engine on the new match; pull it back in here.
     [GameEventHandler]
     public HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
     {
+        StartFastApplyWindow();
         AddTimer(0.3f, RespawnDeadManagedBots);
+        return HookResult.Continue;
+    }
+
+    // Player connect full — start early retries while controllers settle
+    [GameEventHandler]
+    public HookResult OnPlayerConnectFull(EventPlayerConnectFull @event, GameEventInfo info)
+    {
+        StartFastApplyWindow();
+        return HookResult.Continue;
+    }
+
+    // Player spawn — retry visible fields during freeze time
+    [GameEventHandler]
+    public HookResult OnPlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
+    {
+        StartFastApplyWindow();
         return HookResult.Continue;
     }
 
@@ -144,11 +175,70 @@ public class BotHiderImplPlugin : BasePlugin
         });
     }
 
+    // Write CCSPlayerController.m_szCrosshairCodes
+    private static void ApplyVisibleCrosshair(int slot, string code)
+    {
+        Server.NextFrame(() =>
+        {
+            var player = Utilities.GetPlayerFromSlot(slot);
+            if (player == null || !player.IsValid) return;
+            try
+            {
+                player.CrosshairCodes = code;
+                Utilities.SetStateChanged(player, "CCSPlayerController", "m_szCrosshairCodes");
+            }
+            catch (Exception e)
+            {
+                Server.PrintToConsole($"[BotHider] crosshair write failed slot={slot}: {e.Message}");
+            }
+        });
+    }
+
+    // Write CCSPlayerController_InventoryServices.m_rank
+    private void ApplyVisibleScoreboardFlair(int slot, uint itemDefIndex)
+    {
+        Server.NextFrame(() =>
+        {
+            if (TryApplyScoreboardFlair(slot, itemDefIndex))
+                _appliedScoreboardFlair[slot] = itemDefIndex;
+        });
+    }
+
+    // Opens a short high-frequency apply window for early-round fields
+    private void StartFastApplyWindow()
+    {
+        _fastApplyRemaining = Math.Max(_fastApplyRemaining, 80);
+        if (_fastApplyTimer != null) return;
+        _fastApplyTimer = AddTimer(0.25f, RunFastApplyTick, TimerFlags.REPEAT | TimerFlags.STOP_ON_MAPCHANGE);
+    }
+
+    // Runs one early apply retry tick
+    private void RunFastApplyTick()
+    {
+        ApplyManagedSlots();
+        _fastApplyRemaining--;
+        if (_fastApplyRemaining > 0) return;
+        _fastApplyTimer?.Kill();
+        _fastApplyTimer = null;
+    }
+
     // Timer body
     private void ApplyManagedSlots()
     {
         if (_client == null) return;
-        foreach (int slot in _client.GetManagedSlots())
+        EnsureBotInfoNameSource();
+        int[] managedSlots = _client.GetManagedSlots();
+        var managed = new bool[64];
+        foreach (int slot in managedSlots)
+            managed[slot] = true;
+        for (int slot = 0; slot < managed.Length; slot++)
+        {
+            if (managed[slot]) continue;
+            _appliedCrosshair[slot] = string.Empty;
+            _appliedScoreboardFlair[slot] = 0U;
+        }
+
+        foreach (int slot in managedSlots)
         {
             var player = Utilities.GetPlayerFromSlot(slot);
             if (player == null || !player.IsValid) continue;
@@ -158,8 +248,8 @@ public class BotHiderImplPlugin : BasePlugin
             {
                 try
                 {
+                    // m_iPing not networked: write the field only, no SetStateChanged
                     Schema.SetSchemaValue(player.Handle, "CCSPlayerController", "m_iPing", ping);
-                    Utilities.SetStateChanged(player, "CCSPlayerController", "m_iPing");
                 }
                 catch (Exception e)
                 {
@@ -168,10 +258,11 @@ public class BotHiderImplPlugin : BasePlugin
             }
 
             string cross = _client.GetCrosshairCode(slot);
-            if (!string.IsNullOrEmpty(cross) && _appliedCrosshair[slot] != cross)
+            if (_appliedCrosshair[slot] != cross)
             {
                 try
                 {
+                    // Publish the crosshair code through the controller network state.
                     player.CrosshairCodes = cross;
                     Utilities.SetStateChanged(player, "CCSPlayerController", "m_szCrosshairCodes");
                     _appliedCrosshair[slot] = cross;
@@ -181,6 +272,70 @@ public class BotHiderImplPlugin : BasePlugin
                     Server.PrintToConsole($"[BotHider] crosshair write failed slot={slot}: {e.Message}");
                 }
             }
+
+            uint flair = _client.GetScoreboardFlair(slot);
+            if (_appliedScoreboardFlair[slot] != flair)
+            {
+                if (TryApplyScoreboardFlair(slot, flair))
+                    _appliedScoreboardFlair[slot] = flair;
+            }
+        }
+    }
+
+    // This project uses bot_info.json identities. Queue the source selection as
+    // soon as the native shared-memory bridge is ready, before bots are created.
+    private void EnsureBotInfoNameSource()
+    {
+        if (_client == null || _botInfoNameSourceQueued) return;
+        _botInfoNameSourceQueued = _client.SetNameSource(true);
+    }
+
+    // Apply the scoreboard flair rank span for one player
+    private static bool TryApplyScoreboardFlair(int slot, uint itemDefIndex)
+    {
+        var player = Utilities.GetPlayerFromSlot(slot);
+        if (player == null || !player.IsValid) return false;
+        try
+        {
+            var inventory = player.InventoryServices;
+            if (inventory == null) return false;
+            var ranks = inventory.Rank;
+            if (ranks.Length == 0) return false;
+            for (int i = 0; i < ranks.Length; i++)
+                SetScoreboardFlairRank(player, ranks, i, itemDefIndex);
+            TrySetScoreboardStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
+            return true;
+        }
+        catch (Exception e)
+        {
+            Server.PrintToConsole($"[BotHider] scoreboard flair write failed slot={slot}: {e.Message}");
+            return false;
+        }
+    }
+
+    // Writes one rank entry and marks that offset dirty
+    private static void SetScoreboardFlairRank(CCSPlayerController player, Span<MedalRank_t> ranks,
+                                               int index, uint itemDefIndex)
+    {
+        ranks[index] = (MedalRank_t)itemDefIndex;
+        TrySetScoreboardStateChanged(
+            player,
+            "CCSPlayerController_InventoryServices",
+            "m_rank",
+            index * sizeof(uint));
+    }
+
+    // Calls SetStateChanged while tolerating schema differences
+    private static void TrySetScoreboardStateChanged(CBaseEntity entity, string className,
+                                                     string fieldName, int extraOffset = 0)
+    {
+        try
+        {
+            Utilities.SetStateChanged(entity, className, fieldName, extraOffset);
+        }
+        catch
+        {
+            // Scoreboard fields vary across game/CSS builds
         }
     }
 
@@ -189,6 +344,14 @@ public class BotHiderImplPlugin : BasePlugin
     public void OnStatus(CCSPlayerController? player, CommandInfo cmd)
     {
         if (_client == null) { cmd.ReplyToCommand("[BotHider] not initialized"); return; }
+        // Hook/sig resolution line: ok only if every signature resolved
+        var sigs = _client.GetSignatures();
+        if (sigs.Length > 0)
+        {
+            bool allOk = sigs.All(s => s.Addr != 0);
+            string detail = string.Join(" ", sigs.Select(s => $"{s.Name}={s.Addr:X16}"));
+            cmd.ReplyToCommand($"[BotHider] hooks: {(allOk ? "ok" : "FAIL")} | {detail}");
+        }
         var slots = _client.GetManagedSlots();
         cmd.ReplyToCommand($"[BotHider] managed slots: {slots.Length}");
         foreach (int s in slots)
@@ -196,7 +359,7 @@ public class BotHiderImplPlugin : BasePlugin
             var p = Utilities.GetPlayerFromSlot(s);
             string isBot = (p != null && p.IsValid) ? p.IsBot.ToString() : "n/a";
             cmd.ReplyToCommand(
-                $"  slot={s} sid={_client.GetSyntheticSteamId(s)} " +
+                $"  slot={s} sid={_client.GetBotSteamId(s)} " +
                 $"name='{_client.GetPersonaName(s)}' ping={_client.GetPing(s)} " +
                 $"crosshair='{_client.GetCrosshairCode(s)}' isbot={isBot}");
         }
@@ -226,6 +389,30 @@ public class BotHiderImplPlugin : BasePlugin
         cmd.ReplyToCommand($"[BotHider] SetPersonaName({slot},'{name}') -> {ok}");
     }
 
+    // bh_setflair <slot> <item_def_index> — set a bot's scoreboard flair
+    [ConsoleCommand("bh_setflair", "Set a bot's scoreboard flair: bh_setflair <slot> <item_def_index>")]
+    public void OnSetFlair(CCSPlayerController? player, CommandInfo cmd)
+    {
+        if (_client == null) { cmd.ReplyToCommand("[BotHider] not initialized"); return; }
+        if (cmd.ArgCount < 3 || !int.TryParse(cmd.GetArg(1), out int slot)
+            || !uint.TryParse(cmd.GetArg(2), out uint itemDefIndex))
+        { cmd.ReplyToCommand("usage: bh_setflair <slot> <item_def_index>"); return; }
+        bool ok = _client.SetScoreboardFlair(slot, itemDefIndex);
+        cmd.ReplyToCommand($"[BotHider] SetScoreboardFlair({slot},{itemDefIndex}) -> {ok}");
+    }
+
+    // bh_setcrosshair <slot> <code> - set a bot's crosshair code
+    [ConsoleCommand("bh_setcrosshair", "Set a bot's crosshair: bh_setcrosshair <slot> <code>")]
+    public void OnSetCrosshair(CCSPlayerController? player, CommandInfo cmd)
+    {
+        if (_client == null) { cmd.ReplyToCommand("[BotHider] not initialized"); return; }
+        if (cmd.ArgCount < 3 || !int.TryParse(cmd.GetArg(1), out int slot))
+        { cmd.ReplyToCommand("usage: bh_setcrosshair <slot> <code>"); return; }
+        string code = cmd.GetArg(2);
+        bool ok = _client.SetCrosshairCode(slot, code);
+        cmd.ReplyToCommand($"[BotHider] SetCrosshairCode({slot},'{code}') -> {ok}");
+    }
+
     // bh_disguise <0|1> — toggle the m_bFakePlayer disguise
     [ConsoleCommand("bh_disguise", "Toggle disguise: bh_disguise <0|1>")]
     public void OnDisguise(CCSPlayerController? player, CommandInfo cmd)
@@ -249,4 +436,60 @@ public class BotHiderImplPlugin : BasePlugin
         bool ok = _client.SetNameSource(useBotInfo);
         cmd.ReplyToCommand($"[BotHider] name source -> {(useBotInfo ? "bot_info" : "botprofile")} ({ok})");
     }
+}
+
+internal sealed class BotHiderCapabilityApi : IBotHiderApi
+{
+    private readonly SharedMemoryClient _client;
+
+    public BotHiderCapabilityApi(SharedMemoryClient client)
+    {
+        _client = client;
+    }
+
+    // Returns whether the slot is managed by BotHider.
+    public bool IsManagedBot(int slot) => _client.IsManagedBot(slot);
+
+    // Returns the current synthetic SteamID64 for the slot.
+    public ulong GetBotSteamId(int slot) => _client.GetBotSteamId(slot);
+
+    // Returns all managed engine slots.
+    public int[] GetManagedSlots() => _client.GetManagedSlots();
+
+    // Returns the current persona name for the slot.
+    public string GetPersonaName(int slot) => _client.GetPersonaName(slot);
+
+    // Returns the current visible ping for the slot.
+    public int GetPing(int slot) => _client.GetPing(slot);
+
+    // Returns the current crosshair code for the slot.
+    public string GetCrosshairCode(int slot) => _client.GetCrosshairCode(slot);
+
+    // Returns the current scoreboard flair item definition index
+    public uint GetScoreboardFlair(int slot) => _client.GetScoreboardFlair(slot);
+
+    // Returns the resolved signature table.
+    public (string Name, ulong Addr)[] GetSignatures() => _client.GetSignatures();
+
+    // Updates the synthetic SteamID64 for a managed bot.
+    public bool SetBotSteamId(int slot, ulong steamId64) =>
+        _client.SetBotSteamId(slot, steamId64);
+
+    // Updates the visible PlayerName through the existing callback path.
+    public bool SetPersonaName(int slot, string name) =>
+        _client.SetPersonaName(slot, name);
+
+    // Updates the visible scoreboard flair through the C# rank writer
+    public bool SetScoreboardFlair(int slot, uint itemDefIndex) =>
+        _client.SetScoreboardFlair(slot, itemDefIndex);
+
+    // Set crosshair code for a managed bot, empty or "0" to clear
+    public bool SetCrosshairCode(int slot, string code) =>
+        _client.SetCrosshairCode(slot, code);
+
+    // Toggles the global disguise behavior.
+    public bool SetDisguise(bool enabled) => _client.SetDisguise(enabled);
+
+    // Toggles the global display-name source behavior.
+    public bool SetNameSource(bool useBotInfo) => _client.SetNameSource(useBotInfo);
 }

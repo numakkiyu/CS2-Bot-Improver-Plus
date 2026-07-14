@@ -15,17 +15,19 @@ const TITLE_KEYS: Record<Page, I18nKey> = {
   directory: "set.directory",
 };
 
-export default function SettingsView({ onClose }: { onClose: () => void }) {
+export default function SettingsView({ onClose }: { onClose?: () => void }) {
   const [page, setPage] = useState<Page>("root");
   const t = useT();
-  const back = () => (page === "root" ? onClose() : setPage("root"));
+  const back = () => (page === "root" ? onClose?.() : setPage("root"));
 
   return (
     <div className="settings">
       <div className="settings__head">
-        <button className="settings__back" onClick={back} aria-label="Back">
-          <BackIcon size={20} />
-        </button>
+        {(page !== "root" || onClose) && (
+          <button className="settings__back" onClick={back} aria-label="Back">
+            <BackIcon size={20} />
+          </button>
+        )}
         <span className="settings__title">{t(TITLE_KEYS[page])}</span>
       </div>
 

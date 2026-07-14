@@ -1,11 +1,65 @@
-# CS2-Bot-Improver
-CS2-Bot-Improver is a plugin for Counter-Strike 2 that improves bots' aim, movement, nade throwing, personalities, strategies, etc.
+# CS2BotImproverPlus
 
-Aims to enhance your experience when playing against bots offline or with friends. It can be installed on both clients and servers.
+**English** | [简体中文](README.zh-CN.md)
 
-## Your stars⭐ are my motivation to keep updating
+CS2BotImproverPlus is a downstream distribution of
+[ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver). It retains the upstream bot systems and
+`game/csgo` installation layout while adding player cosmetic presets.
 
-## Features
+Current version: **1.4.2**<br>
+
+## Plus Features
+
+### Player Cosmetic Presets
+
+- Knife presets: knife type, paint kit, wear, pattern seed, name tag, default knife selection, StatTrak state, and
+  starting StatTrak count.
+- Glove preset: glove model, paint kit, wear, and pattern seed.
+- Weapon presets: a separate paint kit, wear, pattern seed, and name tag for each supported weapon. StatTrak and
+  Souvenir options are enabled only for compatible catalog entries.
+- Music kit preset for human players.
+
+The Panel writes the selected values to `player_knife_presets.json` and `player_gun_presets.json` in the installed
+`PlayerKnifeCustomizer` plugin directory. The CounterStrikeSharp module is displayed as `PlayerCosmetics`.
+
+### Preset Application
+
+- Knife, glove, weapon, and music-kit presets apply only to human-player slots.
+- Knife, glove, and inventory presets are applied when the player spawns.
+- Weapon presets are also applied when a matching weapon is purchased, granted, or picked up.
+- Configured dropped knives receive the matching knife preset.
+- A configured StatTrak counter increases when that weapon is used for a player kill and is written back to the
+  preset configuration.
+- The configured music kit is applied to the player and to the round-MVP event.
+- Paint kits and wear ranges are validated against the bundled weapon catalog before application.
+
+### Extended Panel
+
+- Dedicated knife, glove, weapon, and music-kit preset editors with catalog search and image previews.
+- Searchable command cards with click-to-copy support.
+- Visual professional-team lineup cards with CT/T selection and complete console commands.
+- Multiplayer connection instructions in the Commands view.
+
+### Game Modes
+
+- **Enhanced Bots** adds the Metamod search path to the currently installed `gameinfo.gi` and launches CS2 with
+  `-insecure -console -condebug`.
+- **Online Mode** removes the Metamod search path, disables player cosmetic application, and launches CS2 without
+  adding `-insecure`.
+- Mode files are regenerated from the `gameinfo.gi` in the current game directory.
+
+## Plus Installation (Windows)
+
+1. Download and extract `CS2BotImproverPlus-v1.4.2-windows.zip` from the
+   [Plus releases](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases).
+2. Keep `CS2BotImproverPlus v1.4.2.exe` in any convenient location.
+3. Copy `addons`, `cfg`, and `overrides` to the CS2 `game/csgo` directory.
+4. Open the Plus Panel and select the installed `game/csgo` directory if it is not detected automatically.
+5. Close CS2 before switching between **Enhanced Bots** and **Online Mode**.
+
+---
+
+## CS2-Bot-Improver Features
 
 1. Makes bots aim better and more human-like
 2. Allows bots to throw nades deftly according to the situation
@@ -20,9 +74,9 @@ Aims to enhance your experience when playing against bots offline or with friend
 11. Tweaks game rules to make them more friendly to bots
 12. Adds some commands to make the game more fun
 
-## Installation
+### Installation
 
-### Windows
+#### Windows
 
 1. Download the latest **CS2BotImprover.zip** in [Releases](https://github.com/ed0ard/CS2-Bot-Improver/releases) and unzip it
 
@@ -45,7 +99,7 @@ Aims to enhance your experience when playing against bots offline or with friend
 <img width="339" height="129" alt="Panel_1" src="https://github.com/user-attachments/assets/dc806991-c940-43cf-a614-f49012fae4a7" />
 
 
-### Linux
+#### Linux
 
 1. Download the latest **CS2BotImprover_for_Linux.zip** in [Releases](https://github.com/ed0ard/CS2-Bot-Improver/releases) and unzip it
 
@@ -64,9 +118,9 @@ Aims to enhance your experience when playing against bots offline or with friend
 <img width="130" height="153" alt="snap_3" src="https://github.com/user-attachments/assets/4c775e36-3fc3-4a19-9cb1-4f0c9327838c" /><br>
 <img width="625" height="423" alt="snap_4" src="https://github.com/user-attachments/assets/ac0b0c57-ee67-4e33-96fb-146d14714fc8" />
 
-## Commands
+### Commands
 
-### Aim
+#### Aim
 
 `bot_aim mixed`  
 Bots select aiming spots flexibly based on situations (default)
@@ -80,7 +134,7 @@ Bots prioritize aiming at the torso
 `bot_aim`  
 Check the current aim mode
 
-### Nades
+#### Nades
 
 `bot_nades off`  
 Bots won't throw any nades
@@ -97,7 +151,7 @@ Bots have minimal limitations and think less before throwing nades
 `bot_nades`  
 Shows the current nade throwing mode
 
-### Buy
+#### Buy
 
 Input the weapon's name in your console to give every bot this weapon from the next round
 
@@ -136,7 +190,7 @@ The valid names of weapons:
 `bot_buy`  
 Bot would buy as usual
 
-### Teams
+#### Teams
 
 To add pro teams to your match, copy from [Commands.txt](https://github.com/ed0ard/CS2-Bot-Improver/blob/main/Commands.txt) and paste them to your game console. You can also add new teams in this format.
 
@@ -144,19 +198,19 @@ For example, if you wanna add Vit to CT, copy the commands below.
 
 <img width="301" height="237" alt="snap_5" src="https://github.com/user-attachments/assets/a895f3a6-58f8-47dc-b6f5-b60c1b32fecd" />
 
-### Knives
+#### Knives
 
 Point at the ground and press `\` on your keyboard to generate all kinds of knives there.
 
-### Flying Scoutsman
+#### Flying Scoutsman
 
 `scouts_on`  
 `scouts_off`  
 Input the command after a match begins to turn on/off Flying Scoutsman
 
-## Panel Guide (Windows-Only)
+### Panel Guide (Windows-Only)
 
-### Status Lights
+#### Status Lights
 🟢 No issues detected  
 🟡 Restart CS2 to apply changes  
 🔴 Files missing. Click the red light to view the list of missing files  
