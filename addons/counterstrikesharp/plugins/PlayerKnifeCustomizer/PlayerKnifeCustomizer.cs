@@ -16,7 +16,7 @@ namespace PlayerKnifeCustomizer;
 public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
 {
     public override string ModuleName => "PlayerCosmetics";
-    public override string ModuleVersion => "0.3.1";
+    public override string ModuleVersion => "0.4.0";
     public override string ModuleAuthor => "CS2BotImproverPlus contributors";
     public override string ModuleDescription => "Applies Panel-defined player cosmetic presets";
 
@@ -33,9 +33,10 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     private KnifeConfig _config = new();
     private MemoryFunctionVoid<nint, string, float>? _setAttrByName;
     private ulong _nextItemId = 0xC5200000;
-    private bool _applyErrorLogged;
+    private readonly ApplyErrorThrottle _applyErrorThrottle = new(TimeSpan.FromSeconds(30));
     private bool _loadedLegacyConfig;
     private bool _loadedLegacyGunConfig;
+    private readonly ApplyGenerationTracker _applyTracker = new();
 
     private string ConfigPath => Path.Combine(ModuleDirectory, "player_knife_presets.json");
     private string GunConfigPath => Path.Combine(ModuleDirectory, "player_gun_presets.json");
@@ -66,11 +67,19 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         RegisterEventHandler<EventRoundMvp>(OnRoundMvp, HookMode.Pre);
         RegisterEventHandler<EventItemPickup>(OnItemPickup);
         RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath);
+        RegisterEventHandler<EventPlayerTeam>(OnPlayerTeam);
+        RegisterEventHandler<EventPlayerDisconnect>(OnPlayerDisconnect);
+        RegisterEventHandler<EventRoundEnd>(OnRoundEnd);
+        RegisterListener<Listeners.OnMapStart>(_ => _applyTracker.CancelAll());
+        RegisterListener<Listeners.OnMapEnd>(() => _applyTracker.CancelAll());
         VirtualFunctions.GiveNamedItemFunc.Hook(OnGiveNamedItemPost, HookMode.Post);
+        Logger.LogInformation("[PlayerKnifeCustomizer] Loaded generation-safe pipeline; enabled={Enabled}, signature={Signature}, catalog={Catalog}",
+            _config.Enabled, _setAttrByName != null, _skinCatalog.Values.Sum(skins => skins.Count));
     }
 
     public override void Unload(bool hotReload)
     {
+        _applyTracker.CancelAll();
         VirtualFunctions.GiveNamedItemFunc.Unhook(OnGiveNamedItemPost, HookMode.Post);
     }
 
@@ -80,53 +89,18 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         try
         {
             var itemServices = hook.GetParam<CCSPlayer_ItemServices>(0);
-            var weapon = hook.GetReturn<CBasePlayerWeapon>();
             var player = GetPlayerFromItemServices(itemServices);
-            if (!CanApplyToPlayer(player) || weapon == null || !weapon.IsValid)
-                return HookResult.Continue;
+            if (!CanApplyToPlayer(player)) return HookResult.Continue;
 
-            ushort defIndex = weapon.AttributeManager?.Item?.ItemDefinitionIndex ?? 0;
-            if (defIndex == 0 || IsKnifeDefIndex(defIndex) || !WeaponPresetResolver.HasAnyGunPreset(_config, defIndex))
-                return HookResult.Continue;
-
-            // A GiveNamedItem post-hook can expose an entity before both econ
-            // attribute lists are initialized. Calling the native setter here
-            // caused repeatable CoreCLR access violations. Resolve the entity
-            // from its handle on the next frame, after engine initialization.
-            nint handle = weapon.Handle;
-            if (handle != nint.Zero)
-                Server.NextFrame(() => TryApplyPurchasedWeapon(handle, defIndex));
+            // The returned weapon's econ data may not be initialized inside
+            // this post-hook. Resolve all entities and attributes later.
+            ScheduleApplyPipeline(player!.Handle, CosmeticApplyPhase.Guns);
         }
         catch (Exception ex)
         {
             LogApplyError("purchased weapon", ex);
         }
         return HookResult.Continue;
-    }
-
-    private void TryApplyPurchasedWeapon(nint handle, ushort expectedDefIndex)
-    {
-        try
-        {
-            if (handle == nint.Zero) return;
-
-            var weapon = new CBasePlayerWeapon(handle);
-            if (!weapon.IsValid) return;
-            var player = GetEligibleHumanOwner(weapon);
-            var team = GetCosmeticTeam(player);
-            if (team == null) return;
-
-            var item = weapon.AttributeManager?.Item;
-            if (item == null || !HasReadyAttributeLists(item) ||
-                item.ItemDefinitionIndex != expectedDefIndex)
-                return;
-
-            ApplyPresetForCurrentDefinition(weapon, team.Value);
-        }
-        catch (Exception ex)
-        {
-            LogApplyError("deferred purchased weapon", ex);
-        }
     }
 
     private static CCSPlayerController? GetPlayerFromItemServices(CCSPlayer_ItemServices itemServices)
@@ -138,26 +112,14 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         return player.IsValid ? player : null;
     }
 
-    [GameEventHandler]
     public HookResult OnPlayerSpawn(EventPlayerSpawn @event, GameEventInfo _)
     {
         var player = @event.Userid;
         if (!CanApplyToPlayer(player)) return HookResult.Continue;
-        nint playerHandle = player!.Handle;
-
-        ApplyDefaultKnifeDeferred(playerHandle, 0.0f);
-        ApplyDefaultKnifeDeferred(playerHandle, 0.10f);
-        ApplyDefaultKnifeDeferred(playerHandle, 0.25f);
-        ApplyGloveDeferred(playerHandle, 0.0f);
-        ApplyGloveDeferred(playerHandle, 0.10f);
-        ApplyGloveDeferred(playerHandle, 0.25f);
-        ApplyGunPresetsDeferred(playerHandle, 0.10f);
-        ApplyGunPresetsDeferred(playerHandle, 0.25f);
-        ApplyMusicKit(player);
+        ScheduleApplyPipeline(player!.Handle, CosmeticApplyPhase.All);
         return HookResult.Continue;
     }
 
-    [GameEventHandler(HookMode.Pre)]
     public HookResult OnRoundMvp(EventRoundMvp @event, GameEventInfo _)
     {
         var player = @event.Userid;
@@ -179,20 +141,16 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitID");
     }
 
-    [GameEventHandler]
     public HookResult OnItemPickup(EventItemPickup @event, GameEventInfo _)
     {
         var player = @event.Userid;
         if (!_config.ApplyOnPickup || !CanApplyToPlayer(player))
             return HookResult.Continue;
 
-        nint playerHandle = player!.Handle;
-        Server.NextFrame(() => ApplyPresetsToInventory(playerHandle));
-        AddTimer(0.10f, () => ApplyPresetsToInventory(playerHandle), TimerFlags.STOP_ON_MAPCHANGE);
+        ScheduleApplyPipeline(player!.Handle, CosmeticApplyPhase.Guns);
         return HookResult.Continue;
     }
 
-    [GameEventHandler]
     public HookResult OnPlayerDeath(EventPlayerDeath @event, GameEventInfo _)
     {
         var attacker = @event.Attacker;
@@ -216,67 +174,118 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         return HookResult.Continue;
     }
 
-    private void ApplyDefaultKnifeDeferred(nint playerHandle, float delay)
+    private HookResult OnPlayerTeam(EventPlayerTeam @event, GameEventInfo _)
     {
-        void Apply()
-        {
-            var player = ResolvePlayer(playerHandle);
-            if (!CanApplyToPlayer(player)) return;
-            var team = GetCosmeticTeam(player);
-            if (team == null) return;
-            var loadout = _config.Loadouts.For(team.Value);
-            var pawn = player!.PlayerPawn.Value;
-            if (pawn == null || !pawn.IsValid) return;
-
-            var weapons = pawn.WeaponServices?.MyWeapons;
-            if (weapons == null) return;
-            foreach (var handle in weapons)
-            {
-                var weapon = handle.Value;
-                if (weapon == null || !weapon.IsValid || !IsKnifeName(weapon.DesignerName)) continue;
-
-                ushort target = loadout.DefaultKnifeDefIndex;
-                if (target > 0 && loadout.KnifePresets.ContainsKey(target))
-                {
-                    weapon.AcceptInput("ChangeSubclass", value: target.ToString());
-                    var item = weapon.AttributeManager?.Item;
-                    if (item != null) item.ItemDefinitionIndex = target;
-                    ApplyPreset(weapon, target, loadout.KnifePresets[target]);
-                }
-                else
-                {
-                    ApplyPresetForCurrentDefinition(weapon, team.Value);
-                }
-                break;
-            }
-        }
-
-        if (delay <= 0) Server.NextFrame(Apply);
-        else AddTimer(delay, Apply, TimerFlags.STOP_ON_MAPCHANGE);
+        var player = @event.Userid;
+        if (CanApplyToPlayer(player))
+            ScheduleApplyPipeline(player!.Handle, CosmeticApplyPhase.All);
+        return HookResult.Continue;
     }
 
-    private void ApplyPresetsToInventory(nint playerHandle)
+    private HookResult OnPlayerDisconnect(EventPlayerDisconnect @event, GameEventInfo _)
     {
+        var player = @event.Userid;
+        if (player != null && player.Handle != nint.Zero)
+            _applyTracker.Cancel(player.Handle);
+        return HookResult.Continue;
+    }
+
+    private HookResult OnRoundEnd(EventRoundEnd @event, GameEventInfo _)
+    {
+        _applyTracker.CancelAll();
+        return HookResult.Continue;
+    }
+
+    private void ScheduleApplyPipeline(nint playerHandle, CosmeticApplyPhase phases)
+    {
+        if (playerHandle == nint.Zero || phases == CosmeticApplyPhase.None) return;
+        long generation = _applyTracker.Begin(playerHandle, phases);
+
+        Server.NextFrame(() => RunApplyPipeline(playerHandle, generation));
+        AddTimer(0.10f, () => RunApplyPipeline(playerHandle, generation), TimerFlags.STOP_ON_MAPCHANGE);
+        AddTimer(0.25f, () => RunApplyPipeline(playerHandle, generation), TimerFlags.STOP_ON_MAPCHANGE);
+    }
+
+    private void RunApplyPipeline(nint playerHandle, long generation)
+    {
+        if (!_applyTracker.IsCurrent(playerHandle, generation) ||
+            !_applyTracker.HasPending(playerHandle, generation))
+            return;
+
         var player = ResolvePlayer(playerHandle);
         if (!CanApplyToPlayer(player)) return;
         var team = GetCosmeticTeam(player);
-        if (team == null) return;
         var pawn = player!.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid) return;
+        if (team == null || pawn == null || !pawn.IsValid || pawn.Handle == nint.Zero) return;
+        if (!_applyTracker.TryBindContext(playerHandle, generation, pawn.Handle, (int)team.Value)) return;
 
-        var weapons = pawn.WeaponServices?.MyWeapons;
-        if (weapons == null) return;
-        foreach (var handle in weapons)
+        TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Knife,
+            () => TryApplyDefaultKnife(pawn, team.Value), "knife pipeline");
+        TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Gloves,
+            () => TryApplyGlove(playerHandle, generation, pawn, team.Value), "glove pipeline");
+        TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Guns,
+            () => TryApplyGunPresets(pawn, team.Value), "gun pipeline");
+        TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Music,
+            () => { ApplyMusicKit(player); return true; }, "music pipeline");
+    }
+
+    private void TryApplyPhase(nint playerHandle, long generation, CosmeticApplyPhase phase,
+        Func<bool> apply, string operation)
+    {
+        if (!_applyTracker.IsPending(playerHandle, generation, phase)) return;
+        try
         {
-            var weapon = handle.Value;
-            if (weapon == null || !weapon.IsValid) continue;
-            ApplyPresetForCurrentDefinition(weapon, team.Value);
+            if (apply()) _applyTracker.Complete(playerHandle, generation, phase);
+        }
+        catch (Exception ex)
+        {
+            LogApplyError(operation, ex);
         }
     }
 
-    private void ApplyGunPresetsDeferred(nint playerHandle, float delay)
+    private bool TryApplyDefaultKnife(CCSPlayerPawn pawn, CosmeticTeam team)
     {
-        AddTimer(delay, () => ApplyPresetsToInventory(playerHandle), TimerFlags.STOP_ON_MAPCHANGE);
+        var weapons = pawn.WeaponServices?.MyWeapons;
+        if (weapons == null) return false;
+        var loadout = _config.Loadouts.For(team);
+
+        foreach (var handle in weapons)
+        {
+            var weapon = handle.Value;
+            if (weapon == null || !weapon.IsValid || !IsKnifeName(weapon.DesignerName)) continue;
+            var item = weapon.AttributeManager?.Item;
+            if (item == null || !HasReadyAttributeLists(item)) return false;
+
+            ushort target = loadout.DefaultKnifeDefIndex;
+            if (target > 0 && loadout.KnifePresets.TryGetValue(target, out var targetPreset))
+            {
+                weapon.AcceptInput("ChangeSubclass", value: target.ToString());
+                item.ItemDefinitionIndex = target;
+                return ApplyPreset(weapon, target, targetPreset);
+            }
+
+            ushort current = item.ItemDefinitionIndex;
+            return !TryGetPreset(current, team, out var currentPreset) ||
+                   ApplyPreset(weapon, current, currentPreset);
+        }
+
+        return false;
+    }
+
+    private bool TryApplyGunPresets(CCSPlayerPawn pawn, CosmeticTeam team)
+    {
+        var weapons = pawn.WeaponServices?.MyWeapons;
+        if (weapons == null) return false;
+        bool ready = true;
+        foreach (var handle in weapons)
+        {
+            var weapon = handle.Value;
+            if (weapon == null || !weapon.IsValid || IsKnifeName(weapon.DesignerName)) continue;
+            ushort defIndex = weapon.AttributeManager?.Item?.ItemDefinitionIndex ?? 0;
+            if (defIndex == 0 || !TryGetPreset(defIndex, team, out var preset)) continue;
+            if (!ApplyPreset(weapon, defIndex, preset)) ready = false;
+        }
+        return ready;
     }
 
     private bool ApplyPresetForCurrentDefinition(CBasePlayerWeapon weapon, CosmeticTeam team)
@@ -330,33 +339,16 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         }
     }
 
-    private void ApplyGloveDeferred(nint playerHandle, float delay)
+    private bool TryApplyGlove(nint playerHandle, long generation, CCSPlayerPawn pawn, CosmeticTeam team)
     {
-        void Apply()
-        {
-            var player = ResolvePlayer(playerHandle);
-            if (!CanApplyToPlayer(player)) return;
-            var team = GetCosmeticTeam(player);
-            if (team == null) return;
-            var glove = _config.Loadouts.For(team.Value).Glove;
-            if (!glove.Enabled) return;
-            var pawn = player!.PlayerPawn.Value;
-            if (pawn == null || !pawn.IsValid) return;
-            ApplyGlove(pawn, glove);
-        }
-
-        if (delay <= 0) Server.NextFrame(Apply);
-        else AddTimer(delay, Apply, TimerFlags.STOP_ON_MAPCHANGE);
-    }
-
-    private void ApplyGlove(CCSPlayerPawn pawn, GlovePreset preset)
-    {
-        if (_setAttrByName == null || !preset.Enabled || preset.DefIndex == 0 || preset.Paint <= 0) return;
+        var preset = _config.Loadouts.For(team).Glove;
+        if (!preset.Enabled) return true;
+        if (_setAttrByName == null || preset.DefIndex == 0 || preset.Paint <= 0) return false;
 
         try
         {
             var item = pawn.EconGloves;
-            if (!HasReadyAttributeLists(item)) return;
+            if (!HasReadyAttributeLists(item)) return false;
             item.NetworkedDynamicAttributes.Attributes.RemoveAll();
             item.AttributeList.Attributes.RemoveAll();
             item.ItemDefinitionIndex = preset.DefIndex;
@@ -370,15 +362,18 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             nint pawnHandle = pawn.Handle;
             AddTimer(0.20f, () =>
             {
-                if (pawnHandle == nint.Zero) return;
-                var currentPawn = new CCSPlayerPawn(pawnHandle);
-                if (currentPawn.IsValid)
+                if (pawnHandle == nint.Zero || !_applyTracker.IsCurrent(playerHandle, generation)) return;
+                var player = ResolvePlayer(playerHandle);
+                var currentPawn = player?.PlayerPawn.Value;
+                if (currentPawn is { IsValid: true } && currentPawn.Handle == pawnHandle)
                     currentPawn.AcceptInput("SetBodygroup", value: "first_or_third_person,1");
             }, TimerFlags.STOP_ON_MAPCHANGE);
+            return true;
         }
         catch (Exception ex)
         {
             LogApplyError("gloves", ex);
+            return false;
         }
     }
 
@@ -399,7 +394,7 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     {
         if (_setAttrByName == null) return;
         var item = weapon.AttributeManager?.Item;
-        if (item == null) return;
+        if (item == null || !HasReadyAttributeLists(item)) return;
 
         nint networkedHandle = item.NetworkedDynamicAttributes.Handle;
         nint attributeHandle = item.AttributeList.Handle;
@@ -519,7 +514,7 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             }
             LoadGunConfig();
             _config.Normalize();
-            _applyErrorLogged = false;
+            _applyErrorThrottle.Reset();
         }
         catch (Exception ex)
         {
@@ -653,14 +648,122 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
 
     private void OnStatusCommand(CCSPlayerController? player, CommandInfo command)
     {
-        command.ReplyToCommand($"[PlayerKnifeCustomizer] enabled={_config.Enabled}, signature={(_setAttrByName == null ? "missing" : "loaded")}, ct_knives={_config.Loadouts.Ct.KnifePresets.Count}, t_knives={_config.Loadouts.T.KnifePresets.Count}, ct_guns={_config.Loadouts.Ct.GunPresets.Count}, t_guns={_config.Loadouts.T.GunPresets.Count}, music={_config.MusicKitId}, catalog={_skinCatalog.Values.Sum(skins => skins.Count)}");
+        command.ReplyToCommand($"[PlayerKnifeCustomizer] enabled={_config.Enabled}, signature={(_setAttrByName == null ? "missing" : "loaded")}, ct_knives={_config.Loadouts.Ct.KnifePresets.Count}, t_knives={_config.Loadouts.T.KnifePresets.Count}, ct_guns={_config.Loadouts.Ct.GunPresets.Count}, t_guns={_config.Loadouts.T.GunPresets.Count}, music={_config.MusicKitId}, catalog={_skinCatalog.Values.Sum(skins => skins.Count)}, active_generations={_applyTracker.ActiveCount}, context_invalidations={_applyTracker.ContextInvalidations}");
     }
 
     private void LogApplyError(string operation, Exception ex)
     {
-        if (_applyErrorLogged) return;
-        _applyErrorLogged = true;
-        Logger.LogError("[PlayerKnifeCustomizer] Apply failed during {Operation}: {Message}", operation, ex.Message);
+        ApplyErrorDecision decision = _applyErrorThrottle.Check(operation, DateTimeOffset.UtcNow);
+        if (!decision.ShouldLog) return;
+        Logger.LogError(ex,
+            "[PlayerKnifeCustomizer] Apply failed during {Operation}; suppressed_since_last={Suppressed}: {Message}",
+            operation, decision.Suppressed, ex.Message);
+    }
+}
+
+[Flags]
+public enum CosmeticApplyPhase
+{
+    None = 0,
+    Knife = 1,
+    Gloves = 2,
+    Guns = 4,
+    Music = 8,
+    All = Knife | Gloves | Guns | Music,
+}
+
+public sealed class ApplyGenerationTracker
+{
+    private sealed class State
+    {
+        public required long Generation { get; init; }
+        public required CosmeticApplyPhase Pending { get; set; }
+        public nint PawnHandle { get; set; }
+        public int? Team { get; set; }
+    }
+
+    private readonly Dictionary<nint, State> _states = new();
+    private long _nextGeneration;
+    public int ContextInvalidations { get; private set; }
+    public int ActiveCount => _states.Count;
+
+    public long Begin(nint playerHandle, CosmeticApplyPhase phases)
+    {
+        long generation = ++_nextGeneration;
+        _states[playerHandle] = new State { Generation = generation, Pending = phases };
+        return generation;
+    }
+
+    public bool IsCurrent(nint playerHandle, long generation) =>
+        _states.TryGetValue(playerHandle, out var state) && state.Generation == generation;
+
+    public bool TryBindContext(nint playerHandle, long generation, nint pawnHandle, int team)
+    {
+        if (!_states.TryGetValue(playerHandle, out var state) || state.Generation != generation)
+            return false;
+        if ((state.PawnHandle != nint.Zero && state.PawnHandle != pawnHandle) ||
+            (state.Team.HasValue && state.Team.Value != team))
+        {
+            ContextInvalidations++;
+            _states.Remove(playerHandle);
+            return false;
+        }
+        state.PawnHandle = pawnHandle;
+        state.Team = team;
+        return true;
+    }
+
+    public bool IsPending(nint playerHandle, long generation, CosmeticApplyPhase phase) =>
+        _states.TryGetValue(playerHandle, out var state) && state.Generation == generation &&
+        (state.Pending & phase) != 0;
+
+    public bool HasPending(nint playerHandle, long generation) =>
+        _states.TryGetValue(playerHandle, out var state) && state.Generation == generation &&
+        state.Pending != CosmeticApplyPhase.None;
+
+    public bool Complete(nint playerHandle, long generation, CosmeticApplyPhase phase)
+    {
+        if (!_states.TryGetValue(playerHandle, out var state) || state.Generation != generation)
+            return false;
+        state.Pending &= ~phase;
+        return true;
+    }
+
+    public void Cancel(nint playerHandle) => _states.Remove(playerHandle);
+    public void CancelAll() => _states.Clear();
+}
+
+public readonly record struct ApplyErrorDecision(bool ShouldLog, int Suppressed);
+
+public sealed class ApplyErrorThrottle(TimeSpan interval)
+{
+    private sealed class Entry
+    {
+        public required DateTimeOffset LastLogged { get; set; }
+        public int Suppressed { get; set; }
+    }
+
+    private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
+
+    public void Reset() => _entries.Clear();
+
+    public ApplyErrorDecision Check(string operation, DateTimeOffset now)
+    {
+        if (!_entries.TryGetValue(operation, out Entry? entry))
+        {
+            _entries[operation] = new Entry { LastLogged = now };
+            return new ApplyErrorDecision(true, 0);
+        }
+        if (now - entry.LastLogged < interval)
+        {
+            entry.Suppressed++;
+            return new ApplyErrorDecision(false, entry.Suppressed);
+        }
+
+        int suppressed = entry.Suppressed;
+        entry.LastLogged = now;
+        entry.Suppressed = 0;
+        return new ApplyErrorDecision(true, suppressed);
     }
 }
 

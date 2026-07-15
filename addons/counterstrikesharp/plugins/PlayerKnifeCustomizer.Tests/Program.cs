@@ -41,4 +41,54 @@ config.SharedWeaponLinks[9] = true;
 Require(WeaponPresetResolver.TryResolveGunPreset(config, 9, CosmeticTeam.T, out var linkedAwp) && linkedAwp.Paint == 344,
     "A linked shared weapon must fall back to the configured side.");
 
-Console.WriteLine("PlayerKnifeCustomizer resolver tests passed.");
+var tracker = new ApplyGenerationTracker();
+nint playerHandle = (nint)0x1000;
+for (int i = 0; i < 1000; i++)
+{
+    nint firstPawn = (nint)(0x2000 + i * 2);
+    nint replacementPawn = firstPawn + 1;
+
+    long spawn = tracker.Begin(playerHandle, CosmeticApplyPhase.All);
+    Require(tracker.TryBindContext(playerHandle, spawn, firstPawn, (int)CosmeticTeam.Ct),
+        "The current spawn generation must bind its initial pawn and team.");
+    Require(tracker.Complete(playerHandle, spawn, CosmeticApplyPhase.Knife),
+        "The first knife write must complete the knife phase.");
+    Require(!tracker.IsPending(playerHandle, spawn, CosmeticApplyPhase.Knife),
+        "A completed phase must not be written again by a later retry.");
+
+    long teamChange = tracker.Begin(playerHandle, CosmeticApplyPhase.All);
+    Require(!tracker.IsCurrent(playerHandle, spawn),
+        "A team change must invalidate every callback from the old spawn generation.");
+    Require(!tracker.Complete(playerHandle, spawn, CosmeticApplyPhase.Gloves),
+        "A stale callback must not complete or write any phase.");
+    Require(tracker.TryBindContext(playerHandle, teamChange, replacementPawn, (int)CosmeticTeam.T),
+        "The replacement generation must bind the replacement pawn and team.");
+    Require(!tracker.TryBindContext(playerHandle, teamChange, firstPawn, (int)CosmeticTeam.T),
+        "A pawn replacement inside one generation must cancel that generation.");
+    Require(!tracker.IsCurrent(playerHandle, teamChange),
+        "A generation with a changed pawn must remain cancelled.");
+
+    long pickup = tracker.Begin(playerHandle, CosmeticApplyPhase.Guns);
+    Require(tracker.TryBindContext(playerHandle, pickup, replacementPawn, (int)CosmeticTeam.T),
+        "A pickup generation must bind the current pawn.");
+    Require(tracker.Complete(playerHandle, pickup, CosmeticApplyPhase.Guns),
+        "A pickup generation must complete its single gun phase.");
+    Require(!tracker.HasPending(playerHandle, pickup),
+        "A completed pickup generation must not schedule repeated native writes.");
+}
+
+tracker.CancelAll();
+Require(!tracker.IsCurrent(playerHandle, 3000), "Map or round cleanup must cancel all generations.");
+Require(tracker.ActiveCount == 0 && tracker.ContextInvalidations == 1000,
+    "Lifecycle diagnostics must count invalidated Pawn contexts without retaining generations.");
+
+var throttle = new ApplyErrorThrottle(TimeSpan.FromSeconds(30));
+var now = DateTimeOffset.UtcNow;
+Require(throttle.Check("gun", now).ShouldLog, "The first native write error must be logged.");
+Require(!throttle.Check("gun", now.AddSeconds(1)).ShouldLog,
+    "Repeated errors inside the throttle window must be suppressed.");
+var resumed = throttle.Check("gun", now.AddSeconds(31));
+Require(resumed.ShouldLog && resumed.Suppressed == 1,
+    "The next error record must report how many duplicate errors were suppressed.");
+
+Console.WriteLine("PlayerKnifeCustomizer resolver, lifecycle, and log-throttle tests passed.");
