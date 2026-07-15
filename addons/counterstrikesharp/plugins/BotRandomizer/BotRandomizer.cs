@@ -13,9 +13,9 @@ namespace BotRandomizer;
 
 public class BotRandomizerPlugin : BasePlugin
 {
-    public override string ModuleName        => "BotRandomizer";
-    public override string ModuleVersion     => "1.2.3";
-    public override string ModuleAuthor      => "ed0ard & Misaka17032";
+    public override string ModuleName => "BotRandomizer";
+    public override string ModuleVersion => "1.2.4";
+    public override string ModuleAuthor => "ed0ard & Misaka17032";
     public override string ModuleDescription => "Randomize knives, gloves, weapon skins, agent models, music kits for bots";
 
     private readonly Random _rng = new();
@@ -25,7 +25,6 @@ public class BotRandomizerPlugin : BasePlugin
     private readonly Dictionary<int, int> _botKnifePaints = new();
     private readonly Dictionary<int, int> _botGloves = new();
 
-    private bool _handling = false;
     private MemoryFunctionVoid<nint, string, float>? _setAttrByName;
     private ulong _nextItemId = 0xF00DCAFE;
 
@@ -157,26 +156,26 @@ public class BotRandomizerPlugin : BasePlugin
     // its model. See OnItemPickup / SyncPickedUpKnife.
     private static readonly Dictionary<string, ushort> KnifeDefIndexByName = new()
     {
-        ["weapon_bayonet"]               = 500,
-        ["weapon_knife_css"]             = 503,
-        ["weapon_knife_flip"]            = 505,
-        ["weapon_knife_gut"]             = 506,
-        ["weapon_knife_karambit"]        = 507,
-        ["weapon_knife_m9_bayonet"]      = 508,
-        ["weapon_knife_tactical"]        = 509,
-        ["weapon_knife_falchion"]        = 512,
-        ["weapon_knife_survival_bowie"]  = 514,
-        ["weapon_knife_butterfly"]       = 515,
-        ["weapon_knife_push"]            = 516,
-        ["weapon_knife_cord"]            = 517,
-        ["weapon_knife_canis"]           = 518,
-        ["weapon_knife_ursus"]           = 519,
+        ["weapon_bayonet"] = 500,
+        ["weapon_knife_css"] = 503,
+        ["weapon_knife_flip"] = 505,
+        ["weapon_knife_gut"] = 506,
+        ["weapon_knife_karambit"] = 507,
+        ["weapon_knife_m9_bayonet"] = 508,
+        ["weapon_knife_tactical"] = 509,
+        ["weapon_knife_falchion"] = 512,
+        ["weapon_knife_survival_bowie"] = 514,
+        ["weapon_knife_butterfly"] = 515,
+        ["weapon_knife_push"] = 516,
+        ["weapon_knife_cord"] = 517,
+        ["weapon_knife_canis"] = 518,
+        ["weapon_knife_ursus"] = 519,
         ["weapon_knife_gypsy_jackknife"] = 520,
-        ["weapon_knife_outdoor"]         = 521,
-        ["weapon_knife_stiletto"]        = 522,
-        ["weapon_knife_widowmaker"]      = 523,
-        ["weapon_knife_skeleton"]        = 525,
-        ["weapon_knife_kukri"]           = 526,
+        ["weapon_knife_outdoor"] = 521,
+        ["weapon_knife_stiletto"] = 522,
+        ["weapon_knife_widowmaker"] = 523,
+        ["weapon_knife_skeleton"] = 525,
+        ["weapon_knife_kukri"] = 526,
     };
 
     private static readonly string[] CtModels =
@@ -309,7 +308,7 @@ public class BotRandomizerPlugin : BasePlugin
             _botGloves.Clear();
             _botGunPaints.Clear();
             foreach (var m in CtModels) Server.PrecacheModel(m);
-            foreach (var m in TModels)  Server.PrecacheModel(m);
+            foreach (var m in TModels) Server.PrecacheModel(m);
         });
 
         RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
@@ -365,12 +364,12 @@ public class BotRandomizerPlugin : BasePlugin
         if (!_botGloves.ContainsKey(player.Slot))
             _botGloves[player.Slot] = _rng.Next(Gloves.Length);
 
-        var pawn          = player.PlayerPawn.Value;
+        var pawn = player.PlayerPawn.Value;
         var assignedModel = model;
-        var kitId         = _botKits[player.Slot];
-        var knife         = Knives[_botKnives[player.Slot]];
-        var knifePaint    = _botKnifePaints[player.Slot];
-        var glove         = Gloves[_botGloves[player.Slot]];
+        var kitId = _botKits[player.Slot];
+        var knife = Knives[_botKnives[player.Slot]];
+        var knifePaint = _botKnifePaints[player.Slot];
+        var glove = Gloves[_botGloves[player.Slot]];
 
         Server.NextFrame(() =>
         {
@@ -385,8 +384,7 @@ public class BotRandomizerPlugin : BasePlugin
 
             if (player == null || !player.IsValid) return;
 
-            player.MusicKitID = kitId;
-            Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitID");
+            ApplyMusicKit(player, kitId, 0);
 
             ApplyWearables(player, pawn, knife.DefIndex, knifePaint, glove.DefIndex, glove.PaintKit);
             AddTimer(0.10f, () => ApplyWearables(player, pawn, knife.DefIndex, knifePaint, glove.DefIndex, glove.PaintKit));
@@ -762,12 +760,10 @@ public class BotRandomizerPlugin : BasePlugin
         return HookResult.Continue;
     }
 
+    // Publish the bot's assigned music kit through the original MVP event
     [GameEventHandler(HookMode.Pre)]
     public HookResult OnRoundMvp(EventRoundMvp @event, GameEventInfo info)
     {
-        if (_handling)
-            return HookResult.Continue;
-
         var player = @event.Userid;
 
         if (player == null || !player.IsValid || !player.IsBot)
@@ -776,40 +772,29 @@ public class BotRandomizerPlugin : BasePlugin
         if (!_botKits.TryGetValue(player.Slot, out int kitId))
             return HookResult.Continue;
 
-        info.DontBroadcast = true;
-        _handling = true;
-
-        if (player.MusicKitID != kitId)
-        {
-            player.MusicKitID = kitId;
-            Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitID");
-        }
-
-        EventRoundMvp? newEvent = null;
-        try
-        {
-            newEvent = new EventRoundMvp(true)
-            {
-                Userid     = player,
-                Musickitid = kitId,
-                Nomusic    = 0,
-                Reason     = @event.Reason,
-                Value      = @event.Value,
-            };
-
-            foreach (var human in Utilities.GetPlayers()
-                         .Where(p => p.IsValid && !p.IsHLTV && !p.IsBot))
-            {
-                try { newEvent.FireEventToClient(human); }
-                catch { }
-            }
-        }
-        finally
-        {
-            try { newEvent?.Free(); } catch { }
-            _handling = false;
-        }
+        ApplyMusicKit(player, kitId, 0);
+        @event.Musickitid = kitId;
+        @event.Musickitmvps = 0;
+        @event.Nomusic = 0;
 
         return HookResult.Continue;
+    }
+
+    // Synchronize every music-kit field used by the controller and MVP panel
+    private static void ApplyMusicKit(CCSPlayerController player, int kitId, int musicKitMvps)
+    {
+        var inventory = player.InventoryServices;
+        if (inventory != null)
+        {
+            inventory.MusicID = checked((ushort)kitId);
+            Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInventoryServices");
+        }
+
+        player.MusicKitID = kitId;
+        Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitID");
+        player.MusicKitMVPs = musicKitMvps;
+        Utilities.SetStateChanged(player, "CCSPlayerController", "m_iMusicKitMVPs");
+        player.MvpNoMusic = false;
+        Utilities.SetStateChanged(player, "CCSPlayerController", "m_bMvpNoMusic");
     }
 }

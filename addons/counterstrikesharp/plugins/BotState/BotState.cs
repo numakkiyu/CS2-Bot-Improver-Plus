@@ -8,20 +8,23 @@ using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Core.Capabilities;
 using RayTraceAPI;
+using BotControllerApi;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace BotState;
 
 public class BotState : BasePlugin
 {
     public override string ModuleName => "Smarter-Bot";
-    public override string ModuleVersion => "1.7.4";
+    public override string ModuleVersion => "1.8.0";
     public override string ModuleAuthor => "ed0ard & XBribo";
     public override string ModuleDescription => "Make bots smarter";
 
     private const float ExpandedValue = 500f;
     private const float NormalValue = 50f;
     private const float RestoreDelay = 1.0f;
+    private const int KnifeDefinitionIndex = 9001;
 
     private bool _isExpanded = false;
     private ConVar? _smokeConVar;
@@ -58,6 +61,10 @@ public class BotState : BasePlugin
     private CRayTraceInterface? _rayTrace;
     private Vector? _scratchEye;
 
+    private readonly HashSet<int> _knifeLockedBotSlots = new();
+    private object? _botController;
+    private bool _eliminationHandled;
+
     private const float FlashFuseSeconds = 1.5f;        // CS2 flashbang fuse
     private const float FlashFovHorizDeg = 110f;        // bot horizontal cone (full angle)
     private const float FlashFovVertDeg = 90f;         // bot vertical cone (full angle)
@@ -78,6 +85,7 @@ public class BotState : BasePlugin
     // Debug logging (toggle with `css_botstate_flashdebug`)
     private bool _debugFlash = false;
     //---------------------------------------------------------------------------------------
+    // Registers game events and the per-tick bot behavior listener
     public override void Load(bool hotReload)
     {
         _smokeConVar = ConVar.Find("bot_max_visible_smoke_length");
@@ -94,9 +102,11 @@ public class BotState : BasePlugin
         RegisterEventHandler<EventDoorOpen>(OnDoorOpen);
         RegisterEventHandler<EventDoorClose>(OnDoorClose);
         RegisterEventHandler<EventWeaponFire>(OnWeaponFire);
+        RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath);
         RegisterListener<Listeners.OnTick>(OnTick);
     }
 
+    // Resolves capabilities supplied by plugins after every plugin has loaded
     public override void OnAllPluginsLoaded(bool hotReload)
     {
         try { _rayTrace = RayTraceCap.Get(); } catch { _rayTrace = null; }
@@ -104,6 +114,10 @@ public class BotState : BasePlugin
             Console.WriteLine("[Smarter-Bot] Ray-Trace not available");
         else
             _scratchEye = new Vector();
+
+        try { _botController = BotControllerBridge.TryGet(); } catch { _botController = null; }
+        if (_botController == null)
+            Console.WriteLine("[Smarter-Bot] BotController API not available");
     }
 
     [ConsoleCommand("css_botstate_flashdebug", "Toggle Smarter-Bot flashbang debug log")]
@@ -169,8 +183,10 @@ public class BotState : BasePlugin
             Server.ExecuteCommand($"bot_max_visible_smoke_length {value}");
     }
 
+    // Restores plugin-owned state before the plugin unloads
     public override void Unload(bool hotReload)
     {
+        ReleaseKnifeLocks();
         SetSmokeLength(NormalValue);
         _defuseExpandTimer?.Kill();
     }
@@ -772,8 +788,11 @@ public class BotState : BasePlugin
         }
     }
     //---------------------------------------------------------------------------------------
+    // Clears per-round state and releases elimination knife locks
     private HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
     {
+        ReleaseKnifeLocks();
+        _eliminationHandled = false;
         _isFreezeTime = true;
 
         // Per-round transient state keyed by player index. Indices are reused by
@@ -803,6 +822,138 @@ public class BotState : BasePlugin
         _flashDecisions.Clear();
         _flashRejectLogged.Clear();
         return HookResult.Continue;
+    }
+
+    // Detects elimination while explicitly excluding the current death victim
+    private HookResult OnPlayerDeath(EventPlayerDeath @event, GameEventInfo info)
+    {
+        var victim = @event.Userid;
+        if (_eliminationHandled || _botController == null ||
+            victim == null || !victim.IsValid)
+            return HookResult.Continue;
+
+        CsTeam victimTeam = (CsTeam)(int)victim.TeamNum;
+        if (victimTeam != CsTeam.Terrorist &&
+            victimTeam != CsTeam.CounterTerrorist)
+            return HookResult.Continue;
+
+        HandleTeamElimination(victim.Slot, victimTeam);
+
+        return HookResult.Continue;
+    }
+
+    // Locks every surviving Bot on the winning team to its knife slot
+    private void HandleTeamElimination(int victimSlot, CsTeam victimTeam)
+    {
+        if (_eliminationHandled || _botController == null) return;
+
+        var activePlayers = Utilities.GetPlayers()
+            .Where(player => player.IsValid
+                && !player.IsHLTV
+                && ((int)player.TeamNum == (int)CsTeam.Terrorist
+                    || (int)player.TeamNum == (int)CsTeam.CounterTerrorist))
+            .ToList();
+
+        bool victimTeamHasSurvivor = activePlayers.Any(player =>
+            player.Slot != victimSlot
+            && (int)player.TeamNum == (int)victimTeam
+            && player.PawnIsAlive);
+        if (victimTeamHasSurvivor) return;
+
+        CsTeam winningTeam = victimTeam == CsTeam.Terrorist
+            ? CsTeam.CounterTerrorist
+            : CsTeam.Terrorist;
+        var winningBots = activePlayers.Where(player =>
+                player.IsBot
+                && player.PawnIsAlive
+                && !player.HasBeenControlledByPlayerThisRound
+                && (int)player.TeamNum == (int)winningTeam)
+            .ToList();
+
+        bool winningTeamAlive = activePlayers.Any(player =>
+            (int)player.TeamNum == (int)winningTeam && player.PawnIsAlive);
+        if (!winningTeamAlive) return;
+
+        _eliminationHandled = true;
+
+        foreach (var bot in winningBots)
+        {
+            bool switched = BotControllerBridge.SwitchBotWeapon(
+                _botController,
+                bot.Slot, KnifeDefinitionIndex);
+            bool locked = BotControllerBridge.LockKnife(
+                _botController, bot.Slot);
+            if (locked)
+                _knifeLockedBotSlots.Add(bot.Slot);
+
+            if (!switched || !locked)
+            {
+                Console.WriteLine(
+                    $"[Smarter-Bot] Knife action failed for slot {bot.Slot}: switch={switched}, lock={locked}");
+            }
+        }
+
+    }
+
+    // Releases only Slot3 locks successfully applied by this plugin
+    private void ReleaseKnifeLocks()
+    {
+        if (_botController != null)
+        {
+            foreach (int slot in _knifeLockedBotSlots)
+            {
+                if (BotControllerBridge.IsKnifeLocked(_botController, slot))
+                    BotControllerBridge.UnlockWeapon(_botController, slot);
+            }
+        }
+
+        _knifeLockedBotSlots.Clear();
+    }
+
+    // Isolates optional BotControllerApi types from the main plugin type
+    private static class BotControllerBridge
+    {
+        // Resolves the optional BotController capability at runtime
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static object? TryGet()
+        {
+            var capability =
+                new PluginCapability<BotControllerApi.IBotControllerApi>(
+                    "botcontroller:api");
+            return capability.Get();
+        }
+
+        // Switches one Bot to its knife definition
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static bool SwitchBotWeapon(object api, int slot, int defIndex)
+        {
+            return ((BotControllerApi.IBotControllerApi)api)
+                .SwitchBotWeapon(slot, defIndex);
+        }
+
+        // Applies the knife-slot weapon lock to one Bot
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static bool LockKnife(object api, int slot)
+        {
+            return ((BotControllerApi.IBotControllerApi)api)
+                .Lock(slot, BotControllerApi.LockTarget.Slot3);
+        }
+
+        // Checks whether one Bot still has the knife-slot lock
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static bool IsKnifeLocked(object api, int slot)
+        {
+            return ((BotControllerApi.IBotControllerApi)api)
+                .GetWeaponLock(slot) == BotControllerApi.LockTarget.Slot3;
+        }
+
+        // Releases the weapon lock from one Bot
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static bool UnlockWeapon(object api, int slot)
+        {
+            return ((BotControllerApi.IBotControllerApi)api)
+                .Unlock(slot, BotControllerApi.LockKind.Weapon);
+        }
     }
 
     private HookResult OnDoorOpen(EventDoorOpen @event, GameEventInfo info)

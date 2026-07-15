@@ -282,6 +282,7 @@ Run `sv_standable_normal 0.7` in your game console
 [CS2_ExecAfter_No_Admin](https://github.com/ed0ard/CS2_ExecAfter_No_Admin) forked from [kus](https://github.com/kus)  
 [CS2-Bot-Randomizer](https://github.com/ed0ard/CS2-Bot-Randomizer)  
 [CS2-Bot-Hider](https://github.com/XBribo/CS2-Bot-Hider) by [XBribo](https://github.com/XBribo)  
+[CS2-Bot-Controller](https://github.com/XBribo/CS2-Bot-Controller) by [XBribo](https://github.com/XBribo)  
 [CSGOBetterBots](https://github.com/manicogaming/CSGOBetterBots/blob/master/addons/sourcemod/data/bot_info.json) by [manico](https://github.com/manicogaming)  
 [CS2-Smarter-Bot](https://github.com/ed0ard/CS2-Smarter-Bot)  
 [CS2-BotAI](https://github.com/ed0ard/CS2-BotAI) forked from [Austin](https://github.com/Austinbots)  

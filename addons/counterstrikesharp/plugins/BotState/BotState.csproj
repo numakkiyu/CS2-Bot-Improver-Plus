@@ -1,38 +1,24 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <!-- The cloned upstream Ray-Trace lives under .\Ray-Trace; exclude its sources
-       from this project's auto-glob, otherwise the SDK pulls them in twice. -->
   <ItemGroup>
-    <Compile          Remove="Ray-Trace\**" />
-    <None             Remove="Ray-Trace\**" />
-    <EmbeddedResource Remove="Ray-Trace\**" />
+    <PackageReference Include="CounterStrikeSharp.API" Version="1.0.371" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="CounterStrikeSharp.API" Version="1.0.367" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <!-- Build-time only: RayTraceApi.dll is provided by the server at runtime
-         (addons/counterstrikesharp/shared/RayTraceApi/RayTraceApi.dll). -->
-    <ProjectReference Include="Ray-Trace\managed\RayTrace\RayTraceApi\RayTraceApi.csproj">
+    <Reference Include="RayTraceApi">
+      <HintPath>libs\RayTraceApi.dll</HintPath>
       <Private>false</Private>
-      <ExcludeAssets>runtime</ExcludeAssets>
-      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
-    </ProjectReference>
+    </Reference>
+    <Reference Include="BotControllerApi">
+      <HintPath>libs\BotControllerApi.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
-
-  <!-- RayTraceApi.dll is provided by the server (shared/ directory).
-       `dotnet build -o publish` would otherwise drop it next to BotState.dll
-       and break capability resolution at load time. -->
-  <Target Name="RemoveSharedAssembliesFromOutput" AfterTargets="Build">
-    <Delete Files="$(OutDir)RayTraceApi.dll;$(OutDir)RayTraceApi.pdb;$(OutDir)RayTraceApi.deps.json" />
-  </Target>
 
 </Project>
