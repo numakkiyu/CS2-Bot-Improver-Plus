@@ -106,9 +106,9 @@ else {
         Add-Failure "PlayerCosmetics must not invoke native econ setters inside GiveNamedItem post-hook."
     }
 }
-if ($playerCosmetics -notmatch "Server\.NextFrame\(\(\) => RunApplyPipeline\(playerHandle, generation\)\)" -or
-    $playerCosmetics -notmatch "AddTimer\(0\.10f, \(\) => RunApplyPipeline\(playerHandle, generation\)" -or
-    $playerCosmetics -notmatch "AddTimer\(0\.25f, \(\) => RunApplyPipeline\(playerHandle, generation\)" -or
+if ($playerCosmetics -notmatch "Server\.NextFrame\(\(\) => RunApplyPipeline\(playerHandle, generation, false\)\)" -or
+    $playerCosmetics -notmatch "AddTimer\(0\.10f, \(\) => RunApplyPipeline\(playerHandle, generation, false\)" -or
+    $playerCosmetics -notmatch "AddTimer\(0\.25f, \(\) => RunApplyPipeline\(playerHandle, generation, true\)" -or
     $playerCosmetics -notmatch "TryBindContext\(playerHandle, generation, pawn\.Handle, \(int\)team\.Value\)") {
     Add-Failure "PlayerCosmetics generation pipeline no longer has bounded retries and Pawn/team context validation."
 }
@@ -224,6 +224,7 @@ if ($PackageRoot) {
                 Add-Failure "Package payload manifest has an unexpected schema or version."
             }
             $manifestPaths = @{}
+            $manifestPolicies = @{}
             foreach ($entry in $payloadManifest.entries) {
                 $relative = [string]$entry.path
                 if ($manifestPaths.ContainsKey($relative)) {
@@ -231,6 +232,7 @@ if ($PackageRoot) {
                     continue
                 }
                 $manifestPaths[$relative] = $true
+                $manifestPolicies[$relative] = [string]$entry.restore_policy
                 if ($relative -notmatch '^(addons|cfg|overrides)/' -or $relative -match '(^|/)\.\.(/|$)') {
                     Add-Failure "Package payload manifest contains an unsafe path: $relative"
                     continue
@@ -257,6 +259,17 @@ if ($PackageRoot) {
             foreach ($relative in $payloadFiles) {
                 if (-not $manifestPaths.ContainsKey($relative)) {
                     Add-Failure "Package payload file is not tracked by the manifest: $relative"
+                }
+            }
+            $expectedPreserveConfigs = @(
+                "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/player_knife_presets.json",
+                "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/player_gun_presets.json",
+                "cfg/my_bot_ffa_config.cfg",
+                "cfg/my_bot_normal_config.cfg"
+            )
+            foreach ($relative in $expectedPreserveConfigs) {
+                if ($manifestPolicies[$relative] -ne "preserve-config") {
+                    Add-Failure "Mutable player configuration is not protected by preserve-config: $relative"
                 }
             }
         }

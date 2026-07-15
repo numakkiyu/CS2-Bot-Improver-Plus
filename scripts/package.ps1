@@ -259,13 +259,15 @@ $manifestEntries = foreach ($topLevel in @("addons", "cfg", "overrides")) {
         elseif ($relative -like "cfg/*") { "configuration" }
         elseif ($relative -like "overrides/*") { "overrides" }
         else { "runtime" }
+        $preserveConfig = $relative -like "*/PlayerKnifeCustomizer/player_*_presets.json" -or
+            $relative -in @("cfg/my_bot_ffa_config.cfg", "cfg/my_bot_normal_config.cfg")
         [ordered]@{
             path = $relative
             size = $file.Length
             sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             component = $component
             ownership = if ($plusOwned) { "plus" } else { "shared" }
-            restore_policy = if ($relative -like "*/PlayerKnifeCustomizer/player_*_presets.json") { "preserve-config" } else { "restore" }
+            restore_policy = if ($preserveConfig) { "preserve-config" } else { "restore" }
         }
     }
 }

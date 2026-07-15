@@ -201,23 +201,32 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         if (playerHandle == nint.Zero || phases == CosmeticApplyPhase.None) return;
         long generation = _applyTracker.Begin(playerHandle, phases);
 
-        Server.NextFrame(() => RunApplyPipeline(playerHandle, generation));
-        AddTimer(0.10f, () => RunApplyPipeline(playerHandle, generation), TimerFlags.STOP_ON_MAPCHANGE);
-        AddTimer(0.25f, () => RunApplyPipeline(playerHandle, generation), TimerFlags.STOP_ON_MAPCHANGE);
+        Server.NextFrame(() => RunApplyPipeline(playerHandle, generation, false));
+        AddTimer(0.10f, () => RunApplyPipeline(playerHandle, generation, false), TimerFlags.STOP_ON_MAPCHANGE);
+        AddTimer(0.25f, () => RunApplyPipeline(playerHandle, generation, true), TimerFlags.STOP_ON_MAPCHANGE);
     }
 
-    private void RunApplyPipeline(nint playerHandle, long generation)
+    private void RunApplyPipeline(nint playerHandle, long generation, bool finalAttempt)
     {
         if (!_applyTracker.IsCurrent(playerHandle, generation) ||
             !_applyTracker.HasPending(playerHandle, generation))
             return;
 
         var player = ResolvePlayer(playerHandle);
-        if (!CanApplyToPlayer(player)) return;
+        if (!CanApplyToPlayer(player))
+        {
+            if (finalAttempt) _applyTracker.MarkRetryExhausted(playerHandle, generation);
+            return;
+        }
         var team = GetCosmeticTeam(player);
         var pawn = player!.PlayerPawn.Value;
-        if (team == null || pawn == null || !pawn.IsValid || pawn.Handle == nint.Zero) return;
-        if (!_applyTracker.TryBindContext(playerHandle, generation, pawn.Handle, (int)team.Value)) return;
+        if (team == null || pawn == null || !pawn.IsValid || pawn.Handle == nint.Zero)
+        {
+            if (finalAttempt) _applyTracker.MarkRetryExhausted(playerHandle, generation);
+            return;
+        }
+        if (!_applyTracker.TryBindContext(playerHandle, generation, pawn.Handle, (int)team.Value))
+            return;
 
         TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Knife,
             () => TryApplyDefaultKnife(pawn, team.Value), "knife pipeline");
@@ -227,6 +236,7 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             () => TryApplyGunPresets(pawn, team.Value), "gun pipeline");
         TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Music,
             () => { ApplyMusicKit(player); return true; }, "music pipeline");
+        if (finalAttempt) _applyTracker.MarkRetryExhausted(playerHandle, generation);
     }
 
     private void TryApplyPhase(nint playerHandle, long generation, CosmeticApplyPhase phase,
@@ -648,7 +658,7 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
 
     private void OnStatusCommand(CCSPlayerController? player, CommandInfo command)
     {
-        command.ReplyToCommand($"[PlayerKnifeCustomizer] enabled={_config.Enabled}, signature={(_setAttrByName == null ? "missing" : "loaded")}, ct_knives={_config.Loadouts.Ct.KnifePresets.Count}, t_knives={_config.Loadouts.T.KnifePresets.Count}, ct_guns={_config.Loadouts.Ct.GunPresets.Count}, t_guns={_config.Loadouts.T.GunPresets.Count}, music={_config.MusicKitId}, catalog={_skinCatalog.Values.Sum(skins => skins.Count)}, active_generations={_applyTracker.ActiveCount}, context_invalidations={_applyTracker.ContextInvalidations}");
+        command.ReplyToCommand($"[PlayerKnifeCustomizer] enabled={_config.Enabled}, signature={(_setAttrByName == null ? "missing" : "loaded")}, ct_knives={_config.Loadouts.Ct.KnifePresets.Count}, t_knives={_config.Loadouts.T.KnifePresets.Count}, ct_guns={_config.Loadouts.Ct.GunPresets.Count}, t_guns={_config.Loadouts.T.GunPresets.Count}, music={_config.MusicKitId}, catalog={_skinCatalog.Values.Sum(skins => skins.Count)}, active_generations={_applyTracker.ActiveCount}, schedules={_applyTracker.Schedules}, phase_completions={_applyTracker.PhaseCompletions}, retry_exhaustions={_applyTracker.RetryExhaustions}, context_invalidations={_applyTracker.ContextInvalidations}");
     }
 
     private void LogApplyError(string operation, Exception ex)
@@ -680,17 +690,24 @@ public sealed class ApplyGenerationTracker
         public required CosmeticApplyPhase Pending { get; set; }
         public nint PawnHandle { get; set; }
         public int? Team { get; set; }
+        public bool ExhaustionRecorded { get; set; }
     }
 
     private readonly Dictionary<nint, State> _states = new();
     private long _nextGeneration;
     public int ContextInvalidations { get; private set; }
+    public long Schedules { get; private set; }
+    public long PhaseCompletions { get; private set; }
+    public long RetryExhaustions { get; private set; }
     public int ActiveCount => _states.Count;
 
     public long Begin(nint playerHandle, CosmeticApplyPhase phases)
     {
         long generation = ++_nextGeneration;
+        if (_states.TryGetValue(playerHandle, out var previous))
+            phases |= previous.Pending;
         _states[playerHandle] = new State { Generation = generation, Pending = phases };
+        Schedules++;
         return generation;
     }
 
@@ -726,6 +743,17 @@ public sealed class ApplyGenerationTracker
         if (!_states.TryGetValue(playerHandle, out var state) || state.Generation != generation)
             return false;
         state.Pending &= ~phase;
+        PhaseCompletions++;
+        return true;
+    }
+
+    public bool MarkRetryExhausted(nint playerHandle, long generation)
+    {
+        if (!_states.TryGetValue(playerHandle, out var state) || state.Generation != generation ||
+            state.Pending == CosmeticApplyPhase.None || state.ExhaustionRecorded)
+            return false;
+        state.ExhaustionRecorded = true;
+        RetryExhaustions++;
         return true;
     }
 

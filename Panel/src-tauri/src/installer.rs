@@ -208,18 +208,23 @@ fn inspect_impl(payload_root: &Path, state_root: &Path, target: &Path, verify_ha
     let directory = installation_dir(state_root, target);
     let record = read_record(&directory);
     let manifest = if verify_hashes { read_manifest(payload_root).ok() } else { read_manifest_document(payload_root).ok() };
-    let entries: Vec<(String, String, Option<u64>)> = if let Some(manifest) = &manifest {
-        manifest.entries.iter().map(|entry| (entry.path.clone(), entry.sha256.clone(), Some(entry.size))).collect()
+    let entries: Vec<(String, String, Option<u64>, String)> = if let Some(manifest) = &manifest {
+        manifest.entries.iter().map(|entry| (
+            entry.path.clone(), entry.sha256.clone(), Some(entry.size), entry.restore_policy.clone()
+        )).collect()
     } else if let Some(record) = &record {
-        record.entries.iter().map(|entry| (entry.path.clone(), entry.installed_sha256.clone(), None)).collect()
+        record.entries.iter().map(|entry| (
+            entry.path.clone(), entry.installed_sha256.clone(), None, entry.restore_policy.clone()
+        )).collect()
     } else { Vec::new() };
 
     let mut healthy = 0;
     let mut missing = Vec::new();
     let mut corrupt = Vec::new();
-    for (raw, expected, expected_size) in &entries {
+    for (raw, expected, expected_size, restore_policy) in &entries {
         let path = target.join(safe_relative(raw)?);
         if !path.is_file() { missing.push(raw.clone()); }
+        else if restore_policy == "preserve-config" { healthy += 1; }
         else if verify_hashes {
             if sha256(&path)?.eq_ignore_ascii_case(expected) { healthy += 1; }
             else { corrupt.push(raw.clone()); }
@@ -388,15 +393,46 @@ pub fn install(payload_root: &Path, state_root: &Path, target: &Path, repaired: 
     let outcome = (|| -> Result<()> {
         for entry in &manifest.entries {
             let relative = safe_relative(&entry.path)?;
-            let source = payload_root.join(&relative);
             let destination = target.join(&relative);
+            let preserve_config = entry.restore_policy == "preserve-config";
+            let existed = destination.is_file();
+
+            if preserve_config && existed {
+                let baseline = if let Some(previous) = old_entries.get(&entry.path) {
+                    previous.clone()
+                } else {
+                    let original = original_root.join(&relative);
+                    copy_file(&destination, &original)?;
+                    InstallRecordEntry {
+                        path: entry.path.clone(),
+                        original_existed: true,
+                        original_sha256: Some(sha256(&destination)?),
+                        original_backup: Some(format!("original/{}", entry.path.replace('\\', "/"))),
+                        installed_sha256: sha256(&destination)?,
+                        ownership: entry.ownership.clone(),
+                        restore_policy: entry.restore_policy.clone(),
+                    }
+                };
+                record_entries.insert(entry.path.clone(), InstallRecordEntry {
+                    ownership: entry.ownership.clone(),
+                    restore_policy: entry.restore_policy.clone(),
+                    ..baseline
+                });
+                continue;
+            }
+
             if repaired && old_entries.contains_key(&entry.path) && destination.is_file() &&
                 sha256(&destination)?.eq_ignore_ascii_case(&entry.sha256)
             {
                 continue;
             }
+            let packaged_source = payload_root.join(&relative);
+            let mirror_source = relative.file_name()
+                .map(|name| state_root.join("presets").join("current").join(name))
+                .filter(|path| preserve_config && path.is_file());
+            let source = mirror_source.as_deref().unwrap_or(&packaged_source);
+            let source_sha256 = sha256(source)?;
             let transaction_backup = transaction_root.join(&relative);
-            let existed = destination.is_file();
             if existed { copy_file(&destination, &transaction_backup)?; }
             journal.changes.push(TransactionChange {
                 path: entry.path.clone(),
@@ -434,7 +470,7 @@ pub fn install(payload_root: &Path, state_root: &Path, target: &Path, repaired: 
             let temporary = atomic_fs::temporary_path(&destination).map_err(AppError::transaction_io)?;
             let replacement = (|| -> Result<()> {
                 copy_file(&source, &temporary)?;
-                if !sha256(&temporary)?.eq_ignore_ascii_case(&entry.sha256) {
+                if !sha256(&temporary)?.eq_ignore_ascii_case(&source_sha256) {
                     return Err(AppError::payload(format!("Copied payload hash mismatch: {}", entry.path)));
                 }
                 atomic_fs::sync(&temporary).map_err(AppError::transaction_io)?;
@@ -446,7 +482,7 @@ pub fn install(payload_root: &Path, state_root: &Path, target: &Path, repaired: 
             replacement?;
 
             record_entries.insert(entry.path.clone(), InstallRecordEntry {
-                installed_sha256: entry.sha256.clone(),
+                installed_sha256: source_sha256,
                 ownership: entry.ownership.clone(),
                 restore_policy: entry.restore_policy.clone(),
                 ..baseline
@@ -622,6 +658,29 @@ mod tests {
         }).unwrap();
     }
 
+    fn cosmetics_fixture(payload: &Path, target: &Path) {
+        fixture(payload, target);
+        let directory = payload.join("addons/counterstrikesharp/plugins/PlayerKnifeCustomizer");
+        fs::create_dir_all(&directory).unwrap();
+        let mut manifest = read_manifest_document(payload).unwrap();
+        for (name, bytes) in [
+            ("player_knife_presets.json", b"packaged-knives".as_slice()),
+            ("player_gun_presets.json", b"packaged-guns".as_slice()),
+        ] {
+            let source = directory.join(name);
+            fs::write(&source, bytes).unwrap();
+            manifest.entries.push(PayloadEntry {
+                path: format!("addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/{name}"),
+                size: bytes.len() as u64,
+                sha256: sha256(&source).unwrap(),
+                component: "player-cosmetics".to_string(),
+                ownership: "plus".to_string(),
+                restore_policy: "preserve-config".to_string(),
+            });
+        }
+        write_json_atomic(&payload.join(MANIFEST_FILE), &manifest).unwrap();
+    }
+
     #[test]
     fn install_repair_and_restore_preserve_originals_and_foreign_files() {
         let base = root("roundtrip");
@@ -641,6 +700,78 @@ mod tests {
         restore(&payload, &state, &target).unwrap();
         assert_eq!(fs::read(target.join("cfg/test.cfg")).unwrap(), b"steam");
         assert_eq!(fs::read(target.join("cfg/foreign.cfg")).unwrap(), b"foreign");
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn modified_preserve_config_is_healthy_and_repair_keeps_player_bytes() {
+        let base = root("preserve-modified");
+        let payload = base.join("payload");
+        let target = base.join("target");
+        let state = base.join("state");
+        cosmetics_fixture(&payload, &target);
+        install(&payload, &state, &target, false).unwrap();
+
+        let directory = target.join("addons/counterstrikesharp/plugins/PlayerKnifeCustomizer");
+        let knife = directory.join("player_knife_presets.json");
+        let guns = directory.join("player_gun_presets.json");
+        fs::write(&knife, b"player-knives").unwrap();
+        fs::write(&guns, b"player-guns").unwrap();
+
+        let inspection = inspect(&payload, &state, &target).unwrap();
+        assert!(inspection.missing.is_empty());
+        assert!(inspection.corrupt.is_empty());
+        assert_eq!(inspection.healthy, inspection.total);
+        assert_eq!(install(&payload, &state, &target, true).unwrap().installed_files, 0);
+        assert_eq!(fs::read(&knife).unwrap(), b"player-knives");
+        assert_eq!(fs::read(&guns).unwrap(), b"player-guns");
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn first_install_preserves_existing_manual_cosmetics() {
+        let base = root("preserve-manual-upgrade");
+        let payload = base.join("payload");
+        let target = base.join("target");
+        let state = base.join("state");
+        cosmetics_fixture(&payload, &target);
+        let directory = target.join("addons/counterstrikesharp/plugins/PlayerKnifeCustomizer");
+        fs::create_dir_all(&directory).unwrap();
+        let knife = directory.join("player_knife_presets.json");
+        let guns = directory.join("player_gun_presets.json");
+        fs::write(&knife, b"legacy-player-knives").unwrap();
+        fs::write(&guns, b"legacy-player-guns").unwrap();
+
+        install(&payload, &state, &target, false).unwrap();
+        assert_eq!(fs::read(&knife).unwrap(), b"legacy-player-knives");
+        assert_eq!(fs::read(&guns).unwrap(), b"legacy-player-guns");
+        let inspection = inspect(&payload, &state, &target).unwrap();
+        assert!(inspection.corrupt.is_empty());
+        assert_eq!(inspection.healthy, inspection.total);
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn repair_restores_missing_preserve_config_from_current_mirror() {
+        let base = root("preserve-mirror");
+        let payload = base.join("payload");
+        let target = base.join("target");
+        let state = base.join("state");
+        cosmetics_fixture(&payload, &target);
+        install(&payload, &state, &target, false).unwrap();
+
+        let relative = safe_relative(
+            "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/player_knife_presets.json"
+        ).unwrap();
+        let destination = target.join(&relative);
+        fs::create_dir_all(state.join("presets/current")).unwrap();
+        fs::write(state.join("presets/current/player_knife_presets.json"), b"mirrored-player-knives").unwrap();
+        fs::remove_file(&destination).unwrap();
+
+        let inspection = inspect(&payload, &state, &target).unwrap();
+        assert_eq!(inspection.missing, vec![relative.to_string_lossy().replace('\\', "/")]);
+        assert_eq!(install(&payload, &state, &target, true).unwrap().installed_files, 1);
+        assert_eq!(fs::read(&destination).unwrap(), b"mirrored-player-knives");
         fs::remove_dir_all(base).unwrap();
     }
 
@@ -673,23 +804,36 @@ mod tests {
         let installed = inspect(&payload, &state, &target).unwrap();
         assert_eq!(installed.healthy, installed.total);
 
-        let damaged = manifest.entries.iter().find(|entry| entry.path != original.path)
-            .expect("payload needs at least two files");
+        let knife = manifest.entries.iter()
+            .find(|entry| entry.path.ends_with("player_knife_presets.json"))
+            .expect("packaged knife preset is missing");
+        let guns = manifest.entries.iter()
+            .find(|entry| entry.path.ends_with("player_gun_presets.json"))
+            .expect("packaged gun preset is missing");
+        let knife_path = target.join(safe_relative(&knife.path).unwrap());
+        let gun_path = target.join(safe_relative(&guns.path).unwrap());
+        fs::write(&knife_path, b"player-modified-knives").unwrap();
+        fs::write(&gun_path, b"player-modified-guns").unwrap();
+        let customized = inspect(&payload, &state, &target).unwrap();
+        assert!(customized.corrupt.is_empty());
+        assert_eq!(customized.healthy, customized.total);
+
+        let damaged = manifest.entries.iter()
+            .find(|entry| entry.path != original.path && entry.restore_policy != "preserve-config")
+            .expect("payload needs at least two restorable files");
         fs::write(target.join(safe_relative(&damaged.path).unwrap()), b"damaged").unwrap();
         assert_eq!(inspect(&payload, &state, &target).unwrap().corrupt.len(), 1);
         assert_eq!(install(&payload, &state, &target, true).unwrap().installed_files, 1);
+        assert_eq!(fs::read(&knife_path).unwrap(), b"player-modified-knives");
+        assert_eq!(fs::read(&gun_path).unwrap(), b"player-modified-guns");
 
-        let knife = manifest.entries.iter()
-            .find(|entry| entry.path.ends_with("player_knife_presets.json"))
-            .expect("packaged cosmetics preset is missing");
-        let knife_path = target.join(safe_relative(&knife.path).unwrap());
-        fs::write(&knife_path, b"player-modified-preset").unwrap();
         let restored = restore(&payload, &state, &target).unwrap();
         assert_eq!(fs::read(&original_path).unwrap(), b"steam-original");
         assert_eq!(fs::read(&foreign).unwrap(), b"foreign");
         assert!(!knife_path.exists());
         let preset_backup = PathBuf::from(restored.presets_backup.expect("preset backup is required"));
-        assert_eq!(fs::read(preset_backup.join("player_knife_presets.json")).unwrap(), b"player-modified-preset");
+        assert_eq!(fs::read(preset_backup.join("player_knife_presets.json")).unwrap(), b"player-modified-knives");
+        assert_eq!(fs::read(preset_backup.join("player_gun_presets.json")).unwrap(), b"player-modified-guns");
         assert!(!inspect(&payload, &state, &target).unwrap().installed);
         fs::remove_dir_all(base).unwrap();
     }

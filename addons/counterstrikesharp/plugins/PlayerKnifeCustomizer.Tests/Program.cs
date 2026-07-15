@@ -43,6 +43,37 @@ Require(WeaponPresetResolver.TryResolveGunPreset(config, 9, CosmeticTeam.T, out 
 
 var tracker = new ApplyGenerationTracker();
 nint playerHandle = (nint)0x1000;
+
+long initialSpawn = tracker.Begin(playerHandle, CosmeticApplyPhase.All);
+long firstGive = tracker.Begin(playerHandle, CosmeticApplyPhase.Guns);
+Require(!tracker.IsCurrent(playerHandle, initialSpawn),
+    "A GiveNamedItem event must invalidate callbacks from the previous generation.");
+Require(tracker.IsPending(playerHandle, firstGive, CosmeticApplyPhase.Knife) &&
+        tracker.IsPending(playerHandle, firstGive, CosmeticApplyPhase.Gloves) &&
+        tracker.IsPending(playerHandle, firstGive, CosmeticApplyPhase.Guns) &&
+        tracker.IsPending(playerHandle, firstGive, CosmeticApplyPhase.Music),
+    "A GiveNamedItem event must carry every unfinished spawn phase into the new generation.");
+
+Require(tracker.Complete(playerHandle, firstGive, CosmeticApplyPhase.Music),
+    "The current generation must complete a phase before a pickup storm.");
+long pickupStorm = firstGive;
+for (int i = 0; i < 100; i++)
+    pickupStorm = tracker.Begin(playerHandle, CosmeticApplyPhase.Guns);
+Require(!tracker.IsPending(playerHandle, pickupStorm, CosmeticApplyPhase.Music),
+    "A completed phase must not be reintroduced by later gun-only events.");
+Require(tracker.IsPending(playerHandle, pickupStorm, CosmeticApplyPhase.Knife) &&
+        tracker.IsPending(playerHandle, pickupStorm, CosmeticApplyPhase.Gloves) &&
+        tracker.IsPending(playerHandle, pickupStorm, CosmeticApplyPhase.Guns),
+    "A GiveNamedItem storm must preserve unfinished knife, glove, and gun phases.");
+Require(tracker.MarkRetryExhausted(playerHandle, pickupStorm),
+    "The final bounded attempt must record unfinished phases once.");
+Require(!tracker.MarkRetryExhausted(playerHandle, pickupStorm) && tracker.RetryExhaustions == 1,
+    "Repeated final callbacks must not duplicate retry exhaustion diagnostics.");
+long retryAfterEvent = tracker.Begin(playerHandle, CosmeticApplyPhase.Guns);
+Require(tracker.MarkRetryExhausted(playerHandle, retryAfterEvent) && tracker.RetryExhaustions == 2,
+    "A later gameplay event must create a fresh bounded retry window.");
+
+tracker.CancelAll();
 for (int i = 0; i < 1000; i++)
 {
     nint firstPawn = (nint)(0x2000 + i * 2);
