@@ -1,27 +1,124 @@
+import { useEffect, useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
+import { CheckCircle2, FolderSearch, ShieldCheck } from "lucide-react";
 import { useStore } from "../../state/store";
 import { LANGUAGES } from "../../data/languages";
+import { useT } from "../../i18n";
+import type { InstallPlan } from "../../lib/api";
+import StatusDot from "../../components/StatusDot";
 import "./settings.css";
 
-// Shown on first launch (config.first_run_done === false). Picking a language
-// also marks first-run complete.
+type Step = "language" | "directory" | "preview" | "complete";
+
 export default function FirstRunLanguages() {
-  const { updateConfig } = useStore();
+  const {
+    config, directory, process, updateConfig, chooseDirectory, getInstallPlan,
+    installPayload, reportError,
+  } = useStore();
+  const t = useT();
+  const saved = config?.first_run_step;
+  const initial = saved === "directory" || saved === "preview" || saved === "complete" ? saved : "language";
+  const [step, setStep] = useState<Step>(initial);
+  const [plan, setPlan] = useState<InstallPlan | null>(null);
+  const [working, setWorking] = useState(false);
+  const selected = directory?.selected ?? null;
+  const blocked = !!process?.running && (process.matches_selected || !process.path_accessible);
+
+  useEffect(() => {
+    if (step !== "preview" || plan) return;
+    void getInstallPlan().then((result) => { if (result) setPlan(result); });
+  }, [getInstallPlan, plan, step]);
+
+  const move = async (next: Step) => {
+    setStep(next);
+    await updateConfig({ first_run_step: next });
+  };
+
+  const browse = async () => {
+    try {
+      const picked = await open({ directory: true, title: "Select game/csgo folder" });
+      if (typeof picked === "string") await chooseDirectory(picked);
+    } catch (error) { reportError(error); }
+  };
+
+  const preview = async () => {
+    const result = await getInstallPlan();
+    if (!result) return;
+    setPlan(result);
+    await move("preview");
+  };
+
+  const install = async () => {
+    setWorking(true);
+    try {
+      const result = await installPayload();
+      if (result) await move("complete");
+    } finally { setWorking(false); }
+  };
+
+  const finish = () => updateConfig({ first_run_done: true, first_run_step: "complete" });
 
   return (
     <div className="firstrun">
       <div className="firstrun__card glass glass-strong">
-        <h2 className="firstrun__title">Language</h2>
-        <div className="lang-grid">
-          {LANGUAGES.map((l) => (
-            <button
-              key={l.code}
-              className="lang-cell"
-              onClick={() => updateConfig({ language: l.code, first_run_done: true })}
-            >
-              {l.native}
+        {step === "language" && <>
+          <h2 className="firstrun__title">{t("first.language")}</h2>
+          <div className="lang-grid">
+            {LANGUAGES.map((language) => (
+              <button key={language.code} className="lang-cell"
+                onClick={async () => {
+                  await updateConfig({ language: language.code, first_run_step: "directory" });
+                  setStep("directory");
+                }}>
+                {language.native}
+              </button>
+            ))}
+          </div>
+        </>}
+
+        {step === "directory" && <>
+          <div className="firstrun__heading"><FolderSearch size={22} /><span>
+            <h2>{t("first.directory")}</h2><p>{t("first.directoryDesc")}</p>
+          </span></div>
+          <div className="firstrun__directories">
+            {(directory?.candidates ?? []).map((path) => (
+              <button key={path} className={`dir-cell ${path === selected ? "is-selected" : ""}`}
+                onClick={() => chooseDirectory(path)}>
+                <span className="dir-cell__path">{path}</span>
+                {path === selected && <StatusDot status="green" />}
+              </button>
+            ))}
+            {!directory?.candidates.length && <div className="dir-note">{t("set.noCsgo")}</div>}
+          </div>
+          <div className="firstrun__footer">
+            <button onClick={browse}>{t("set.browse")}</button>
+            <button className="is-primary" disabled={!selected || blocked} onClick={preview}>{t("first.continue")}</button>
+          </div>
+        </>}
+
+        {step === "preview" && <>
+          <div className="firstrun__heading"><ShieldCheck size={22} /><span>
+            <h2>{t("first.preview")}</h2><p>{t("first.previewDesc")}</p>
+          </span></div>
+          {plan && <div className="install-preview">
+            <span><small>{t("install.target")}</small><strong>{plan.target}</strong></span>
+            <div><b>{t("install.files", { n: plan.total_files })}</b><b>{t("install.newFiles", { n: plan.new_files })}</b><b>{t("install.overwritten", { n: plan.overwritten_files })}</b></div>
+            <span><small>{t("install.backup")}</small><strong>{plan.backup_path}</strong></span>
+          </div>}
+          <div className="firstrun__footer">
+            <button onClick={() => move("directory")}>{t("first.back")}</button>
+            <button className="is-primary" disabled={!plan || working || blocked} onClick={install}>
+              {working ? t("install.working") : t("install.install")}
             </button>
-          ))}
-        </div>
+          </div>
+        </>}
+
+        {step === "complete" && <div className="firstrun__complete">
+          <CheckCircle2 size={38} />
+          <h2>{t("first.complete")}</h2>
+          <p>{t("first.completeDesc")}</p>
+          <button className="is-primary" onClick={finish}>{t("first.finish")}</button>
+        </div>}
       </div>
     </div>
   );

@@ -1,23 +1,29 @@
+import { useState } from "react";
+import { Stethoscope } from "lucide-react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import Modal from "./Modal";
 import { AlertIcon, CopyIcon } from "./icons";
 import { useToast } from "./Toast";
 import { useT, type I18nKey } from "../i18n";
 import type { AppError } from "../lib/api";
+import type { DiagnosticReport } from "../lib/api";
 import "./ErrorModal.css";
 
-const KNOWN_CATS = ["path", "permission", "steam", "parse", "io", "config", "internal", "filesystem", "validation"];
+const KNOWN_CATS = ["path", "permission", "steam", "parse", "io", "config", "internal",
+  "filesystem", "validation", "directory", "process", "payload", "installation", "launch"];
 
 type Props = {
   error: AppError | null;
   onClose: () => void;
   /** Localized message for the error code (defaults to raw detail). */
   message?: string;
+  onExport?: () => Promise<DiagnosticReport | null>;
 };
 
-export default function ErrorModal({ error, onClose, message }: Props) {
+export default function ErrorModal({ error, onClose, message, onExport }: Props) {
   const toast = useToast();
   const t = useT();
+  const [exporting, setExporting] = useState(false);
   if (!error) return null;
 
   const localized = KNOWN_CATS.includes(error.category)
@@ -35,6 +41,17 @@ export default function ErrorModal({ error, onClose, message }: Props) {
     }
   };
 
+  const exportReport = async () => {
+    if (!onExport || exporting) return;
+    setExporting(true);
+    try {
+      const report = await onExport();
+      if (report) toast.show(t("install.exported", { path: report.path }), "green");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Modal
       open={!!error}
@@ -45,9 +62,13 @@ export default function ErrorModal({ error, onClose, message }: Props) {
         </span>
       }
       footer={
-        <button className="btn-primary" onClick={onClose}>
-          {t("common.ok")}
-        </button>
+        <>
+          {onExport && <button className="btn-secondary errm__export" disabled={exporting} onClick={exportReport}>
+            <Stethoscope size={16} />
+            {exporting ? t("install.working") : t("install.diagnostics")}
+          </button>}
+          <button className="btn-primary" onClick={onClose}>{t("common.ok")}</button>
+        </>
       }
     >
       <p className="errm__msg">{primaryMessage}</p>

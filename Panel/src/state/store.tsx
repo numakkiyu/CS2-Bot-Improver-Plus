@@ -18,18 +18,26 @@ import {
   type DifficultyInfo,
   type DifficultyLevel,
   type DirectoryInfo,
+  type Cs2ProcessInfo,
   type DropKnivesState,
   type FilesReport,
   type GameMode,
   type ModeInfo,
   type NadesValue,
   type PresetsState,
+  type InstallationInspection,
+  type InstallPlan,
+  type InstallTransactionResult,
+  type RestoreResult,
+  type DiagnosticReport,
 } from "../lib/api";
 
 type Store = {
   ready: boolean;
   config: AppConfig | null;
   directory: DirectoryInfo | null;
+  process: Cs2ProcessInfo | null;
+  installation: InstallationInspection | null;
   files: FilesReport | null;
   difficulty: DifficultyInfo | null;
   mode: ModeInfo | null;
@@ -58,6 +66,12 @@ type Store = {
   refreshAll: (silent?: boolean) => Promise<void>;
   updateConfig: (patch: Partial<AppConfig>) => Promise<void>;
   chooseDirectory: (path: string) => Promise<void>;
+  getInstallPlan: () => Promise<InstallPlan | null>;
+  verifyInstallation: () => Promise<InstallationInspection | null>;
+  installPayload: () => Promise<InstallTransactionResult | null>;
+  repairPayload: () => Promise<InstallTransactionResult | null>;
+  restorePayload: () => Promise<RestoreResult | null>;
+  exportDiagnostics: () => Promise<DiagnosticReport | null>;
   applyDifficulty: (level: DifficultyLevel) => Promise<DifficultyInfo | null>;
   applyMode: (mode: GameMode) => Promise<ModeInfo | null>;
   applyBotItem: (item: BotItemKey, on: boolean) => Promise<BotItemsState | null>;
@@ -151,6 +165,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [directory, setDirectory] = useState<DirectoryInfo | null>(null);
+  const [process, setProcess] = useState<Cs2ProcessInfo | null>(null);
+  const [installation, setInstallation] = useState<InstallationInspection | null>(null);
   const [files, setFiles] = useState<FilesReport | null>(null);
   const [difficulty, setDifficulty] = useState<DifficultyInfo | null>(null);
   const [mode, setMode] = useState<ModeInfo | null>(null);
@@ -172,7 +188,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const configRef = useRef<AppConfig | null>(null);
   configRef.current = config;
 
-  const reportError = useCallback((e: unknown) => setError(toAppError(e)), []);
+  const reportError = useCallback((e: unknown) => {
+    const normalized = toAppError(e);
+    setError(normalized);
+    void api.recordPanelError(normalized, window.location.pathname).catch(() => {});
+  }, []);
   const clearError = useCallback(() => setError(null), []);
 
   const refreshFiles = useCallback(async () => {
@@ -319,53 +339,32 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [reportError]);
 
   const refreshAll = useCallback(async (silent = false) => {
-    const info = await refreshDirectory();
-    const csgo = info?.valid ? info.selected : null;
-    if (csgo) {
-      try {
-        const [f, d, m, b, p, k] = await Promise.all([
-          api.validateFiles(csgo),
-          api.getDifficulty(csgo),
-          api.getMode(csgo),
-          api.getBotItems(csgo),
-          api.getPresets(csgo),
-          api.getDropKnives(csgo),
-        ]);
-        setFiles(f);
-        setDifficulty(d);
-        setMode(m);
-        setBotItems(b);
-        setPresets(p);
-        setDropKnives(k);
-        // Once CS2 is no longer running, any pending change has taken effect —
-        // clear that section's flag (each command reports its own cs2_running).
-        if (!p.cs2_running) {
-          setAimPending(false);
-          setNadesPending(false);
-        }
-        if (!d.cs2_running) setDifficultyPending(false);
-        if (!m.cs2_running) setModePending(false);
-        if (!b.cs2_running) clearBotItemsPending();
-        if (!k.cs2_running) setDropKnivesPending(false);
-      } catch (e) {
-        // Background poll: a transient read error shouldn't blank the UI or pop a
-        // modal — keep the last good state and wait for the next tick.
-        if (silent) return;
-        setFiles(null);
-        setDifficulty(null);
-        setMode(null);
-        setBotItems(null);
-        setPresets(null);
-        setDropKnives(null);
+    try {
+      const snapshot = await api.getRuntimeSnapshot();
+      setDirectory(snapshot.directory);
+      setProcess(snapshot.process);
+      setInstallation(snapshot.installation);
+      setFiles(snapshot.files);
+      setDifficulty(snapshot.difficulty);
+      setMode(snapshot.mode);
+      setBotItems(snapshot.bot_items);
+      setPresets(snapshot.presets);
+      setDropKnives(snapshot.drop_knives);
+
+      if (!snapshot.process.running) {
         setAimPending(false);
         setNadesPending(false);
         setModePending(false);
         setDifficultyPending(false);
         clearBotItemsPending();
         setDropKnivesPending(false);
-        reportError(e);
       }
-    } else {
+    } catch (e) {
+      // A background refresh keeps the last good snapshot and retries later.
+      if (silent) return;
+      setDirectory(null);
+      setProcess(null);
+      setInstallation(null);
       setFiles(null);
       setDifficulty(null);
       setMode(null);
@@ -378,8 +377,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setDifficultyPending(false);
       clearBotItemsPending();
       setDropKnivesPending(false);
+      reportError(e);
     }
-  }, [refreshDirectory, reportError]);
+  }, [clearBotItemsPending, reportError, setAimPending, setDifficultyPending,
+    setDropKnivesPending, setModePending, setNadesPending]);
 
   const updateConfig = useCallback(
     async (patch: Partial<AppConfig>) => {
@@ -399,16 +400,67 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const chooseDirectory = useCallback(
     async (path: string) => {
       try {
-        const info = await api.selectDirectory(path);
-        setDirectory(info);
-        const csgo = info.valid ? info.selected : null;
-        setFiles(csgo ? await api.validateFiles(csgo) : null);
+        await api.selectDirectory(path);
+        await refreshAll();
       } catch (e) {
         reportError(e);
       }
     },
-    [reportError]
+    [refreshAll, reportError]
   );
+
+  const getInstallPlan = useCallback(async () => {
+    const csgo = directory?.valid ? directory.selected : null;
+    if (!csgo) return null;
+    try { return await api.getInstallPlan(csgo); }
+    catch (e) { reportError(e); return null; }
+  }, [directory, reportError]);
+
+  const verifyInstallation = useCallback(async () => {
+    const csgo = directory?.valid ? directory.selected : null;
+    if (!csgo) return null;
+    try {
+      const [inspection, report] = await Promise.all([
+        api.inspectInstallation(csgo),
+        api.validateFiles(csgo),
+      ]);
+      setInstallation(inspection);
+      setFiles(report);
+      return inspection;
+    } catch (e) {
+      reportError(e);
+      return null;
+    }
+  }, [directory, reportError]);
+
+  const runInstallAction = useCallback(async (action: "install" | "repair") => {
+    const csgo = directory?.valid ? directory.selected : null;
+    if (!csgo) return null;
+    try {
+      const result = action === "install" ? await api.installPayload(csgo) : await api.repairPayload(csgo);
+      await refreshAll();
+      return result;
+    } catch (e) { reportError(e); return null; }
+  }, [directory, refreshAll, reportError]);
+
+  const installPayload = useCallback(() => runInstallAction("install"), [runInstallAction]);
+  const repairPayload = useCallback(() => runInstallAction("repair"), [runInstallAction]);
+
+  const restorePayload = useCallback(async () => {
+    const csgo = directory?.valid ? directory.selected : null;
+    if (!csgo) return null;
+    try {
+      const result = await api.restorePayload(csgo);
+      await refreshAll();
+      return result;
+    } catch (e) { reportError(e); return null; }
+  }, [directory, refreshAll, reportError]);
+
+  const exportDiagnostics = useCallback(async () => {
+    const csgo = directory?.valid ? directory.selected : null;
+    try { return await api.exportDiagnostics(csgo); }
+    catch (e) { reportError(e); return null; }
+  }, [directory, reportError]);
 
   // Global safety net: surface any unexpected error/rejection as a modal so the
   // UI never fails silently.
@@ -462,7 +514,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Live updates: while the panel is open and visible, re-scan every 0.5s so all
+  // Live updates: one consolidated backend snapshot every two seconds keeps all
   // indicator lights and buttons reflect the current on-disk / CS2-running state
   // without the user reopening the panel. Silent (never pops an error modal),
   // non-overlapping (skips a tick if the previous scan is still in flight), and
@@ -480,14 +532,51 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         pollingRef.current = false;
       }
     };
-    const id = window.setInterval(tick, 500);
-    return () => window.clearInterval(id);
+    const id = window.setInterval(tick, 2000);
+    const onFocus = () => { void tick(); };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [ready, refreshAll]);
+
+  // Keep every panel-owned local preference mirrored beside the executable.
+  // The backend write only runs when the serialized state actually changes.
+  useEffect(() => {
+    if (!ready) return;
+    let last = "";
+    const sync = () => {
+      const entries: Record<string, string> = {};
+      for (let index = 0; index < localStorage.length; index += 1) {
+        const key = localStorage.key(index);
+        if (!key?.startsWith("cs2bi.")) continue;
+        const value = localStorage.getItem(key);
+        if (value !== null) entries[key] = value;
+      }
+      const serialized = JSON.stringify(entries);
+      if (serialized === last) return;
+      last = serialized;
+      void api.savePanelMemory(entries).catch((error) => {
+        void api.recordPanelError(toAppError(error), "panel-memory-sync").catch(() => {});
+      });
+    };
+    sync();
+    const id = window.setInterval(sync, 1000);
+    return () => window.clearInterval(id);
+  }, [ready]);
 
   const value: Store = {
     ready,
     config,
     directory,
+    process,
+    installation,
     files,
     difficulty,
     mode,
@@ -510,6 +599,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     refreshAll,
     updateConfig,
     chooseDirectory,
+    getInstallPlan,
+    verifyInstallation,
+    installPayload,
+    repairPayload,
+    restorePayload,
+    exportDiagnostics,
     applyDifficulty,
     applyMode,
     applyBotItem,

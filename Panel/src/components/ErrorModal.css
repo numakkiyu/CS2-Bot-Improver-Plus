@@ -41,3 +41,9 @@
 .errm__code-text {
   letter-spacing: 0.5px;
 }
+
+.errm__export {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}

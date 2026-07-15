@@ -33,12 +33,25 @@ function Get-VerifiedAsset {
     param($Asset, [string]$DestinationDirectory)
     New-Item -ItemType Directory -Path $DestinationDirectory -Force | Out-Null
     $path = Join-Path $DestinationDirectory $Asset.name
-    if (-not (Test-Path -LiteralPath $path)) {
-        Invoke-WebRequest -Uri $Asset.url -OutFile $path
+    $expected = $Asset.sha256.ToLowerInvariant()
+    if (Test-Path -LiteralPath $path) {
+        $cached = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($cached -eq $expected) { return $path }
+        Write-Host "Refreshing stale cached asset: $($Asset.name)"
     }
-    $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $Asset.sha256.ToLowerInvariant()) {
-        throw "SHA-256 mismatch for $($Asset.name): $actual"
+
+    $download = "$path.download"
+    try {
+        if (Test-Path -LiteralPath $download) { Remove-Item -LiteralPath $download -Force }
+        Invoke-WebRequest -Uri $Asset.url -OutFile $download
+        $actual = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actual -ne $expected) {
+            throw "SHA-256 mismatch for $($Asset.name): $actual"
+        }
+        Move-Item -LiteralPath $download -Destination $path -Force
+    }
+    finally {
+        if (Test-Path -LiteralPath $download) { Remove-Item -LiteralPath $download -Force }
     }
     return $path
 }
@@ -132,7 +145,9 @@ try {
         @{ Path = "addons\counterstrikesharp\plugins\BotAI\BotAI.csproj"; Properties = @() },
         @{ Path = "addons\counterstrikesharp\plugins\BotAimImprover\BotAimImprover.csproj"; Properties = @("-p:RayTraceApiPath=$rayTraceApi") },
         @{ Path = "addons\counterstrikesharp\plugins\BotBuy\BotBuy.csproj"; Properties = @() },
+        @{ Path = "addons\counterstrikesharp\plugins\BotRandomizer\BotRandomizer.csproj"; Properties = @() },
         @{ Path = "addons\counterstrikesharp\plugins\NadeSystem\NadeSystem.csproj"; Properties = @("-p:RayTraceApiPath=$rayTraceApi") },
+        @{ Path = "addons\counterstrikesharp\plugins\RoundDamageRecap\RoundDamageRecap.csproj"; Properties = @() },
         @{ Path = "addons\counterstrikesharp\plugins\PlayerKnifeCustomizer\PlayerKnifeCustomizer.csproj"; Properties = @() },
         @{ Path = "addons\counterstrikesharp\plugins\BotHiderImpl\BotHiderImpl.csproj"; Properties = @() }
     )

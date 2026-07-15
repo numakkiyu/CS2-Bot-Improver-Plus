@@ -3,16 +3,18 @@ import { BackIcon, ChevronRight } from "../../components/icons";
 import DevsPage from "./DevsPage";
 import LanguagesPage from "./LanguagesPage";
 import DirectoryPage from "./DirectoryPage";
+import InstallationPage from "./InstallationPage";
 import { useT, type I18nKey } from "../../i18n";
 import "./settings.css";
 
-type Page = "root" | "devs" | "languages" | "directory";
+type Page = "root" | "devs" | "languages" | "directory" | "installation";
 
 const TITLE_KEYS: Record<Page, I18nKey> = {
   root: "set.title",
   devs: "set.devs",
   languages: "set.languages",
   directory: "set.directory",
+  installation: "set.installation",
 };
 
 export default function SettingsView({ onClose }: { onClose?: () => void }) {
@@ -34,7 +36,7 @@ export default function SettingsView({ onClose }: { onClose?: () => void }) {
       <div className="settings__body">
         {page === "root" && (
           <div className="settings-list">
-            {(["devs", "languages", "directory"] as const).map((p) => (
+            {(["installation", "directory", "languages", "devs"] as const).map((p) => (
               <button key={p} className="settings-row settings-row--nav" onClick={() => setPage(p)}>
                 <span className="settings-row__title">{t(TITLE_KEYS[p])}</span>
                 <ChevronRight size={18} />
@@ -45,6 +47,7 @@ export default function SettingsView({ onClose }: { onClose?: () => void }) {
         {page === "devs" && <DevsPage />}
         {page === "languages" && <LanguagesPage />}
         {page === "directory" && <DirectoryPage />}
+        {page === "installation" && <InstallationPage />}
       </div>
     </div>
   );

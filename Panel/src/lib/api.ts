@@ -77,6 +77,67 @@ export type FilesReport = {
   misplaced: string | null;
 };
 
+export type Cs2ProcessInfo = {
+  running: boolean;
+  pid: number | null;
+  executable: string | null;
+  path_accessible: boolean;
+  matches_selected: boolean;
+};
+
+export type InstallationInspection = {
+  installed: boolean;
+  package_version: string | null;
+  manifest_available: boolean;
+  total: number;
+  healthy: number;
+  missing: string[];
+  corrupt: string[];
+  restore_available: boolean;
+  backup_path: string | null;
+  interrupted_transaction: boolean;
+};
+
+export type InstallPlan = {
+  package_version: string;
+  target: string;
+  total_files: number;
+  new_files: number;
+  overwritten_files: number;
+  backup_path: string;
+  required_target_bytes: number;
+  available_target_bytes: number;
+  required_backup_bytes: number;
+  available_backup_bytes: number;
+  writable: boolean;
+};
+
+export type InstallTransactionResult = {
+  package_version: string;
+  installed_files: number;
+  backup_path: string;
+  repaired: boolean;
+};
+
+export type RestoreResult = {
+  restored_files: number;
+  removed_files: number;
+  preserved_files: number;
+  presets_backup: string | null;
+  steam_verify_uri: string;
+};
+
+export type DiagnosticReport = {
+  path: string;
+  files_collected: number;
+};
+
+export type UiMemory = {
+  schema_version: number;
+  saved_at: number;
+  entries: Record<string, string>;
+};
+
 export type DifficultyLevel = "Low" | "Medium" | "High";
 
 export type DifficultyInfo = {
@@ -196,12 +257,32 @@ export type AppConfig = {
   drop_knife_subclasses: number[];
   csgo_path: string | null;
   first_run_done: boolean;
+  first_run_step?: string | null;
+  cosmetics_enabled_before_online?: boolean | null;
+};
+
+export type RuntimeSnapshot = {
+  directory: DirectoryInfo;
+  process: Cs2ProcessInfo;
+  files: FilesReport | null;
+  difficulty: DifficultyInfo | null;
+  mode: ModeInfo | null;
+  bot_items: BotItemsState | null;
+  presets: PresetsState | null;
+  drop_knives: DropKnivesState | null;
+  installation: InstallationInspection | null;
 };
 
 // ---- Command wrappers ----
 export const api = {
   getConfig: () => invoke<AppConfig>("get_config"),
   saveConfig: (config: AppConfig) => invoke<void>("save_config", { config }),
+  getPanelMemory: () => invoke<UiMemory>("get_panel_memory"),
+  savePanelMemory: (entries: Record<string, string>) =>
+    invoke<UiMemory>("save_panel_memory", { entries }),
+  recordPanelError: (error: AppError, context: string) =>
+    invoke<void>("record_panel_error", { error: { ...error, context } }),
+  getRuntimeSnapshot: () => invoke<RuntimeSnapshot>("get_runtime_snapshot"),
   detectDirectories: () => invoke<DirectoryInfo>("detect_directories"),
   selectDirectory: (path: string) =>
     invoke<DirectoryInfo>("select_directory", { path }),
@@ -232,4 +313,14 @@ export const api = {
     invoke<KnifeCustomizerState>("get_knife_customizer", { csgo }),
   saveKnifeCustomizer: (csgo: string, config: KnifeCustomizerConfig) =>
     invoke<KnifeCustomizerState>("save_knife_customizer", { csgo, config }),
+  inspectInstallation: (csgo: string) =>
+    invoke<InstallationInspection>("inspect_installation", { csgo }),
+  getInstallPlan: (csgo: string) => invoke<InstallPlan>("get_install_plan", { csgo }),
+  installPayload: (csgo: string) =>
+    invoke<InstallTransactionResult>("install_payload", { csgo }),
+  repairPayload: (csgo: string) =>
+    invoke<InstallTransactionResult>("repair_payload", { csgo }),
+  restorePayload: (csgo: string) => invoke<RestoreResult>("restore_payload", { csgo }),
+  exportDiagnostics: (csgo: string | null) =>
+    invoke<DiagnosticReport>("export_diagnostics", { csgo }),
 };

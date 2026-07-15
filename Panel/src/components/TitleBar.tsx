@@ -10,7 +10,7 @@ type Props = {
   showSettings?: boolean;
 };
 
-export default function TitleBar({ title = "CS2BotImproverPlus v1.4.2.1", onSettings, showSettings = true }: Props) {
+export default function TitleBar({ title = "CS2BotImproverPlus v1.4.2.2", onSettings, showSettings = true }: Props) {
   const appWindow = getCurrentWindow();
   const t = useT();
   const { reportError } = useStore();

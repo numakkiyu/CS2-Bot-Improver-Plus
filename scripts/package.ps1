@@ -24,12 +24,25 @@ function Get-VerifiedAsset {
     param($Asset)
     New-Item -ItemType Directory -Path $cache -Force | Out-Null
     $path = Join-Path $cache $Asset.name
-    if (-not (Test-Path -LiteralPath $path)) {
-        Invoke-WebRequest -Uri $Asset.url -OutFile $path
+    $expected = $Asset.sha256.ToLowerInvariant()
+    if (Test-Path -LiteralPath $path) {
+        $cached = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($cached -eq $expected) { return $path }
+        Write-Host "Refreshing stale cached asset: $($Asset.name)"
     }
-    $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $Asset.sha256.ToLowerInvariant()) {
-        throw "SHA-256 mismatch for $($Asset.name): $actual"
+
+    $download = "$path.download"
+    try {
+        if (Test-Path -LiteralPath $download) { Remove-Item -LiteralPath $download -Force }
+        Invoke-WebRequest -Uri $Asset.url -OutFile $download
+        $actual = (Get-FileHash -LiteralPath $download -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actual -ne $expected) {
+            throw "SHA-256 mismatch for $($Asset.name): $actual"
+        }
+        Move-Item -LiteralPath $download -Destination $path -Force
+    }
+    finally {
+        if (Test-Path -LiteralPath $download) { Remove-Item -LiteralPath $download -Force }
     }
     return $path
 }
@@ -104,7 +117,7 @@ $upstreamPayload = $payloadCandidates |
     Select-Object -First 1
 if (-not $upstreamPayload) { throw "Could not locate the upstream game/csgo payload." }
 
-$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2.1-windows"
+$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2.2-windows"
 $payload = $releaseRoot
 Copy-Tree $upstreamPayload.FullName $releaseRoot
 Get-ChildItem -LiteralPath $releaseRoot -Filter "Panel*.exe" -File | Remove-Item -Force
@@ -177,10 +190,12 @@ $pluginBuild = Join-Path $repo "addons\counterstrikesharp\plugins\PlayerKnifeCus
 $botImplBuild = Join-Path $repo "addons\counterstrikesharp\plugins\BotHiderImpl\bin\Release\net10.0"
 $botApiBuild = Join-Path $repo "addons\counterstrikesharp\shared\BotHiderApi\bin\Release\net10.0"
 $upstreamPluginBuilds = @(
-    @{ Name = "BotAI"; Framework = "net8.0" },
+    @{ Name = "BotAI"; Framework = "net10.0" },
     @{ Name = "BotAimImprover"; Framework = "net10.0" },
     @{ Name = "BotBuy"; Framework = "net8.0" },
-    @{ Name = "NadeSystem"; Framework = "net10.0" }
+    @{ Name = "BotRandomizer"; Framework = "net10.0" },
+    @{ Name = "NadeSystem"; Framework = "net10.0" },
+    @{ Name = "RoundDamageRecap"; Framework = "net8.0" }
 )
 foreach ($plugin in $upstreamPluginBuilds) {
     $build = Join-Path $repo "addons\counterstrikesharp\plugins\$($plugin.Name)\bin\Release\$($plugin.Framework)"
@@ -216,7 +231,7 @@ if ($nativeHash -ne $manifest.botHider.windowsDllSha256.ToLowerInvariant()) {
 }
 
 $panelExe = Join-Path $repo "Panel\src-tauri\target\release\cs2-bot-improver-plus-panel.exe"
-Copy-Item -LiteralPath $panelExe -Destination (Join-Path $releaseRoot "CS2BotImproverPlus v1.4.2.1.exe") -Force
+Copy-Item -LiteralPath $panelExe -Destination (Join-Path $releaseRoot "CS2BotImproverPlus v1.4.2.2.exe") -Force
 $webViewLoader = Join-Path $repo "Panel\src-tauri\target\release\WebView2Loader.dll"
 if (Test-Path -LiteralPath $webViewLoader) {
     Copy-Item -LiteralPath $webViewLoader -Destination (Join-Path $releaseRoot "WebView2Loader.dll") -Force
@@ -225,11 +240,47 @@ Copy-Item -LiteralPath (Join-Path $repo "README.md") -Destination (Join-Path $re
 Copy-Item -LiteralPath (Join-Path $repo "README.zh-CN.md") -Destination (Join-Path $releaseRoot "README.zh-CN.md") -Force
 Copy-Item -LiteralPath (Join-Path $repo "LICENSE") -Destination (Join-Path $releaseRoot "LICENSE") -Force
 
+# The Panel uses this manifest as the installation ownership boundary. Only the
+# game payload is managed; the executable and documentation stay portable.
+$manifestEntries = foreach ($topLevel in @("addons", "cfg", "overrides")) {
+    $root = Join-Path $payload $topLevel
+    if (-not (Test-Path -LiteralPath $root)) { continue }
+    foreach ($file in Get-ChildItem -LiteralPath $root -File -Recurse) {
+        $relative = [IO.Path]::GetRelativePath($payload, $file.FullName).Replace("\", "/")
+        $plusOwned = $relative -like "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/*" -or
+            $relative -like "addons/counterstrikesharp/plugins/BotHiderImpl/*" -or
+            $relative -like "addons/counterstrikesharp/shared/BotHiderApi/*" -or
+            $relative -in @("cfg/my_bot_ffa_config.cfg", "cfg/my_bot_normal_config.cfg")
+        $component = if ($relative -like "addons/counterstrikesharp/plugins/*") {
+            ($relative -split "/")[3]
+        }
+        elseif ($relative -like "addons/BotHider/*") { "BotHider" }
+        elseif ($relative -like "addons/RayTrace/*") { "RayTrace" }
+        elseif ($relative -like "cfg/*") { "configuration" }
+        elseif ($relative -like "overrides/*") { "overrides" }
+        else { "runtime" }
+        [ordered]@{
+            path = $relative
+            size = $file.Length
+            sha256 = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            component = $component
+            ownership = if ($plusOwned) { "plus" } else { "shared" }
+            restore_policy = if ($relative -like "*/PlayerKnifeCustomizer/player_*_presets.json") { "preserve-config" } else { "restore" }
+        }
+    }
+}
+$payloadManifest = [ordered]@{
+    schema_version = 1
+    package_version = "1.4.2.2"
+    entries = @($manifestEntries | Sort-Object path)
+}
+$payloadManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $payload "plus-payload-manifest.json") -Encoding utf8
+
 & (Join-Path $PSScriptRoot "verify-workspace.ps1") -PackageRoot $releaseRoot
 if ($LASTEXITCODE -ne 0) { throw "Package verification failed." }
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
-$zip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2.1-windows.zip"
+$zip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2.2-windows.zip"
 if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
 Compress-Archive -Path $releaseRoot -DestinationPath $zip -CompressionLevel Optimal
 

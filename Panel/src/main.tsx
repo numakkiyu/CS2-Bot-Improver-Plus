@@ -10,6 +10,7 @@ import App from "./App";
 import { ToastProvider } from "./components/Toast";
 import { AppStateProvider } from "./state/store";
 import { applyGlassSupport } from "./lib/glass";
+import { api } from "./lib/api";
 import "./styles/global.css";
 
 // Desktop Plus layout: fixed logical canvas with a persistent left navigation
@@ -97,12 +98,25 @@ document.addEventListener(
 
 applyGlassSupport();
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <ToastProvider>
-      <AppStateProvider>
-        <App />
-      </AppStateProvider>
-    </ToastProvider>
-  </React.StrictMode>
-);
+async function bootstrap() {
+  try {
+    const memory = await api.getPanelMemory();
+    for (const [key, value] of Object.entries(memory.entries)) {
+      if (key.startsWith("cs2bi.")) localStorage.setItem(key, value);
+    }
+  } catch {
+    // A read-only application directory must not prevent the recovery UI from opening.
+  }
+
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <React.StrictMode>
+      <ToastProvider>
+        <AppStateProvider>
+          <App />
+        </AppStateProvider>
+      </ToastProvider>
+    </React.StrictMode>
+  );
+}
+
+void bootstrap();
