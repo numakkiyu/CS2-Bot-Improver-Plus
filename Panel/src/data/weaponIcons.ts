@@ -15,7 +15,15 @@ export type WeaponIcon = {
   designerName: string;
   name: string;
   url: string;
+  availability: "ct" | "t" | "shared";
 };
+
+const CT_ONLY = new Set([3, 8, 10, 16, 27, 32, 34, 38, 60, 61]);
+const T_ONLY = new Set([4, 7, 11, 13, 17, 29, 30, 39]);
+
+export function weaponAvailability(defindex: number): WeaponIcon["availability"] {
+  return CT_ONLY.has(defindex) ? "ct" : T_ONLY.has(defindex) ? "t" : "shared";
+}
 
 const DISPLAY_NAMES: Record<number, string> = {
   1: "Desert Eagle", 2: "Dual Berettas", 3: "Five-SeveN", 4: "Glock-18",
@@ -43,5 +51,6 @@ export const WEAPON_ICONS: WeaponIcon[] = (imageRows as ImageRow[])
     name: DISPLAY_NAMES[row.weapon_defindex]
       ?? row.weapon_name.replace(/^weapon_/, "").replaceAll("_", " ").toUpperCase(),
     url: row.image,
+    availability: weaponAvailability(row.weapon_defindex),
   }))
   .sort((left, right) => left.id - right.id);

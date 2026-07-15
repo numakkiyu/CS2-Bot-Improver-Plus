@@ -90,7 +90,7 @@ struct PresetsState { aim: Option<String>, nades: Option<String>, cfg_present: b
 #[derive(Serialize)]
 struct DropKnivesState { bind_key: String, selected: Vec<u16>, cfg_present: bool, cs2_running: bool }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 struct KnifePreset {
     paint: i32,
     seed: i32,
@@ -106,7 +106,7 @@ const DEFAULT_GLOVE_DEFINDEX: u16 = 5030;
 const DEFAULT_GLOVE_PAINT: i32 = 10048;
 const DEFAULT_GLOVE_WEAR: f32 = 0.01;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 struct GlovePreset {
     enabled: bool,
     defindex: u16,
@@ -127,28 +127,109 @@ impl Default for GlovePreset {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct KnifeCustomizerConfig {
-    enabled: bool,
-    apply_to_human_players: bool,
-    apply_on_pickup: bool,
+const COSMETICS_SCHEMA_VERSION: u8 = 2;
+const CT_ONLY_WEAPONS: &[u16] = &[3, 8, 10, 16, 27, 32, 34, 38, 60, 61];
+const T_ONLY_WEAPONS: &[u16] = &[4, 7, 11, 13, 17, 29, 30, 39];
+const SHARED_WEAPONS: &[u16] = &[1, 2, 9, 14, 19, 23, 24, 25, 26, 28, 31, 33, 35, 36, 40, 63, 64];
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum WeaponSide {
+    Ct,
+    T,
+    Shared,
+}
+
+fn weapon_side(defindex: u16) -> WeaponSide {
+    if CT_ONLY_WEAPONS.contains(&defindex) {
+        WeaponSide::Ct
+    } else if T_ONLY_WEAPONS.contains(&defindex) {
+        WeaponSide::T
+    } else {
+        WeaponSide::Shared
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+struct TeamLoadout {
+    #[serde(default)]
     default_knife_defindex: u16,
-    presets: BTreeMap<String, KnifePreset>,
+    #[serde(default)]
+    knife_presets: BTreeMap<String, KnifePreset>,
+    #[serde(default)]
+    glove: GlovePreset,
     #[serde(default)]
     gun_presets: BTreeMap<String, KnifePreset>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+struct TeamLoadouts {
+    #[serde(default)]
+    ct: TeamLoadout,
+    #[serde(default)]
+    t: TeamLoadout,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+struct TeamGunConfig {
+    #[serde(default)]
+    schema_version: u8,
+    #[serde(default)]
+    ct: BTreeMap<String, KnifePreset>,
+    #[serde(default)]
+    t: BTreeMap<String, KnifePreset>,
+    #[serde(default)]
+    shared_weapon_links: BTreeMap<String, bool>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct KnifeCustomizerConfig {
+    #[serde(default)]
+    schema_version: u8,
+    #[serde(default)]
+    enabled: bool,
+    #[serde(default = "default_true")]
+    apply_to_human_players: bool,
+    #[serde(default = "default_true")]
+    apply_on_pickup: bool,
     #[serde(default)]
     music_kit_id: i32,
     #[serde(default)]
+    loadouts: TeamLoadouts,
+    #[serde(default)]
+    shared_weapon_links: BTreeMap<String, bool>,
+
+    // Read-only v1 fields. They are migrated in memory and never serialized again.
+    #[serde(default, skip_serializing)]
+    default_knife_defindex: u16,
+    #[serde(default, skip_serializing)]
+    presets: BTreeMap<String, KnifePreset>,
+    #[serde(default, skip_serializing)]
+    gun_presets: BTreeMap<String, KnifePreset>,
+    #[serde(default, skip_serializing)]
     glove: GlovePreset,
 }
 
+fn default_true() -> bool { true }
+
 impl Default for KnifeCustomizerConfig {
     fn default() -> Self {
-        Self { enabled: false, apply_to_human_players: true,
-            apply_on_pickup: true, default_knife_defindex: 0, presets: BTreeMap::new(),
-            gun_presets: BTreeMap::new(),
+        let mut shared_weapon_links = BTreeMap::new();
+        for defindex in SHARED_WEAPONS {
+            shared_weapon_links.insert(defindex.to_string(), true);
+        }
+        Self {
+            schema_version: COSMETICS_SCHEMA_VERSION,
+            enabled: false,
+            apply_to_human_players: true,
+            apply_on_pickup: true,
             music_kit_id: 0,
-            glove: GlovePreset::default() }
+            loadouts: TeamLoadouts::default(),
+            shared_weapon_links,
+            default_knife_defindex: 0,
+            presets: BTreeMap::new(),
+            gun_presets: BTreeMap::new(),
+            glove: GlovePreset::default(),
+        }
     }
 }
 
@@ -438,59 +519,191 @@ fn gun_config_path(root: &Path) -> PathBuf {
     root.join("addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/player_gun_presets.json")
 }
 
-fn normalize_knife_config(config: &mut KnifeCustomizerConfig) -> Result<()> {
-    config.music_kit_id = config.music_kit_id.clamp(0, u16::MAX as i32);
-    for (def, preset) in &mut config.presets {
+fn normalize_preset(preset: &mut KnifePreset) {
+    preset.seed = preset.seed.clamp(0, 1000);
+    preset.wear = preset.wear.clamp(0.0, 1.0);
+    preset.stattrak_count = preset.stattrak_count.max(0);
+    preset.name_tag = preset.name_tag.chars().take(20).collect();
+    if preset.souvenir_enabled { preset.stattrak_enabled = false; }
+}
+
+fn normalize_team_loadout(team: WeaponSide, loadout: &mut TeamLoadout) -> Result<()> {
+    for (def, preset) in &mut loadout.knife_presets {
         let defindex: u16 = def.parse().map_err(|_| AppError::invalid("Invalid knife defindex"))?;
         if !(500..=526).contains(&defindex) || preset.paint <= 0 {
             return Err(AppError::invalid("Invalid knife preset"));
         }
-        preset.seed = preset.seed.clamp(0, 1000);
-        preset.wear = preset.wear.clamp(0.0, 1.0);
-        preset.stattrak_count = preset.stattrak_count.max(0);
-        preset.name_tag = preset.name_tag.chars().take(20).collect();
-        if preset.souvenir_enabled { preset.stattrak_enabled = false; }
+        normalize_preset(preset);
     }
-    for (def, preset) in &mut config.gun_presets {
+    for (def, preset) in &mut loadout.gun_presets {
         let defindex: u16 = def.parse().map_err(|_| AppError::invalid("Invalid gun defindex"))?;
         if defindex == 0 || defindex >= 500 || preset.paint <= 0 {
             return Err(AppError::invalid("Invalid gun preset"));
         }
-        preset.seed = preset.seed.clamp(0, 1000);
-        preset.wear = preset.wear.clamp(0.0, 1.0);
-        preset.stattrak_count = preset.stattrak_count.max(0);
-        preset.name_tag = preset.name_tag.chars().take(20).collect();
-        if preset.souvenir_enabled { preset.stattrak_enabled = false; }
+        if (team == WeaponSide::Ct && weapon_side(defindex) == WeaponSide::T)
+            || (team == WeaponSide::T && weapon_side(defindex) == WeaponSide::Ct)
+        {
+            return Err(AppError::invalid("Weapon preset is stored under the wrong team"));
+        }
+        normalize_preset(preset);
     }
-
-    if config.default_knife_defindex != 0
-        && !config.presets.contains_key(&config.default_knife_defindex.to_string())
+    if loadout.default_knife_defindex != 0
+        && !loadout.knife_presets.contains_key(&loadout.default_knife_defindex.to_string())
     {
         return Err(AppError::invalid("Default knife has no saved preset"));
     }
-    config.glove.seed = config.glove.seed.clamp(0, 1000);
-    config.glove.wear = config.glove.wear.clamp(0.0, 1.0);
-    if config.glove.enabled && config.glove.defindex == 0 && config.glove.paint == 0 {
-        config.glove = GlovePreset { enabled: true, ..GlovePreset::default() };
+    loadout.glove.seed = loadout.glove.seed.clamp(0, 1000);
+    loadout.glove.wear = loadout.glove.wear.clamp(0.0, 1.0);
+    if loadout.glove.enabled && loadout.glove.defindex == 0 && loadout.glove.paint == 0 {
+        loadout.glove = GlovePreset { enabled: true, ..GlovePreset::default() };
     }
-    if config.glove.enabled
-        && (!(4725..=5035).contains(&config.glove.defindex) || config.glove.paint <= 0)
+    if loadout.glove.enabled
+        && (!(4725..=5035).contains(&loadout.glove.defindex) || loadout.glove.paint <= 0)
     {
         return Err(AppError::invalid("Invalid glove preset"));
     }
     Ok(())
 }
 
+fn ensure_shared_link_defaults(config: &mut KnifeCustomizerConfig) {
+    for defindex in SHARED_WEAPONS {
+        config.shared_weapon_links.entry(defindex.to_string()).or_insert(true);
+    }
+}
+
+fn apply_legacy_guns(config: &mut KnifeCustomizerConfig, guns: BTreeMap<String, KnifePreset>) {
+    config.loadouts.ct.gun_presets.clear();
+    config.loadouts.t.gun_presets.clear();
+    for (key, preset) in guns {
+        let Ok(defindex) = key.parse::<u16>() else { continue };
+        match weapon_side(defindex) {
+            WeaponSide::Ct => { config.loadouts.ct.gun_presets.insert(key, preset); }
+            WeaponSide::T => { config.loadouts.t.gun_presets.insert(key, preset); }
+            WeaponSide::Shared => {
+                config.loadouts.ct.gun_presets.insert(key.clone(), preset.clone());
+                config.loadouts.t.gun_presets.insert(key.clone(), preset);
+                config.shared_weapon_links.insert(key, true);
+            }
+        }
+    }
+}
+
+fn migrate_legacy_config(config: &mut KnifeCustomizerConfig) {
+    if config.schema_version >= COSMETICS_SCHEMA_VERSION {
+        ensure_shared_link_defaults(config);
+        return;
+    }
+    let legacy_guns = std::mem::take(&mut config.gun_presets);
+    let legacy_loadout = TeamLoadout {
+        default_knife_defindex: config.default_knife_defindex,
+        knife_presets: std::mem::take(&mut config.presets),
+        glove: std::mem::take(&mut config.glove),
+        gun_presets: BTreeMap::new(),
+    };
+    config.loadouts.ct = legacy_loadout.clone();
+    config.loadouts.t = legacy_loadout;
+    config.schema_version = COSMETICS_SCHEMA_VERSION;
+    apply_legacy_guns(config, legacy_guns);
+    ensure_shared_link_defaults(config);
+}
+
+fn read_knife_config(root: &Path) -> Result<KnifeCustomizerConfig> {
+    let path = knife_config_path(root);
+    let mut config = if path.is_file() {
+        serde_json::from_str(&fs::read_to_string(&path)?)?
+    } else {
+        KnifeCustomizerConfig::default()
+    };
+    migrate_legacy_config(&mut config);
+
+    let gun_path = gun_config_path(root);
+    if gun_path.is_file() {
+        let text = fs::read_to_string(&gun_path)?;
+        let value: serde_json::Value = serde_json::from_str(&text)?;
+        if value.get("schema_version").and_then(serde_json::Value::as_u64)
+            == Some(COSMETICS_SCHEMA_VERSION as u64)
+        {
+            let guns: TeamGunConfig = serde_json::from_value(value)?;
+            config.loadouts.ct.gun_presets = guns.ct;
+            config.loadouts.t.gun_presets = guns.t;
+            config.shared_weapon_links = guns.shared_weapon_links;
+        } else {
+            apply_legacy_guns(&mut config, serde_json::from_value(value)?);
+        }
+    }
+    ensure_shared_link_defaults(&mut config);
+    Ok(config)
+}
+
+fn normalize_knife_config(config: &mut KnifeCustomizerConfig) -> Result<()> {
+    migrate_legacy_config(config);
+    config.schema_version = COSMETICS_SCHEMA_VERSION;
+    config.music_kit_id = config.music_kit_id.clamp(0, u16::MAX as i32);
+    normalize_team_loadout(WeaponSide::Ct, &mut config.loadouts.ct)?;
+    normalize_team_loadout(WeaponSide::T, &mut config.loadouts.t)?;
+    ensure_shared_link_defaults(config);
+
+    for (key, linked) in &config.shared_weapon_links {
+        let defindex: u16 = key.parse().map_err(|_| AppError::invalid("Invalid shared weapon defindex"))?;
+        if defindex == 0 || defindex >= 500 || weapon_side(defindex) != WeaponSide::Shared {
+            return Err(AppError::invalid("Invalid shared weapon link"));
+        }
+        if !linked { continue; }
+        let ct = config.loadouts.ct.gun_presets.get(key);
+        let t = config.loadouts.t.gun_presets.get(key);
+        match (ct, t) {
+            (Some(left), Some(right)) if left != right => {
+                return Err(AppError::invalid("Linked CT/T weapon presets must match"));
+            }
+            (Some(preset), None) => {
+                config.loadouts.t.gun_presets.insert(key.clone(), preset.clone());
+            }
+            (None, Some(preset)) => {
+                config.loadouts.ct.gun_presets.insert(key.clone(), preset.clone());
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+fn legacy_backup_path(path: &Path) -> PathBuf {
+    PathBuf::from(format!("{}.v1.bak", path.to_string_lossy()))
+}
+
+fn backup_legacy_file(path: &Path) -> Result<()> {
+    if !path.is_file() { return Ok(()); }
+    let value: serde_json::Value = serde_json::from_str(&fs::read_to_string(path)?)?;
+    if value.get("schema_version").and_then(serde_json::Value::as_u64)
+        == Some(COSMETICS_SCHEMA_VERSION as u64)
+    {
+        return Ok(());
+    }
+    let backup = legacy_backup_path(path);
+    if !backup.exists() { fs::copy(path, backup)?; }
+    Ok(())
+}
+
 fn save_knife_config(root: &Path, config: &mut KnifeCustomizerConfig) -> Result<()> {
     normalize_knife_config(config)?;
-    write_json_atomic(&knife_config_path(root), config)?;
-    write_json_atomic(&gun_config_path(root), &config.gun_presets)
+    let knife_path = knife_config_path(root);
+    let gun_path = gun_config_path(root);
+    backup_legacy_file(&knife_path)?;
+    backup_legacy_file(&gun_path)?;
+    write_json_atomic(&knife_path, config)?;
+    let guns = TeamGunConfig {
+        schema_version: COSMETICS_SCHEMA_VERSION,
+        ct: config.loadouts.ct.gun_presets.clone(),
+        t: config.loadouts.t.gun_presets.clone(),
+        shared_weapon_links: config.shared_weapon_links.clone(),
+    };
+    write_json_atomic(&gun_path, &guns)
 }
 
 fn set_knife_customizer_enabled(root: &Path, enabled: bool) -> Result<Option<bool>> {
     let path = knife_config_path(root);
     if path.is_file() {
-        let mut config: KnifeCustomizerConfig = serde_json::from_str(&fs::read_to_string(&path)?)?;
+        let mut config = read_knife_config(root)?;
         let previous = config.enabled;
         if previous != enabled {
             config.enabled = enabled;
@@ -521,11 +734,7 @@ fn get_knife_customizer(csgo: String) -> Result<KnifeCustomizerState> {
     let root = csgo_path(&csgo)?;
     let path = knife_config_path(&root);
     let present = path.is_file();
-    let mut config = if present { serde_json::from_str(&fs::read_to_string(&path)?)? } else { KnifeCustomizerConfig::default() };
-    let gun_path = gun_config_path(&root);
-    if gun_path.is_file() {
-        config.gun_presets = serde_json::from_str(&fs::read_to_string(gun_path)?)?;
-    }
+    let config = read_knife_config(&root)?;
     Ok(KnifeCustomizerState { plugin_present: path.with_file_name("PlayerKnifeCustomizer.dll").is_file(), config_present: present, cs2_running: cs2_running(), config })
 }
 
@@ -549,8 +758,10 @@ mod tests {
     #[test]
     fn knife_config_is_clamped_and_written_to_game_plugin_path() {
         let root = test_root();
-        let mut presets = BTreeMap::new();
-        presets.insert("515".into(), KnifePreset {
+        let mut config = KnifeCustomizerConfig::default();
+        config.enabled = true;
+        config.loadouts.ct.default_knife_defindex = 515;
+        config.loadouts.ct.knife_presets.insert("515".into(), KnifePreset {
             paint: 568,
             seed: 1200,
             wear: -0.25,
@@ -559,23 +770,13 @@ mod tests {
             stattrak_count: -7,
             souvenir_enabled: false,
         });
-        let mut config = KnifeCustomizerConfig {
-            enabled: true,
-            apply_to_human_players: true,
-            apply_on_pickup: true,
-            default_knife_defindex: 515,
-            presets,
-            gun_presets: BTreeMap::new(),
-            music_kit_id: 0,
-            glove: GlovePreset::default(),
-        };
 
         save_knife_config(&root, &mut config).unwrap();
 
-        let path = knife_config_path(&root);
-        let saved: KnifeCustomizerConfig = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
-        let preset = &saved.presets["515"];
-        assert_eq!(saved.default_knife_defindex, 515);
+        let saved = read_knife_config(&root).unwrap();
+        let preset = &saved.loadouts.ct.knife_presets["515"];
+        assert_eq!(saved.schema_version, COSMETICS_SCHEMA_VERSION);
+        assert_eq!(saved.loadouts.ct.default_knife_defindex, 515);
         assert_eq!(preset.seed, 1000);
         assert_eq!(preset.wear, 0.0);
         assert_eq!(preset.name_tag, "12345678901234567890");
@@ -585,10 +786,8 @@ mod tests {
 
     #[test]
     fn default_knife_requires_a_matching_preset() {
-        let mut config = KnifeCustomizerConfig {
-            default_knife_defindex: 515,
-            ..KnifeCustomizerConfig::default()
-        };
+        let mut config = KnifeCustomizerConfig::default();
+        config.loadouts.ct.default_knife_defindex = 515;
         let error = normalize_knife_config(&mut config).unwrap_err();
         assert_eq!(error.code, "E1002");
         assert!(error.detail.contains("no saved preset"));
@@ -604,18 +803,20 @@ mod tests {
             "default_knife_defindex": 0,
             "presets": {}
         }"#;
-        let config: KnifeCustomizerConfig = serde_json::from_str(json).unwrap();
+        let mut config: KnifeCustomizerConfig = serde_json::from_str(json).unwrap();
+        migrate_legacy_config(&mut config);
         assert!(!serde_json::to_string(&config).unwrap().contains("apply_to_dropped_knives"));
-        assert!(!config.glove.enabled);
-        assert_eq!(config.glove.defindex, DEFAULT_GLOVE_DEFINDEX);
-        assert_eq!(config.glove.paint, DEFAULT_GLOVE_PAINT);
+        assert_eq!(config.schema_version, COSMETICS_SCHEMA_VERSION);
+        assert!(!config.loadouts.ct.glove.enabled);
+        assert_eq!(config.loadouts.t.glove.defindex, DEFAULT_GLOVE_DEFINDEX);
+        assert_eq!(config.loadouts.t.glove.paint, DEFAULT_GLOVE_PAINT);
         assert_eq!(config.music_kit_id, 0);
     }
 
     #[test]
     fn enabling_an_empty_legacy_glove_uses_the_default_preset() {
         let mut config = KnifeCustomizerConfig::default();
-        config.glove = GlovePreset {
+        config.loadouts.t.glove = GlovePreset {
             enabled: true,
             defindex: 0,
             paint: 0,
@@ -625,10 +826,10 @@ mod tests {
 
         normalize_knife_config(&mut config).unwrap();
 
-        assert!(config.glove.enabled);
-        assert_eq!(config.glove.defindex, DEFAULT_GLOVE_DEFINDEX);
-        assert_eq!(config.glove.paint, DEFAULT_GLOVE_PAINT);
-        assert_eq!(config.glove.wear, DEFAULT_GLOVE_WEAR);
+        assert!(config.loadouts.t.glove.enabled);
+        assert_eq!(config.loadouts.t.glove.defindex, DEFAULT_GLOVE_DEFINDEX);
+        assert_eq!(config.loadouts.t.glove.paint, DEFAULT_GLOVE_PAINT);
+        assert_eq!(config.loadouts.t.glove.wear, DEFAULT_GLOVE_WEAR);
     }
 
     #[test]
@@ -658,8 +859,10 @@ mod tests {
     #[test]
     fn online_safety_restores_the_previous_cosmetic_state() {
         let root = test_root();
-        let mut presets = BTreeMap::new();
-        presets.insert("515".into(), KnifePreset {
+        let mut config = KnifeCustomizerConfig::default();
+        config.enabled = true;
+        config.loadouts.ct.default_knife_defindex = 515;
+        config.loadouts.ct.knife_presets.insert("515".into(), KnifePreset {
             paint: 568,
             seed: 42,
             wear: 0.12,
@@ -668,28 +871,18 @@ mod tests {
             stattrak_count: 99,
             souvenir_enabled: false,
         });
-        let mut config = KnifeCustomizerConfig {
-            enabled: true,
-            default_knife_defindex: 515,
-            presets,
-            ..KnifeCustomizerConfig::default()
-        };
         save_knife_config(&root, &mut config).unwrap();
 
         let mut app_config = AppConfig::default();
         enter_online_safety(&root, &mut app_config).unwrap();
 
-        let saved: KnifeCustomizerConfig = serde_json::from_str(
-            &fs::read_to_string(knife_config_path(&root)).unwrap(),
-        ).unwrap();
+        let saved = read_knife_config(&root).unwrap();
         assert!(!saved.enabled);
-        assert_eq!(saved.presets.len(), 1);
-        assert_eq!(saved.presets["515"].paint, 568);
-        assert_eq!(saved.presets["515"].stattrak_count, 99);
+        assert_eq!(saved.loadouts.ct.knife_presets.len(), 1);
+        assert_eq!(saved.loadouts.ct.knife_presets["515"].paint, 568);
+        assert_eq!(saved.loadouts.ct.knife_presets["515"].stattrak_count, 99);
         leave_online_safety(&root, &mut app_config).unwrap();
-        let restored: KnifeCustomizerConfig = serde_json::from_str(
-            &fs::read_to_string(knife_config_path(&root)).unwrap(),
-        ).unwrap();
+        let restored = read_knife_config(&root).unwrap();
         assert!(restored.enabled);
         assert!(app_config.cosmetics_enabled_before_online.is_none());
         fs::remove_dir_all(root).unwrap();
@@ -700,7 +893,7 @@ mod tests {
         let root = test_root();
         let mut config = KnifeCustomizerConfig::default();
         config.music_kit_id = 36;
-        config.gun_presets.insert("7".into(), KnifePreset {
+        config.loadouts.t.gun_presets.insert("7".into(), KnifePreset {
             paint: 661,
             seed: 321,
             wear: 0.08,
@@ -711,15 +904,74 @@ mod tests {
         });
 
         save_knife_config(&root, &mut config).unwrap();
-        let saved: KnifeCustomizerConfig =
-            serde_json::from_str(&fs::read_to_string(knife_config_path(&root)).unwrap()).unwrap();
+        let saved = read_knife_config(&root).unwrap();
         assert_eq!(saved.music_kit_id, 36);
-        let ak = &saved.gun_presets["7"];
+        let ak = &saved.loadouts.t.gun_presets["7"];
         assert_eq!(ak.paint, 661);
         assert_eq!(ak.seed, 321);
         assert!(ak.souvenir_enabled);
         assert!(!ak.stattrak_enabled);
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn legacy_configs_migrate_by_weapon_side_and_are_backed_up_once() {
+        let root = test_root();
+        let knife_path = knife_config_path(&root);
+        let gun_path = gun_config_path(&root);
+        fs::create_dir_all(knife_path.parent().unwrap()).unwrap();
+        fs::write(&knife_path, r#"{
+            "enabled": true,
+            "apply_to_human_players": true,
+            "apply_on_pickup": true,
+            "default_knife_defindex": 515,
+            "presets": {"515":{"paint":568,"seed":0,"wear":0.01,"name_tag":"","stattrak_enabled":false,"stattrak_count":0}},
+            "glove":{"enabled":false,"defindex":5030,"paint":10048,"seed":0,"wear":0.01}
+        }"#).unwrap();
+        fs::write(&gun_path, r#"{
+            "7":{"paint":661,"seed":0,"wear":0.01,"name_tag":"","stattrak_enabled":false,"stattrak_count":0},
+            "9":{"paint":344,"seed":0,"wear":0.01,"name_tag":"","stattrak_enabled":false,"stattrak_count":0},
+            "16":{"paint":309,"seed":0,"wear":0.01,"name_tag":"","stattrak_enabled":false,"stattrak_count":0}
+        }"#).unwrap();
+
+        let mut config = read_knife_config(&root).unwrap();
+        assert_eq!(config.loadouts.ct.default_knife_defindex, 515);
+        assert_eq!(config.loadouts.t.default_knife_defindex, 515);
+        assert!(config.loadouts.t.gun_presets.contains_key("7"));
+        assert!(!config.loadouts.ct.gun_presets.contains_key("7"));
+        assert!(config.loadouts.ct.gun_presets.contains_key("16"));
+        assert!(!config.loadouts.t.gun_presets.contains_key("16"));
+        assert_eq!(config.loadouts.ct.gun_presets["9"], config.loadouts.t.gun_presets["9"]);
+        assert_eq!(config.shared_weapon_links["9"], true);
+        assert!(!legacy_backup_path(&knife_path).exists());
+
+        save_knife_config(&root, &mut config).unwrap();
+        assert!(legacy_backup_path(&knife_path).exists());
+        assert!(legacy_backup_path(&gun_path).exists());
+        let backup = fs::read(&legacy_backup_path(&knife_path)).unwrap();
+        save_knife_config(&root, &mut config).unwrap();
+        assert_eq!(fs::read(legacy_backup_path(&knife_path)).unwrap(), backup);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn linked_shared_weapon_presets_must_match() {
+        let mut config = KnifeCustomizerConfig::default();
+        let mut left = KnifePreset {
+            paint: 344, seed: 0, wear: 0.01, name_tag: String::new(),
+            stattrak_enabled: false, stattrak_count: 0, souvenir_enabled: false,
+        };
+        let mut right = left.clone();
+        right.paint = 279;
+        config.loadouts.ct.gun_presets.insert("9".into(), left.clone());
+        config.loadouts.t.gun_presets.insert("9".into(), right);
+        let error = normalize_knife_config(&mut config).unwrap_err();
+        assert!(error.detail.contains("must match"));
+
+        config.shared_weapon_links.insert("9".into(), false);
+        normalize_knife_config(&mut config).unwrap();
+        left.paint = config.loadouts.ct.gun_presets["9"].paint;
+        assert_eq!(left.paint, 344);
     }
 }
 

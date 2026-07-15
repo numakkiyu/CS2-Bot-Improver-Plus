@@ -1,4 +1,10 @@
 .wp__summary { font-size: 12px; color: var(--text-secondary); }
+.wp__team-bar { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.wp__team-bar > div:first-child { min-width: 0; display: grid; gap: 3px; }
+.wp__team-bar small { color: var(--text-tertiary); font-size: 10px; font-weight: 750; text-transform: uppercase; }
+.wp__team-bar strong { font-size: 14px; line-height: 1.3; }
+.wp__group { display: grid; gap: 9px; }
+.wp__group h2 { margin: 0; color: var(--text-secondary); font-size: 11px; font-weight: 750; text-transform: uppercase; }
 .wp__music { width: 100%; min-height: 78px; display: grid; grid-template-columns: 72px minmax(0, 1fr) 20px; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid rgba(0,0,0,.07); border-radius: var(--r-sm); background: rgba(255,255,255,.48); color: var(--text-primary); text-align: left; transition: transform var(--dur) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease); }
 .wp__music:hover { transform: translateY(-1px); background: rgba(255,255,255,.72); }
 .wp__music.is-configured { border-color: rgba(52,199,89,.62); background: rgba(52,199,89,.1); }
@@ -19,6 +25,9 @@
 .wp__dot { position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 0 3px rgba(52,199,89,.13); }
 .wp-modal__remove { min-height: 38px; margin-right: auto; padding: 0 14px; border: 0; border-radius: var(--r-sm); background: rgba(255,59,48,.11); color: var(--c-red); font-weight: 700; }
 .wp-modal__empty { min-height: 120px; display: grid; place-items: center; color: var(--text-secondary); }
+.wp-modal__team { width: fit-content; padding: 2px 7px; border-radius: 999px; font-size: 9px; font-style: normal; font-weight: 800; }
+.wp-modal__team--ct { color: var(--c-blue); background: rgba(0,122,255,.1); }
+.wp-modal__team--t { color: #a15c00; background: rgba(255,149,0,.13); }
 .mk-modal { display: grid; gap: 12px; }
 .mk-modal__preview { min-height: 82px; display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 12px; }
 .mk-modal__preview > img, .mk-modal__preview > span { width: 92px; height: 72px; object-fit: contain; border-radius: var(--r-sm); background: rgba(120,120,128,.1); }
@@ -33,3 +42,7 @@
 .mk-modal__list img { width: 60px; height: 58px; object-fit: contain; }
 .mk-modal__list span { min-width: 0; display: grid; gap: 4px; font-size: 10px; line-height: 1.25; overflow-wrap: anywhere; }
 .mk-modal__list small { font-size: 9px; color: var(--text-secondary); }
+
+@media (max-width: 720px) {
+  .wp__team-bar { align-items: stretch; flex-direction: column; }
+}

@@ -8,6 +8,7 @@ import catalogRows from "../data/weaponSkins.json";
 import { finishName, itemName, localizedSkinName } from "../data/skinLocalization";
 import { useT, type I18nKey } from "../i18n";
 import { useStore } from "../state/store";
+import CosmeticsTeamSwitch, { useCosmeticsTeam } from "../components/CosmeticsTeamSwitch";
 import "./KnifePresetModal.css";
 
 type SkinImage = {
@@ -59,13 +60,15 @@ export default function KnifePresetModal({ knife, csgoPath, config, onSaved, onE
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [useAsDefault, setUseAsDefault] = useState(false);
+  const [team, setTeam] = useCosmeticsTeam();
 
   useEffect(() => {
     if (!knife || !config) return;
-    setDraft({ ...DEFAULT_PRESET, ...(config.presets[String(knife.id)] ?? {}) });
+    const loadout = config.loadouts[team];
+    setDraft({ ...DEFAULT_PRESET, ...(loadout.knife_presets[String(knife.id)] ?? {}) });
     setQuery("");
-    setUseAsDefault(config.default_knife_defindex === knife.id);
-  }, [knife, config]);
+    setUseAsDefault(loadout.default_knife_defindex === knife.id);
+  }, [knife, team, config]);
 
   const allSkins = useMemo(() => !knife ? [] : (imageRows as SkinImage[])
     .filter((row) => row.weapon_defindex === knife.id && row.paint > 0), [knife]);
@@ -102,13 +105,20 @@ export default function KnifePresetModal({ knife, csgoPath, config, onSaved, onE
     if (!knife || !csgoPath || !config) return;
     setSaving(true);
     try {
+      const loadout = config.loadouts[team];
       const next: KnifeCustomizerConfig = {
         ...config,
         enabled: true,
-        default_knife_defindex: useAsDefault
-          ? knife.id
-          : config.default_knife_defindex === knife.id ? 0 : config.default_knife_defindex,
-        presets: { ...config.presets, [String(knife.id)]: draft },
+        loadouts: {
+          ...config.loadouts,
+          [team]: {
+            ...loadout,
+            default_knife_defindex: useAsDefault
+              ? knife.id
+              : loadout.default_knife_defindex === knife.id ? 0 : loadout.default_knife_defindex,
+            knife_presets: { ...loadout.knife_presets, [String(knife.id)]: draft },
+          },
+        },
       };
       const state = await api.saveKnifeCustomizer(csgoPath, next);
       onSaved(state.config);
@@ -128,12 +138,13 @@ export default function KnifePresetModal({ knife, csgoPath, config, onSaved, onE
     </button>
   }>
     <div className="kp">
+      <div className="kp__team-row"><span>{t("cosmetics.teamLoadout")}</span><CosmeticsTeamSwitch value={team} onChange={setTeam} ariaLabel={t("cosmetics.teamLoadout")} compact /></div>
       <div className="kp__preview"><img src={selectedSkin?.image || knife?.url} alt="" /><div><strong>{selectedSkin ? label(selectedSkin) : t("cosmetics.chooseSkin")}</strong><span>{t("cosmetics.paintKit")} {draft.paint || "-"}</span></div></div>
       <label className="kp__field"><span>{t("weapons.paint")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("cosmetics.searchSkin")} /></label>
       <div className="kp__skins">{skins.map((skin) => <button key={skin.paint} className={skin.paint === draft.paint ? "is-selected" : ""} onClick={() => choose(skin)}><img src={skin.image} alt="" loading="lazy" /><span>{label(skin)}</span></button>)}</div>
       <div className="kp__columns"><label className="kp__field"><span>{t("live.wear")}</span><input type="number" min={selectedCatalog?.min_wear ?? 0} max={selectedCatalog?.max_wear ?? 1} step="0.000001" value={draft.wear} onChange={(event) => setDraft((value) => ({ ...value, wear: Math.min(selectedCatalog?.max_wear ?? 1, Math.max(selectedCatalog?.min_wear ?? 0, Number(event.target.value))) }))} /></label><label className="kp__field"><span>{t("live.seed")}</span><input type="number" min="0" max="1000" step="1" value={draft.seed} onChange={(event) => setDraft((value) => ({ ...value, seed: Math.min(1000, Math.max(0, Number(event.target.value))) }))} /></label></div>
       <label className="kp__field"><span>{t("live.nameTag")}</span><input maxLength={20} value={draft.name_tag} onChange={(event) => setDraft((value) => ({ ...value, name_tag: event.target.value }))} placeholder={t("cosmetics.namePlaceholder")} /></label>
-      <div className="kp__toggle-row"><span>{t("cosmetics.defaultKnife")}</span><Toggle checked={useAsDefault} onChange={setUseAsDefault} /></div>
+      <div className="kp__toggle-row"><span>{team === "ct" ? t("cosmetics.defaultKnifeCt") : t("cosmetics.defaultKnifeT")}</span><Toggle checked={useAsDefault} onChange={setUseAsDefault} /></div>
       <div className="kp__toggle-row"><span>{t("live.stattrak")}</span><Toggle checked={draft.stattrak_enabled} disabled={!selectedCatalog?.stattrak} onChange={(enabled) => setDraft((value) => ({ ...value, stattrak_enabled: enabled }))} /></div>
       {draft.stattrak_enabled && <label className="kp__field"><span>{t("cosmetics.initialCount")}</span><input type="number" min="0" step="1" value={draft.stattrak_count} onChange={(event) => setDraft((value) => ({ ...value, stattrak_count: Math.max(0, Number(event.target.value)) }))} /></label>}
     </div>

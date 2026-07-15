@@ -132,15 +132,23 @@ export type GlovePreset = {
   wear: number;
 };
 
+export type CosmeticsTeam = "ct" | "t";
+
+export type TeamCosmeticLoadout = {
+  default_knife_defindex: number;
+  knife_presets: Record<string, KnifePreset>;
+  glove: GlovePreset;
+  gun_presets: Record<string, KnifePreset>;
+};
+
 export type KnifeCustomizerConfig = {
+  schema_version: 2;
   enabled: boolean;
   apply_to_human_players: boolean;
   apply_on_pickup: boolean;
-  default_knife_defindex: number;
-  presets: Record<string, KnifePreset>;
-  gun_presets?: Record<string, KnifePreset>;
-  music_kit_id?: number;
-  glove: GlovePreset;
+  music_kit_id: number;
+  loadouts: Record<CosmeticsTeam, TeamCosmeticLoadout>;
+  shared_weapon_links: Record<string, boolean>;
 };
 
 export type KnifeCustomizerState = {

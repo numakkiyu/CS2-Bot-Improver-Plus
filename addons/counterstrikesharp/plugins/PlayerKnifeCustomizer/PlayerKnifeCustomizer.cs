@@ -8,6 +8,7 @@ using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using CounterStrikeSharp.API.Modules.Timers;
+using CounterStrikeSharp.API.Modules.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace PlayerKnifeCustomizer;
@@ -33,8 +34,8 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     private MemoryFunctionVoid<nint, string, float>? _setAttrByName;
     private ulong _nextItemId = 0xC5200000;
     private bool _applyErrorLogged;
-    private DateTime _configWriteUtc;
-    private DateTime _gunConfigWriteUtc;
+    private bool _loadedLegacyConfig;
+    private bool _loadedLegacyGunConfig;
 
     private string ConfigPath => Path.Combine(ModuleDirectory, "player_knife_presets.json");
     private string GunConfigPath => Path.Combine(ModuleDirectory, "player_gun_presets.json");
@@ -85,7 +86,7 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
                 return HookResult.Continue;
 
             ushort defIndex = weapon.AttributeManager?.Item?.ItemDefinitionIndex ?? 0;
-            if (defIndex == 0 || IsKnifeDefIndex(defIndex) || !_config.GunPresets.ContainsKey(defIndex))
+            if (defIndex == 0 || IsKnifeDefIndex(defIndex) || !WeaponPresetResolver.HasAnyGunPreset(_config, defIndex))
                 return HookResult.Continue;
 
             // A GiveNamedItem post-hook can expose an entity before both econ
@@ -110,14 +111,17 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             if (handle == nint.Zero) return;
 
             var weapon = new CBasePlayerWeapon(handle);
-            if (!weapon.IsValid || !HasEligibleHumanOwner(weapon)) return;
+            if (!weapon.IsValid) return;
+            var player = GetEligibleHumanOwner(weapon);
+            var team = GetCosmeticTeam(player);
+            if (team == null) return;
 
             var item = weapon.AttributeManager?.Item;
             if (item == null || !HasReadyAttributeLists(item) ||
                 item.ItemDefinitionIndex != expectedDefIndex)
                 return;
 
-            ApplyPresetForCurrentDefinition(weapon);
+            ApplyPresetForCurrentDefinition(weapon, team.Value);
         }
         catch (Exception ex)
         {
@@ -139,16 +143,17 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     {
         var player = @event.Userid;
         if (!CanApplyToPlayer(player)) return HookResult.Continue;
+        nint playerHandle = player!.Handle;
 
-        ApplyDefaultKnifeDeferred(player!, 0.0f);
-        ApplyDefaultKnifeDeferred(player!, 0.10f);
-        ApplyDefaultKnifeDeferred(player!, 0.25f);
-        ApplyGloveDeferred(player!, 0.0f);
-        ApplyGloveDeferred(player!, 0.10f);
-        ApplyGloveDeferred(player!, 0.25f);
-        ApplyGunPresetsDeferred(player!, 0.10f);
-        ApplyGunPresetsDeferred(player!, 0.25f);
-        ApplyMusicKit(player!);
+        ApplyDefaultKnifeDeferred(playerHandle, 0.0f);
+        ApplyDefaultKnifeDeferred(playerHandle, 0.10f);
+        ApplyDefaultKnifeDeferred(playerHandle, 0.25f);
+        ApplyGloveDeferred(playerHandle, 0.0f);
+        ApplyGloveDeferred(playerHandle, 0.10f);
+        ApplyGloveDeferred(playerHandle, 0.25f);
+        ApplyGunPresetsDeferred(playerHandle, 0.10f);
+        ApplyGunPresetsDeferred(playerHandle, 0.25f);
+        ApplyMusicKit(player);
         return HookResult.Continue;
     }
 
@@ -181,8 +186,9 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         if (!_config.ApplyOnPickup || !CanApplyToPlayer(player))
             return HookResult.Continue;
 
-        Server.NextFrame(() => ApplyPresetsToInventory(player!));
-        AddTimer(0.10f, () => ApplyPresetsToInventory(player!), TimerFlags.STOP_ON_MAPCHANGE);
+        nint playerHandle = player!.Handle;
+        Server.NextFrame(() => ApplyPresetsToInventory(playerHandle));
+        AddTimer(0.10f, () => ApplyPresetsToInventory(playerHandle), TimerFlags.STOP_ON_MAPCHANGE);
         return HookResult.Continue;
     }
 
@@ -198,8 +204,10 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         if (weapon == null || !weapon.IsValid)
             return HookResult.Continue;
 
+        var team = GetCosmeticTeam(attacker);
+        if (team == null) return HookResult.Continue;
         ushort defIndex = weapon.AttributeManager?.Item?.ItemDefinitionIndex ?? 0;
-        if (!TryGetPreset(defIndex, out var preset) || !preset.StatTrakEnabled)
+        if (!TryGetPreset(defIndex, team.Value, out var preset) || !preset.StatTrakEnabled)
             return HookResult.Continue;
 
         preset.StatTrakCount++;
@@ -208,12 +216,16 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         return HookResult.Continue;
     }
 
-    private void ApplyDefaultKnifeDeferred(CCSPlayerController player, float delay)
+    private void ApplyDefaultKnifeDeferred(nint playerHandle, float delay)
     {
         void Apply()
         {
+            var player = ResolvePlayer(playerHandle);
             if (!CanApplyToPlayer(player)) return;
-            var pawn = player.PlayerPawn.Value;
+            var team = GetCosmeticTeam(player);
+            if (team == null) return;
+            var loadout = _config.Loadouts.For(team.Value);
+            var pawn = player!.PlayerPawn.Value;
             if (pawn == null || !pawn.IsValid) return;
 
             var weapons = pawn.WeaponServices?.MyWeapons;
@@ -223,17 +235,17 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
                 var weapon = handle.Value;
                 if (weapon == null || !weapon.IsValid || !IsKnifeName(weapon.DesignerName)) continue;
 
-                ushort target = _config.DefaultKnifeDefIndex;
-                if (target > 0 && _config.Presets.ContainsKey(target))
+                ushort target = loadout.DefaultKnifeDefIndex;
+                if (target > 0 && loadout.KnifePresets.ContainsKey(target))
                 {
                     weapon.AcceptInput("ChangeSubclass", value: target.ToString());
                     var item = weapon.AttributeManager?.Item;
                     if (item != null) item.ItemDefinitionIndex = target;
-                    ApplyPreset(weapon, target, _config.Presets[target]);
+                    ApplyPreset(weapon, target, loadout.KnifePresets[target]);
                 }
                 else
                 {
-                    ApplyPresetForCurrentDefinition(weapon);
+                    ApplyPresetForCurrentDefinition(weapon, team.Value);
                 }
                 break;
             }
@@ -243,10 +255,13 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         else AddTimer(delay, Apply, TimerFlags.STOP_ON_MAPCHANGE);
     }
 
-    private void ApplyPresetsToInventory(CCSPlayerController player)
+    private void ApplyPresetsToInventory(nint playerHandle)
     {
+        var player = ResolvePlayer(playerHandle);
         if (!CanApplyToPlayer(player)) return;
-        var pawn = player.PlayerPawn.Value;
+        var team = GetCosmeticTeam(player);
+        if (team == null) return;
+        var pawn = player!.PlayerPawn.Value;
         if (pawn == null || !pawn.IsValid) return;
 
         var weapons = pawn.WeaponServices?.MyWeapons;
@@ -255,28 +270,27 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         {
             var weapon = handle.Value;
             if (weapon == null || !weapon.IsValid) continue;
-            ApplyPresetForCurrentDefinition(weapon);
+            ApplyPresetForCurrentDefinition(weapon, team.Value);
         }
     }
 
-    private void ApplyGunPresetsDeferred(CCSPlayerController player, float delay)
+    private void ApplyGunPresetsDeferred(nint playerHandle, float delay)
     {
-        AddTimer(delay, () => ApplyPresetsToInventory(player), TimerFlags.STOP_ON_MAPCHANGE);
+        AddTimer(delay, () => ApplyPresetsToInventory(playerHandle), TimerFlags.STOP_ON_MAPCHANGE);
     }
 
-    private bool ApplyPresetForCurrentDefinition(CBasePlayerWeapon weapon)
+    private bool ApplyPresetForCurrentDefinition(CBasePlayerWeapon weapon, CosmeticTeam team)
     {
         ushort defIndex = weapon.AttributeManager?.Item?.ItemDefinitionIndex ?? 0;
-        if (defIndex == 0 || !TryGetPreset(defIndex, out var preset)) return false;
+        if (defIndex == 0 || !TryGetPreset(defIndex, team, out var preset)) return false;
         return ApplyPreset(weapon, defIndex, preset);
     }
 
-    private bool TryGetPreset(ushort defIndex, out KnifePreset preset)
+    private bool TryGetPreset(ushort defIndex, CosmeticTeam team, out KnifePreset preset)
     {
-        Dictionary<ushort, KnifePreset> presets = IsKnifeDefIndex(defIndex)
-            ? _config.Presets
-            : _config.GunPresets;
-        return presets.TryGetValue(defIndex, out preset!);
+        if (IsKnifeDefIndex(defIndex))
+            return _config.Loadouts.For(team).KnifePresets.TryGetValue(defIndex, out preset!);
+        return WeaponPresetResolver.TryResolveGunPreset(_config, defIndex, team, out preset!);
     }
 
     private bool ApplyPreset(CBasePlayerWeapon weapon, ushort defIndex, KnifePreset preset)
@@ -316,16 +330,19 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         }
     }
 
-    private void ApplyGloveDeferred(CCSPlayerController player, float delay)
+    private void ApplyGloveDeferred(nint playerHandle, float delay)
     {
-        if (!_config.Glove.Enabled) return;
-
         void Apply()
         {
+            var player = ResolvePlayer(playerHandle);
             if (!CanApplyToPlayer(player)) return;
-            var pawn = player.PlayerPawn.Value;
+            var team = GetCosmeticTeam(player);
+            if (team == null) return;
+            var glove = _config.Loadouts.For(team.Value).Glove;
+            if (!glove.Enabled) return;
+            var pawn = player!.PlayerPawn.Value;
             if (pawn == null || !pawn.IsValid) return;
-            ApplyGlove(pawn, _config.Glove);
+            ApplyGlove(pawn, glove);
         }
 
         if (delay <= 0) Server.NextFrame(Apply);
@@ -350,10 +367,13 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             item.Initialized = true;
 
             pawn.AcceptInput("SetBodygroup", value: "first_or_third_person,0");
+            nint pawnHandle = pawn.Handle;
             AddTimer(0.20f, () =>
             {
-                if (pawn.IsValid)
-                    pawn.AcceptInput("SetBodygroup", value: "first_or_third_person,1");
+                if (pawnHandle == nint.Zero) return;
+                var currentPawn = new CCSPlayerPawn(pawnHandle);
+                if (currentPawn.IsValid)
+                    currentPawn.AcceptInput("SetBodygroup", value: "first_or_third_person,1");
             }, TimerFlags.STOP_ON_MAPCHANGE);
         }
         catch (Exception ex)
@@ -411,26 +431,48 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     private bool CanApplyToPlayer(CCSPlayerController? player) =>
         _config.Enabled && _config.ApplyToHumanPlayers && player is { IsValid: true, IsBot: false, IsHLTV: false };
 
+    private static CCSPlayerController? ResolvePlayer(nint handle)
+    {
+        if (handle == nint.Zero) return null;
+        try
+        {
+            var player = new CCSPlayerController(handle);
+            return player.IsValid ? player : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static CosmeticTeam? GetCosmeticTeam(CCSPlayerController? player) => player?.Team switch
+    {
+        CsTeam.CounterTerrorist => CosmeticTeam.Ct,
+        CsTeam.Terrorist => CosmeticTeam.T,
+        _ => null,
+    };
+
     private static bool IsKnifeName(string? name) =>
         !string.IsNullOrWhiteSpace(name) && (name.Contains("knife", StringComparison.OrdinalIgnoreCase)
                                              || name.Contains("bayonet", StringComparison.OrdinalIgnoreCase));
 
     private static bool IsKnifeDefIndex(ushort defIndex) => defIndex is >= 500 and <= 526;
 
-    private bool HasEligibleHumanOwner(CBasePlayerWeapon weapon)
+    private CCSPlayerController? GetEligibleHumanOwner(CBasePlayerWeapon weapon)
     {
         try
         {
             var owner = weapon.OwnerEntity.Value;
-            if (owner == null || !owner.IsValid) return false;
+            if (owner == null || !owner.IsValid) return null;
             var pawn = new CCSPlayerPawn(owner.Handle);
             var controller = pawn.Controller.Value;
-            if (controller == null || !controller.IsValid) return false;
-            return CanApplyToPlayer(new CCSPlayerController(controller.Handle));
+            if (controller == null || !controller.IsValid) return null;
+            var player = new CCSPlayerController(controller.Handle);
+            return CanApplyToPlayer(player) ? player : null;
         }
         catch
         {
-            return false;
+            return null;
         }
     }
 
@@ -450,6 +492,8 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     {
         try
         {
+            _loadedLegacyConfig = false;
+            _loadedLegacyGunConfig = false;
             if (!File.Exists(ConfigPath))
             {
                 _config = new KnifeConfig();
@@ -458,11 +502,23 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
                 return;
             }
 
-            _config = JsonSerializer.Deserialize<KnifeConfig>(File.ReadAllText(ConfigPath), JsonOptions)
-                      ?? new KnifeConfig();
-            _config.Normalize();
+            string text = File.ReadAllText(ConfigPath);
+            using (var document = JsonDocument.Parse(text))
+            {
+                bool isV2 = document.RootElement.TryGetProperty("schema_version", out var schema)
+                    && schema.GetInt32() >= KnifeConfig.CurrentSchemaVersion
+                    && document.RootElement.TryGetProperty("loadouts", out _);
+                if (isV2)
+                    _config = JsonSerializer.Deserialize<KnifeConfig>(text, JsonOptions) ?? new KnifeConfig();
+                else
+                {
+                    var legacy = JsonSerializer.Deserialize<LegacyKnifeConfig>(text, JsonOptions) ?? new LegacyKnifeConfig();
+                    _config = KnifeConfig.FromLegacy(legacy);
+                    _loadedLegacyConfig = true;
+                }
+            }
             LoadGunConfig();
-            _configWriteUtc = File.GetLastWriteTimeUtc(ConfigPath);
+            _config.Normalize();
             _applyErrorLogged = false;
         }
         catch (Exception ex)
@@ -475,25 +531,40 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
 
     private void SaveConfig()
     {
-        string temp = ConfigPath + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(_config, JsonOptions));
-        File.Move(temp, ConfigPath, true);
+        _config.Normalize();
+        BackupLegacyFile(ConfigPath, _loadedLegacyConfig);
+        BackupLegacyFile(GunConfigPath, _loadedLegacyGunConfig);
+        WriteJsonAtomic(ConfigPath, _config);
         SaveGunConfig();
+        _loadedLegacyConfig = false;
+        _loadedLegacyGunConfig = false;
     }
 
     private void LoadGunConfig()
     {
         if (!File.Exists(GunConfigPath))
-        {
-            if (_config.GunPresets.Count > 0) SaveGunConfig();
             return;
-        }
         try
         {
-            _config.GunPresets = JsonSerializer.Deserialize<Dictionary<ushort, KnifePreset>>(
-                File.ReadAllText(GunConfigPath), JsonOptions) ?? new Dictionary<ushort, KnifePreset>();
+            string text = File.ReadAllText(GunConfigPath);
+            using var document = JsonDocument.Parse(text);
+            bool isV2 = document.RootElement.TryGetProperty("schema_version", out var schema)
+                && schema.GetInt32() >= KnifeConfig.CurrentSchemaVersion;
+            if (isV2)
+            {
+                var guns = JsonSerializer.Deserialize<TeamGunConfig>(text, JsonOptions) ?? new TeamGunConfig();
+                _config.Loadouts.Ct.GunPresets = guns.Ct ?? new Dictionary<ushort, KnifePreset>();
+                _config.Loadouts.T.GunPresets = guns.T ?? new Dictionary<ushort, KnifePreset>();
+                _config.SharedWeaponLinks = guns.SharedWeaponLinks ?? new Dictionary<ushort, bool>();
+            }
+            else
+            {
+                var legacy = JsonSerializer.Deserialize<Dictionary<ushort, KnifePreset>>(text, JsonOptions)
+                    ?? new Dictionary<ushort, KnifePreset>();
+                _config.ApplyLegacyGuns(legacy);
+                _loadedLegacyGunConfig = true;
+            }
             _config.Normalize();
-            _gunConfigWriteUtc = File.GetLastWriteTimeUtc(GunConfigPath);
         }
         catch (Exception ex)
         {
@@ -503,10 +574,21 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
 
     private void SaveGunConfig()
     {
-        string temp = GunConfigPath + ".tmp";
-        File.WriteAllText(temp, JsonSerializer.Serialize(_config.GunPresets, JsonOptions));
-        File.Move(temp, GunConfigPath, true);
-        _gunConfigWriteUtc = File.GetLastWriteTimeUtc(GunConfigPath);
+        WriteJsonAtomic(GunConfigPath, TeamGunConfig.From(_config));
+    }
+
+    private static void WriteJsonAtomic<T>(string path, T value)
+    {
+        string temp = path + ".tmp";
+        File.WriteAllText(temp, JsonSerializer.Serialize(value, JsonOptions));
+        File.Move(temp, path, true);
+    }
+
+    private static void BackupLegacyFile(string path, bool legacy)
+    {
+        if (!legacy || !File.Exists(path)) return;
+        string backup = path + ".v1.bak";
+        if (!File.Exists(backup)) File.Copy(path, backup);
     }
 
     private void LoadCatalog()
@@ -566,12 +648,12 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         LoadCatalog();
         LoadConfig();
         string restart = _config.Enabled && _setAttrByName == null ? "; restart CS2 to initialize runtime hooks" : string.Empty;
-        command.ReplyToCommand($"[PlayerKnifeCustomizer] reloaded; enabled={_config.Enabled}, knives={_config.Presets.Count}, guns={_config.GunPresets.Count}, music={_config.MusicKitId}{restart}");
+        command.ReplyToCommand($"[PlayerKnifeCustomizer] reloaded; enabled={_config.Enabled}, ct_knives={_config.Loadouts.Ct.KnifePresets.Count}, t_knives={_config.Loadouts.T.KnifePresets.Count}, ct_guns={_config.Loadouts.Ct.GunPresets.Count}, t_guns={_config.Loadouts.T.GunPresets.Count}, music={_config.MusicKitId}{restart}");
     }
 
     private void OnStatusCommand(CCSPlayerController? player, CommandInfo command)
     {
-        command.ReplyToCommand($"[PlayerKnifeCustomizer] enabled={_config.Enabled}, signature={(_setAttrByName == null ? "missing" : "loaded")}, knives={_config.Presets.Count}, guns={_config.GunPresets.Count}, music={_config.MusicKitId}, catalog={_skinCatalog.Values.Sum(skins => skins.Count)}");
+        command.ReplyToCommand($"[PlayerKnifeCustomizer] enabled={_config.Enabled}, signature={(_setAttrByName == null ? "missing" : "loaded")}, ct_knives={_config.Loadouts.Ct.KnifePresets.Count}, t_knives={_config.Loadouts.T.KnifePresets.Count}, ct_guns={_config.Loadouts.Ct.GunPresets.Count}, t_guns={_config.Loadouts.T.GunPresets.Count}, music={_config.MusicKitId}, catalog={_skinCatalog.Values.Sum(skins => skins.Count)}");
     }
 
     private void LogApplyError(string operation, Exception ex)
@@ -582,8 +664,62 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     }
 }
 
+public enum CosmeticTeam { Ct, T }
+
+public enum WeaponAvailability { Ct, T, Shared }
+
+public sealed class TeamLoadoutCollection
+{
+    [JsonPropertyName("ct")]
+    public TeamLoadout Ct { get; set; } = new();
+
+    [JsonPropertyName("t")]
+    public TeamLoadout T { get; set; } = new();
+
+    public TeamLoadout For(CosmeticTeam team) => team == CosmeticTeam.Ct ? Ct : T;
+}
+
+public sealed class TeamLoadout
+{
+    [JsonPropertyName("default_knife_defindex")]
+    public ushort DefaultKnifeDefIndex { get; set; }
+
+    [JsonPropertyName("knife_presets")]
+    public Dictionary<ushort, KnifePreset> KnifePresets { get; set; } = new();
+
+    [JsonPropertyName("glove")]
+    public GlovePreset Glove { get; set; } = new();
+
+    [JsonPropertyName("gun_presets")]
+    public Dictionary<ushort, KnifePreset> GunPresets { get; set; } = new();
+
+    public TeamLoadout Clone() => new()
+    {
+        DefaultKnifeDefIndex = DefaultKnifeDefIndex,
+        KnifePresets = KnifePresets.ToDictionary(pair => pair.Key, pair => pair.Value.Clone()),
+        Glove = Glove.Clone(),
+        GunPresets = GunPresets.ToDictionary(pair => pair.Key, pair => pair.Value.Clone()),
+    };
+
+    public void Normalize()
+    {
+        KnifePresets ??= new Dictionary<ushort, KnifePreset>();
+        GunPresets ??= new Dictionary<ushort, KnifePreset>();
+        Glove ??= new GlovePreset();
+        foreach (var preset in KnifePresets.Values.Concat(GunPresets.Values)) preset.Normalize();
+        Glove.Normalize();
+        if (DefaultKnifeDefIndex != 0 && !KnifePresets.ContainsKey(DefaultKnifeDefIndex))
+            DefaultKnifeDefIndex = 0;
+    }
+}
+
 public sealed class KnifeConfig
 {
+    public const int CurrentSchemaVersion = 2;
+
+    [JsonPropertyName("schema_version")]
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
+
     [JsonPropertyName("enabled")]
     public bool Enabled { get; set; }
 
@@ -593,37 +729,143 @@ public sealed class KnifeConfig
     [JsonPropertyName("apply_on_pickup")]
     public bool ApplyOnPickup { get; set; } = true;
 
-    [JsonPropertyName("default_knife_defindex")]
-    public ushort DefaultKnifeDefIndex { get; set; }
-
-    [JsonPropertyName("presets")]
-    public Dictionary<ushort, KnifePreset> Presets { get; set; } = new();
-
-    [JsonPropertyName("gun_presets")]
-    public Dictionary<ushort, KnifePreset> GunPresets { get; set; } = new();
-
     [JsonPropertyName("music_kit_id")]
     public int MusicKitId { get; set; }
 
-    [JsonPropertyName("glove")]
-    public GlovePreset Glove { get; set; } = new();
+    [JsonPropertyName("loadouts")]
+    public TeamLoadoutCollection Loadouts { get; set; } = new();
+
+    [JsonPropertyName("shared_weapon_links")]
+    public Dictionary<ushort, bool> SharedWeaponLinks { get; set; } = new();
+
+    public static KnifeConfig FromLegacy(LegacyKnifeConfig legacy)
+    {
+        var baseLoadout = new TeamLoadout
+        {
+            DefaultKnifeDefIndex = legacy.DefaultKnifeDefIndex,
+            KnifePresets = (legacy.Presets ?? new()).ToDictionary(pair => pair.Key, pair => pair.Value.Clone()),
+            Glove = (legacy.Glove ?? new GlovePreset()).Clone(),
+        };
+        var config = new KnifeConfig
+        {
+            Enabled = legacy.Enabled,
+            ApplyToHumanPlayers = legacy.ApplyToHumanPlayers,
+            ApplyOnPickup = legacy.ApplyOnPickup,
+            MusicKitId = legacy.MusicKitId,
+            Loadouts = new TeamLoadoutCollection { Ct = baseLoadout.Clone(), T = baseLoadout.Clone() },
+        };
+        config.ApplyLegacyGuns(legacy.GunPresets ?? new Dictionary<ushort, KnifePreset>());
+        config.Normalize();
+        return config;
+    }
+
+    public void ApplyLegacyGuns(Dictionary<ushort, KnifePreset> guns)
+    {
+        Loadouts.Ct.GunPresets.Clear();
+        Loadouts.T.GunPresets.Clear();
+        foreach (var (defIndex, preset) in guns)
+        {
+            switch (WeaponPresetResolver.GetAvailability(defIndex))
+            {
+                case WeaponAvailability.Ct:
+                    Loadouts.Ct.GunPresets[defIndex] = preset.Clone();
+                    break;
+                case WeaponAvailability.T:
+                    Loadouts.T.GunPresets[defIndex] = preset.Clone();
+                    break;
+                default:
+                    Loadouts.Ct.GunPresets[defIndex] = preset.Clone();
+                    Loadouts.T.GunPresets[defIndex] = preset.Clone();
+                    SharedWeaponLinks[defIndex] = true;
+                    break;
+            }
+        }
+    }
 
     public void Normalize()
     {
-        Presets ??= new Dictionary<ushort, KnifePreset>();
-        GunPresets ??= new Dictionary<ushort, KnifePreset>();
-        Glove ??= new GlovePreset();
+        SchemaVersion = CurrentSchemaVersion;
+        Loadouts ??= new TeamLoadoutCollection();
+        Loadouts.Ct ??= new TeamLoadout();
+        Loadouts.T ??= new TeamLoadout();
+        SharedWeaponLinks ??= new Dictionary<ushort, bool>();
         MusicKitId = Math.Clamp(MusicKitId, 0, ushort.MaxValue);
-        foreach (var preset in Presets.Values.Concat(GunPresets.Values))
+        Loadouts.Ct.Normalize();
+        Loadouts.T.Normalize();
+        foreach (ushort defIndex in WeaponPresetResolver.SharedWeapons)
+            SharedWeaponLinks.TryAdd(defIndex, true);
+        foreach (var (defIndex, linked) in SharedWeaponLinks.ToArray())
         {
-            preset.Seed = Math.Clamp(preset.Seed, 0, 1000);
-            preset.Wear = Math.Clamp(preset.Wear, 0f, 1f);
-            preset.StatTrakCount = Math.Max(0, preset.StatTrakCount);
-            if (preset.SouvenirEnabled) preset.StatTrakEnabled = false;
-            if (preset.NameTag?.Length > 20) preset.NameTag = preset.NameTag[..20];
+            if (!linked || WeaponPresetResolver.GetAvailability(defIndex) != WeaponAvailability.Shared) continue;
+            bool hasCt = Loadouts.Ct.GunPresets.TryGetValue(defIndex, out var ct);
+            bool hasT = Loadouts.T.GunPresets.TryGetValue(defIndex, out var t);
+            if (hasCt && !hasT) Loadouts.T.GunPresets[defIndex] = ct!.Clone();
+            else if (!hasCt && hasT) Loadouts.Ct.GunPresets[defIndex] = t!.Clone();
+            else if (hasCt && hasT && !ct!.ValueEquals(t!)) Loadouts.T.GunPresets[defIndex] = ct.Clone();
         }
-        Glove.Seed = Math.Clamp(Glove.Seed, 0, 1000);
-        Glove.Wear = Math.Clamp(Glove.Wear, 0f, 1f);
+    }
+}
+
+public sealed class LegacyKnifeConfig
+{
+    [JsonPropertyName("enabled")] public bool Enabled { get; set; }
+    [JsonPropertyName("apply_to_human_players")] public bool ApplyToHumanPlayers { get; set; } = true;
+    [JsonPropertyName("apply_on_pickup")] public bool ApplyOnPickup { get; set; } = true;
+    [JsonPropertyName("default_knife_defindex")] public ushort DefaultKnifeDefIndex { get; set; }
+    [JsonPropertyName("presets")] public Dictionary<ushort, KnifePreset> Presets { get; set; } = new();
+    [JsonPropertyName("gun_presets")] public Dictionary<ushort, KnifePreset> GunPresets { get; set; } = new();
+    [JsonPropertyName("music_kit_id")] public int MusicKitId { get; set; }
+    [JsonPropertyName("glove")] public GlovePreset Glove { get; set; } = new();
+}
+
+public sealed class TeamGunConfig
+{
+    [JsonPropertyName("schema_version")] public int SchemaVersion { get; set; } = KnifeConfig.CurrentSchemaVersion;
+    [JsonPropertyName("ct")] public Dictionary<ushort, KnifePreset> Ct { get; set; } = new();
+    [JsonPropertyName("t")] public Dictionary<ushort, KnifePreset> T { get; set; } = new();
+    [JsonPropertyName("shared_weapon_links")] public Dictionary<ushort, bool> SharedWeaponLinks { get; set; } = new();
+
+    public static TeamGunConfig From(KnifeConfig config) => new()
+    {
+        Ct = config.Loadouts.Ct.GunPresets,
+        T = config.Loadouts.T.GunPresets,
+        SharedWeaponLinks = config.SharedWeaponLinks,
+    };
+}
+
+public static class WeaponPresetResolver
+{
+    private static readonly HashSet<ushort> CtOnly = [3, 8, 10, 16, 27, 32, 34, 38, 60, 61];
+    private static readonly HashSet<ushort> TOnly = [4, 7, 11, 13, 17, 29, 30, 39];
+    public static readonly ushort[] SharedWeapons = [1, 2, 9, 14, 19, 23, 24, 25, 26, 28, 31, 33, 35, 36, 40, 63, 64];
+
+    public static WeaponAvailability GetAvailability(ushort defIndex) => CtOnly.Contains(defIndex)
+        ? WeaponAvailability.Ct
+        : TOnly.Contains(defIndex) ? WeaponAvailability.T : WeaponAvailability.Shared;
+
+    public static bool HasAnyGunPreset(KnifeConfig config, ushort defIndex) =>
+        config.Loadouts.Ct.GunPresets.ContainsKey(defIndex) || config.Loadouts.T.GunPresets.ContainsKey(defIndex);
+
+    public static bool TryResolveGunPreset(KnifeConfig config, ushort defIndex, CosmeticTeam? currentTeam, out KnifePreset preset)
+    {
+        if (currentTeam == null)
+        {
+            preset = null!;
+            return false;
+        }
+        var availability = GetAvailability(defIndex);
+        var primary = availability switch
+        {
+            WeaponAvailability.Ct => config.Loadouts.Ct.GunPresets,
+            WeaponAvailability.T => config.Loadouts.T.GunPresets,
+            _ => config.Loadouts.For(currentTeam.Value).GunPresets,
+        };
+        if (primary.TryGetValue(defIndex, out preset!)) return true;
+        if (availability == WeaponAvailability.Shared && config.SharedWeaponLinks.GetValueOrDefault(defIndex, true))
+            return config.Loadouts.For(currentTeam == CosmeticTeam.Ct ? CosmeticTeam.T : CosmeticTeam.Ct)
+                .GunPresets.TryGetValue(defIndex, out preset!);
+        preset = null!;
+        return false;
     }
 }
 
@@ -633,16 +875,33 @@ public sealed class GlovePreset
     public bool Enabled { get; set; }
 
     [JsonPropertyName("defindex")]
-    public ushort DefIndex { get; set; }
+    public ushort DefIndex { get; set; } = 5030;
 
     [JsonPropertyName("paint")]
-    public int Paint { get; set; }
+    public int Paint { get; set; } = 10048;
 
     [JsonPropertyName("seed")]
     public int Seed { get; set; }
 
     [JsonPropertyName("wear")]
     public float Wear { get; set; } = 0.01f;
+
+    public GlovePreset Clone() => new()
+    {
+        Enabled = Enabled, DefIndex = DefIndex, Paint = Paint, Seed = Seed, Wear = Wear,
+    };
+
+    public void Normalize()
+    {
+        Seed = Math.Clamp(Seed, 0, 1000);
+        Wear = Math.Clamp(Wear, 0f, 1f);
+        if (Enabled && DefIndex == 0 && Paint == 0)
+        {
+            DefIndex = 5030;
+            Paint = 10048;
+            Wear = 0.01f;
+        }
+    }
 }
 
 public sealed class KnifePreset
@@ -667,6 +926,27 @@ public sealed class KnifePreset
 
     [JsonPropertyName("souvenir_enabled")]
     public bool SouvenirEnabled { get; set; }
+
+    public KnifePreset Clone() => new()
+    {
+        Paint = Paint, Seed = Seed, Wear = Wear, NameTag = NameTag,
+        StatTrakEnabled = StatTrakEnabled, StatTrakCount = StatTrakCount,
+        SouvenirEnabled = SouvenirEnabled,
+    };
+
+    public bool ValueEquals(KnifePreset other) => Paint == other.Paint && Seed == other.Seed
+        && Wear.Equals(other.Wear) && NameTag == other.NameTag
+        && StatTrakEnabled == other.StatTrakEnabled && StatTrakCount == other.StatTrakCount
+        && SouvenirEnabled == other.SouvenirEnabled;
+
+    public void Normalize()
+    {
+        Seed = Math.Clamp(Seed, 0, 1000);
+        Wear = Math.Clamp(Wear, 0f, 1f);
+        StatTrakCount = Math.Max(0, StatTrakCount);
+        if (SouvenirEnabled) StatTrakEnabled = false;
+        if (NameTag?.Length > 20) NameTag = NameTag[..20];
+    }
 }
 
 public sealed class WeaponSkinEntry

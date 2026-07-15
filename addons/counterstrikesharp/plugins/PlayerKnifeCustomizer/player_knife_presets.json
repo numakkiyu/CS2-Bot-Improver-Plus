@@ -1,17 +1,46 @@
 {
+  "schema_version": 2,
   "enabled": false,
   "apply_to_human_players": true,
   "apply_on_pickup": true,
-  "default_knife_defindex": 515,
   "music_kit_id": 0,
-  "presets": {
-    "515": {
-      "paint": 568,
-      "seed": 0,
-      "wear": 0.01,
-      "name_tag": "",
-      "stattrak_enabled": false,
-      "stattrak_count": 0
+  "loadouts": {
+    "ct": {
+      "default_knife_defindex": 515,
+      "knife_presets": {
+        "515": {
+          "paint": 568,
+          "seed": 0,
+          "wear": 0.01,
+          "name_tag": "",
+          "stattrak_enabled": false,
+          "stattrak_count": 0,
+          "souvenir_enabled": false
+        }
+      },
+      "glove": { "enabled": false, "defindex": 5030, "paint": 10048, "seed": 0, "wear": 0.01 },
+      "gun_presets": {}
+    },
+    "t": {
+      "default_knife_defindex": 515,
+      "knife_presets": {
+        "515": {
+          "paint": 568,
+          "seed": 0,
+          "wear": 0.01,
+          "name_tag": "",
+          "stattrak_enabled": false,
+          "stattrak_count": 0,
+          "souvenir_enabled": false
+        }
+      },
+      "glove": { "enabled": false, "defindex": 5030, "paint": 10048, "seed": 0, "wear": 0.01 },
+      "gun_presets": {}
     }
+  },
+  "shared_weapon_links": {
+    "1": true, "2": true, "9": true, "14": true, "19": true, "23": true,
+    "24": true, "25": true, "26": true, "28": true, "31": true, "33": true,
+    "35": true, "36": true, "40": true, "63": true, "64": true
   }
 }

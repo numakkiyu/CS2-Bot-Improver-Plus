@@ -43,6 +43,7 @@
 }
 
 .dk__knife {
+  position: relative;
   aspect-ratio: 1 / 1;
   display: grid;
   place-items: center;
@@ -54,6 +55,10 @@
   transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease),
     background var(--dur) var(--ease);
 }
+.dk__team-tags { position: absolute; top: 5px; left: 5px; display: flex; gap: 3px; z-index: 1; }
+.dk__team-tags i, .dk__glove-value i { padding: 1px 4px; border-radius: 999px; font-size: 8px; font-style: normal; font-weight: 800; }
+.dk__team-tags .is-ct, .dk__glove-value .is-ct { color: var(--c-blue); background: rgba(0, 122, 255, 0.11); }
+.dk__team-tags .is-t, .dk__glove-value .is-t { color: #a15c00; background: rgba(255, 149, 0, 0.14); }
 .dk__knife img {
   width: 100%;
   height: 100%;
@@ -89,4 +94,8 @@
   box-shadow: var(--sh-green);
 }
 .dk__glove-label { font-size: 15px; font-weight: 700; }
-.dk__glove-value { font-size: 13px; color: var(--text-secondary); }
+.dk__glove-value { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 6px; font-size: 11px; color: var(--text-secondary); text-align: left; }
+
+@media (max-width: 640px) {
+  .dk__glove { align-items: flex-start; flex-direction: column; }
+}

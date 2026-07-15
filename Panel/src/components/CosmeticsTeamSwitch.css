@@ -1,0 +1,37 @@
+.team-switch {
+  width: min(100%, 300px);
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--r-md);
+  background: rgba(120, 120, 128, 0.12);
+}
+
+.team-switch--compact {
+  width: 190px;
+  min-height: 38px;
+}
+
+.team-switch__option {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 18px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--r-md) - 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 750;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.team-switch__option:hover:not(.is-active) { color: var(--text-primary); }
+.team-switch__option.is-active { background: rgba(255, 255, 255, 0.76); box-shadow: var(--sh-soft); }
+.team-switch__option--ct.is-active { color: var(--c-blue); border-color: rgba(0, 122, 255, 0.3); }
+.team-switch__option--t.is-active { color: #a15c00; border-color: rgba(255, 149, 0, 0.38); }
+
+@media (max-width: 720px) {
+  .team-switch, .team-switch--compact { width: 100%; }
+}

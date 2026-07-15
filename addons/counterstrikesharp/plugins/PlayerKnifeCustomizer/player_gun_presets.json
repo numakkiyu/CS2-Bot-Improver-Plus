@@ -1,1 +1,10 @@
-{}
+{
+  "schema_version": 2,
+  "ct": {},
+  "t": {},
+  "shared_weapon_links": {
+    "1": true, "2": true, "9": true, "14": true, "19": true, "23": true,
+    "24": true, "25": true, "26": true, "28": true, "31": true, "33": true,
+    "35": true, "36": true, "40": true, "63": true, "64": true
+  }
+}

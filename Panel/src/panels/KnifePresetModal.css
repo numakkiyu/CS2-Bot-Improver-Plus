@@ -1,4 +1,6 @@
 .kp { display: grid; gap: 12px; }
+.kp__team-row { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.kp__team-row > span { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
 .kp__preview { min-height: 88px; display: grid; grid-template-columns: 112px 1fr; align-items: center; gap: 12px; }
 .kp__preview img { width: 112px; height: 76px; object-fit: contain; }
 .kp__preview div { min-width: 0; display: grid; gap: 6px; }
@@ -16,3 +18,9 @@
 .kp__toggle-row { min-height: 38px; display: flex; align-items: center; justify-content: space-between; }
 .kp__save { min-height: 38px; padding: 0 18px; border: 0; border-radius: var(--r-sm); background: var(--c-blue); color: white; font-weight: 700; }
 .kp__save:disabled { opacity: .45; }
+
+@media (max-width: 520px) {
+  .kp__team-row { align-items: stretch; flex-direction: column; }
+  .kp__preview { grid-template-columns: 92px minmax(0, 1fr); }
+  .kp__preview img { width: 92px; }
+}

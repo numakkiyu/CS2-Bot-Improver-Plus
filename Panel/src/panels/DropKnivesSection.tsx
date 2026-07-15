@@ -11,8 +11,6 @@ import KnifePresetModal from "./KnifePresetModal";
 import GlovePresetModal from "./GlovePresetModal";
 import "./DropKnivesSection.css";
 
-const DEFAULT_GLOVE = { defindex: 5030, paint: 10048, seed: 0, wear: 0.01 };
-
 export default function DropKnivesSection() {
   const { dropKnives, csgoPath, applyDropKnives, dropKnivesPending, reportError, config: appConfig } = useStore();
   const t = useT();
@@ -61,21 +59,8 @@ export default function DropKnivesSection() {
     applyDropKnives(bindKey, ordered);
   };
 
-  const toggleGlove = async () => {
-    if (disabled || !csgoPath || !knifeConfig) return;
-    try {
-      const current = knifeConfig.glove;
-      const preset = current.defindex > 0 && current.paint > 0 ? current : DEFAULT_GLOVE;
-      const state = await api.saveKnifeCustomizer(csgoPath, {
-        ...knifeConfig,
-        enabled: true,
-        glove: { ...preset, enabled: !current.enabled },
-      });
-      setKnifeConfig(state.config);
-    } catch (error) {
-      reportError(error);
-    }
-  };
+  const ctLoadout = knifeConfig?.loadouts?.ct;
+  const tLoadout = knifeConfig?.loadouts?.t;
 
   return (
     <Section title={t("pre.dropKnives")} status={status}>
@@ -105,19 +90,26 @@ export default function DropKnivesSection() {
             title={`${itemName(localizedSkinName(appConfig?.language, k.id, 0, `Knife ${k.id}`))} · ${t("cosmetics.leftRight")}`}
             aria-pressed={selected.has(k.id)}
           >
+            {(ctLoadout?.default_knife_defindex === k.id || tLoadout?.default_knife_defindex === k.id) && <span className="dk__team-tags" aria-hidden="true">
+              {ctLoadout?.default_knife_defindex === k.id && <i className="is-ct">CT</i>}
+              {tLoadout?.default_knife_defindex === k.id && <i className="is-t">T</i>}
+            </span>}
             <img src={k.url} alt={`knife ${k.id}`} draggable={false} />
           </button>
         ))}
       </div>
       <button
-        className={`dk__glove ${knifeConfig?.glove?.enabled ? "is-selected" : ""}`}
+        className={`dk__glove ${ctLoadout?.glove?.enabled || tLoadout?.glove?.enabled ? "is-selected" : ""}`}
         disabled={disabled}
-        onClick={() => void toggleGlove()}
+        onClick={() => setEditingGlove(true)}
         onContextMenu={(event) => { event.preventDefault(); if (!disabled) setEditingGlove(true); }}
-        title={t("cosmetics.gloveLeftRight")}
+        title={t("cosmetics.gloveOpen")}
       >
         <span className="dk__glove-label">{t("cosmetics.playerGloves")}</span>
-        <span className="dk__glove-value">{knifeConfig?.glove?.enabled ? `${t("cosmetics.enabled")} · ${knifeConfig.glove.paint}` : t("cosmetics.disabled")}</span>
+        <span className="dk__glove-value">
+          <i className="is-ct">CT</i> {ctLoadout?.glove?.enabled ? `${t("cosmetics.enabled")} · ${ctLoadout.glove.paint}` : t("cosmetics.disabled")}
+          <i className="is-t">T</i> {tLoadout?.glove?.enabled ? `${t("cosmetics.enabled")} · ${tLoadout.glove.paint}` : t("cosmetics.disabled")}
+        </span>
       </button>
       <KnifePresetModal
         knife={editingKnife}

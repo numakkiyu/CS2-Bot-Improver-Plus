@@ -139,6 +139,10 @@ try {
     foreach ($project in $pluginProjects) {
         Invoke-Checked $DotNet (@("build", $project.Path, "-c", "Release", "--nologo") + $project.Properties)
     }
+    Invoke-Checked $DotNet @(
+        "run", "--project", "addons\counterstrikesharp\plugins\PlayerKnifeCustomizer.Tests\PlayerKnifeCustomizer.Tests.csproj",
+        "-c", "Release", "--no-restore"
+    )
 
     $tauriSource = Join-Path $panel "src-tauri"
     Invoke-Checked $cargo @(
