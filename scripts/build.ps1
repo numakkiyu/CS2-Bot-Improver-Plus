@@ -156,7 +156,7 @@ try {
     }
     Invoke-Checked $DotNet @(
         "run", "--project", "addons\counterstrikesharp\plugins\PlayerKnifeCustomizer.Tests\PlayerKnifeCustomizer.Tests.csproj",
-        "-c", "Release", "--no-restore"
+        "-c", "Release"
     )
 
     $tauriSource = Join-Path $panel "src-tauri"
