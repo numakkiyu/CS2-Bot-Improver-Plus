@@ -1,0 +1,73 @@
+name: Build signed release
+
+on:
+  push:
+    tags:
+      - "v1.4.2.3"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      CSBIP_UPDATE_SIGNING_KEY: ${{ secrets.CSBIP_UPDATE_SIGNING_KEY }}
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: Panel/package-lock.json
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare build and signing tools
+        shell: pwsh
+        run: |
+          if (-not $env:CSBIP_UPDATE_SIGNING_KEY) { throw "CSBIP_UPDATE_SIGNING_KEY is not configured" }
+          python -m pip install --disable-pip-version-check pynacl
+          $env:CARGO_HOME = Join-Path $PWD ".cache/cargo-home"
+          New-Item -ItemType Directory -Path $env:CARGO_HOME -Force | Out-Null
+          cargo install cargo-xwin --locked --root $env:CARGO_HOME
+
+      - name: Build, test, and package
+        shell: pwsh
+        run: |
+          $llvm = Join-Path $env:ProgramFiles "LLVM/bin"
+          if (-not (Test-Path (Join-Path $llvm "lld-link.exe"))) { throw "LLVM linker is unavailable: $llvm" }
+          ./scripts/package.ps1 -LlvmBin $llvm -XwinCache (Join-Path $PWD ".cache/xwin") -OutputDirectory (Join-Path $PWD "artifacts")
+
+      - name: Verify signed update assets
+        shell: pwsh
+        run: |
+          python ./scripts/verify-update-assets.py ./artifacts --public-key ./scripts/update-public-key.txt
+          if ((git status --short --untracked-files=no).Length -ne 0) { git status --short; throw "Build modified tracked files" }
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: false
+          files: |
+            artifacts/CS2BotImproverPlus-v1.4.2.3-windows.zip
+            artifacts/CS2BotImproverPlus-panel-v1.4.2.3-windows.zip
+            artifacts/CS2BotImproverPlus-plugin-v1.4.2.3-windows.zip
+            artifacts/latest.json
+            artifacts/latest.json.sig
+            artifacts/SHA256SUMS.txt

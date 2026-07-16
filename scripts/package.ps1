@@ -117,7 +117,7 @@ $upstreamPayload = $payloadCandidates |
     Select-Object -First 1
 if (-not $upstreamPayload) { throw "Could not locate the upstream game/csgo payload." }
 
-$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2.2-windows"
+$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2.3-windows"
 $payload = $releaseRoot
 Copy-Tree $upstreamPayload.FullName $releaseRoot
 Get-ChildItem -LiteralPath $releaseRoot -Filter "Panel*.exe" -File | Remove-Item -Force
@@ -231,7 +231,7 @@ if ($nativeHash -ne $manifest.botHider.windowsDllSha256.ToLowerInvariant()) {
 }
 
 $panelExe = Join-Path $repo "Panel\src-tauri\target\release\cs2-bot-improver-plus-panel.exe"
-Copy-Item -LiteralPath $panelExe -Destination (Join-Path $releaseRoot "CS2BotImproverPlus v1.4.2.2.exe") -Force
+Copy-Item -LiteralPath $panelExe -Destination (Join-Path $releaseRoot "CS2BotImproverPlus.exe") -Force
 $webViewLoader = Join-Path $repo "Panel\src-tauri\target\release\WebView2Loader.dll"
 if (Test-Path -LiteralPath $webViewLoader) {
     Copy-Item -LiteralPath $webViewLoader -Destination (Join-Path $releaseRoot "WebView2Loader.dll") -Force
@@ -273,7 +273,7 @@ $manifestEntries = foreach ($topLevel in @("addons", "cfg", "overrides")) {
 }
 $payloadManifest = [ordered]@{
     schema_version = 1
-    package_version = "1.4.2.2"
+    package_version = "1.4.2.3"
     entries = @($manifestEntries | Sort-Object path)
 }
 $payloadManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $payload "plus-payload-manifest.json") -Encoding utf8
@@ -282,13 +282,72 @@ $payloadManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path
 if ($LASTEXITCODE -ne 0) { throw "Package verification failed." }
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
-$zip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2.2-windows.zip"
-if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
-Compress-Archive -Path $releaseRoot -DestinationPath $zip -CompressionLevel Optimal
+Get-ChildItem -LiteralPath $OutputDirectory -File -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match '^CS2BotImproverPlus-.*\.zip$|^latest\.json(\.sig)?$|^SHA256SUMS\.txt$' } |
+    Remove-Item -Force
 
-$hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+$fullZip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2.3-windows.zip"
+Compress-Archive -Path $releaseRoot -DestinationPath $fullZip -CompressionLevel Optimal
+
+$panelStage = Join-Path $stage "panel-update"
+New-Item -ItemType Directory -Path $panelStage -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $releaseRoot "CS2BotImproverPlus.exe") -Destination $panelStage -Force
+if (Test-Path -LiteralPath (Join-Path $releaseRoot "WebView2Loader.dll")) {
+    Copy-Item -LiteralPath (Join-Path $releaseRoot "WebView2Loader.dll") -Destination $panelStage -Force
+}
+$panelZip = Join-Path $OutputDirectory "CS2BotImproverPlus-panel-v1.4.2.3-windows.zip"
+Compress-Archive -Path (Join-Path $panelStage "*") -DestinationPath $panelZip -CompressionLevel Optimal
+
+$pluginStage = Join-Path $stage "plugin-update"
+New-Item -ItemType Directory -Path $pluginStage -Force | Out-Null
+foreach ($name in @("addons", "cfg", "overrides", "plus-payload-manifest.json")) {
+    $source = Join-Path $releaseRoot $name
+    if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $pluginStage -Recurse -Force }
+}
+$pluginZip = Join-Path $OutputDirectory "CS2BotImproverPlus-plugin-v1.4.2.3-windows.zip"
+Compress-Archive -Path (Join-Path $pluginStage "*") -DestinationPath $pluginZip -CompressionLevel Optimal
+
+$releaseBase = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/download/v1.4.2.3"
+$latest = [ordered]@{
+    schema_version = 1
+    release_version = "1.4.2.3"
+    published_at = [DateTimeOffset]::UtcNow.ToString("o")
+    release_notes_url = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/tag/v1.4.2.3"
+    components = [ordered]@{
+        panel = [ordered]@{
+            version = "1.4.2.3"
+            url = "$releaseBase/$([IO.Path]::GetFileName($panelZip))"
+            size = (Get-Item -LiteralPath $panelZip).Length
+            sha256 = (Get-FileHash -LiteralPath $panelZip -Algorithm SHA256).Hash.ToLowerInvariant()
+            min_panel_version = "1.4.2.3"
+        }
+        plugin = [ordered]@{
+            version = "1.4.2.3"
+            url = "$releaseBase/$([IO.Path]::GetFileName($pluginZip))"
+            size = (Get-Item -LiteralPath $pluginZip).Length
+            sha256 = (Get-FileHash -LiteralPath $pluginZip -Algorithm SHA256).Hash.ToLowerInvariant()
+            min_panel_version = "1.4.2.3"
+        }
+    }
+}
+$latestPath = Join-Path $OutputDirectory "latest.json"
+$latest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $latestPath -Encoding utf8
+$signaturePath = Join-Path $OutputDirectory "latest.json.sig"
+if ($env:CSBIP_UPDATE_SIGNING_KEY) {
+    $python = (Get-Command python -ErrorAction Stop).Source
+    & $python (Join-Path $PSScriptRoot "sign-update.py") $latestPath $signaturePath `
+        --public-key (Join-Path $PSScriptRoot "update-public-key.txt")
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $signaturePath)) { throw "Update signing failed." }
+}
+
+$sumFiles = @($fullZip, $panelZip, $pluginZip, $latestPath)
+if (Test-Path -LiteralPath $signaturePath) { $sumFiles += $signaturePath }
+$sumLines = foreach ($file in $sumFiles) {
+    "$((Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($file))"
+}
 $sums = Join-Path $OutputDirectory "SHA256SUMS.txt"
-Set-Content -LiteralPath $sums -Value "$hash  $([IO.Path]::GetFileName($zip))" -Encoding ascii
+Set-Content -LiteralPath $sums -Value $sumLines -Encoding ascii
 
-Write-Host "Package complete: $zip"
-Write-Host "SHA-256: $hash"
+Write-Host "Package complete: $fullZip"
+Write-Host "Panel update: $panelZip"
+Write-Host "Plugin update: $pluginZip"

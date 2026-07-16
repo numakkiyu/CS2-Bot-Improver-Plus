@@ -4,10 +4,11 @@ import DevsPage from "./DevsPage";
 import LanguagesPage from "./LanguagesPage";
 import DirectoryPage from "./DirectoryPage";
 import InstallationPage from "./InstallationPage";
+import OnlineUpdatePage from "./OnlineUpdatePage";
 import { useT, type I18nKey } from "../../i18n";
 import "./settings.css";
 
-type Page = "root" | "devs" | "languages" | "directory" | "installation";
+type Page = "root" | "devs" | "languages" | "directory" | "installation" | "updates";
 
 const TITLE_KEYS: Record<Page, I18nKey> = {
   root: "set.title",
@@ -15,6 +16,7 @@ const TITLE_KEYS: Record<Page, I18nKey> = {
   languages: "set.languages",
   directory: "set.directory",
   installation: "set.installation",
+  updates: "set.updates",
 };
 
 export default function SettingsView({ onClose }: { onClose?: () => void }) {
@@ -36,7 +38,7 @@ export default function SettingsView({ onClose }: { onClose?: () => void }) {
       <div className="settings__body">
         {page === "root" && (
           <div className="settings-list">
-            {(["installation", "directory", "languages", "devs"] as const).map((p) => (
+            {(["updates", "installation", "directory", "languages", "devs"] as const).map((p) => (
               <button key={p} className="settings-row settings-row--nav" onClick={() => setPage(p)}>
                 <span className="settings-row__title">{t(TITLE_KEYS[p])}</span>
                 <ChevronRight size={18} />
@@ -48,6 +50,7 @@ export default function SettingsView({ onClose }: { onClose?: () => void }) {
         {page === "languages" && <LanguagesPage />}
         {page === "directory" && <DirectoryPage />}
         {page === "installation" && <InstallationPage />}
+        {page === "updates" && <OnlineUpdatePage />}
       </div>
     </div>
   );

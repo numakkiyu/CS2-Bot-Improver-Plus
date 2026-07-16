@@ -1,4 +1,4 @@
-use crate::{AppError, Result, atomic_fs};
+use crate::{AppError, Result, atomic_fs, mode_layout};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -192,6 +192,10 @@ fn read_manifest(payload_root: &Path) -> Result<PayloadManifest> {
     Ok(manifest)
 }
 
+pub fn verify_payload(payload_root: &Path) -> Result<PayloadManifest> {
+    read_manifest(payload_root)
+}
+
 fn read_record(directory: &Path) -> Option<InstallRecord> {
     serde_json::from_slice(&fs::read(directory.join("record.json")).ok()?).ok()
 }
@@ -222,7 +226,9 @@ fn inspect_impl(payload_root: &Path, state_root: &Path, target: &Path, verify_ha
     let mut missing = Vec::new();
     let mut corrupt = Vec::new();
     for (raw, expected, expected_size, restore_policy) in &entries {
-        let path = target.join(safe_relative(raw)?);
+        let canonical = target.join(safe_relative(raw)?);
+        let disabled = mode_layout::disabled_path(&canonical);
+        let path = if canonical.is_file() { canonical } else { disabled };
         if !path.is_file() { missing.push(raw.clone()); }
         else if restore_policy == "preserve-config" { healthy += 1; }
         else if verify_hashes {
@@ -279,11 +285,13 @@ fn preflight(manifest: &PayloadManifest, state_root: &Path, target: &Path) -> Re
             }
         }
         let destination = target.join(&relative);
-        if destination.exists() && !destination.is_file() {
+        let existing = if destination.exists() { destination.clone() }
+            else { mode_layout::disabled_path(&destination) };
+        if existing.exists() && !existing.is_file() {
             return Err(AppError::transaction(format!(
-                "A payload file target is occupied by a directory: {}", destination.display())));
+                "A payload file target is occupied by a directory: {}", existing.display())));
         }
-        if let Ok(metadata) = fs::metadata(destination) { backup_bytes = backup_bytes.saturating_add(metadata.len()); }
+        if let Ok(metadata) = fs::metadata(existing) { backup_bytes = backup_bytes.saturating_add(metadata.len()); }
     }
 
     const MARGIN: u64 = 64 * 1024 * 1024;
@@ -308,7 +316,8 @@ pub fn plan(payload_root: &Path, state_root: &Path, target: &Path) -> Result<Ins
     let mut new_files = 0;
     let mut overwritten_files = 0;
     for entry in &manifest.entries {
-        if target.join(safe_relative(&entry.path)?).exists() { overwritten_files += 1; }
+        let destination = target.join(safe_relative(&entry.path)?);
+        if destination.exists() || mode_layout::disabled_path(&destination).exists() { overwritten_files += 1; }
         else { new_files += 1; }
     }
     Ok(InstallPlan {
@@ -649,7 +658,7 @@ mod tests {
         let hash = sha256(&payload.join("cfg/test.cfg")).unwrap();
         write_json_atomic(&payload.join(MANIFEST_FILE), &PayloadManifest {
             schema_version: 1,
-            package_version: "1.4.2.2".to_string(),
+            package_version: "1.4.2.3".to_string(),
             entries: vec![PayloadEntry {
                 path: "cfg/test.cfg".to_string(), size: 4, sha256: hash,
                 component: "config".to_string(), ownership: "plus".to_string(),

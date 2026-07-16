@@ -26,7 +26,12 @@ export default function FirstRunLanguages() {
 
   useEffect(() => {
     if (step !== "preview" || plan) return;
-    void getInstallPlan().then((result) => { if (result) setPlan(result); });
+    let active = true;
+    setWorking(true);
+    void getInstallPlan()
+      .then((result) => { if (active && result) setPlan(result); })
+      .finally(() => { if (active) setWorking(false); });
+    return () => { active = false; };
   }, [getInstallPlan, plan, step]);
 
   const move = async (next: Step) => {
@@ -35,6 +40,7 @@ export default function FirstRunLanguages() {
   };
 
   const browse = async () => {
+    if (working) return;
     try {
       const picked = await open({ directory: true, title: "Select game/csgo folder" });
       if (typeof picked === "string") await chooseDirectory(picked);
@@ -42,10 +48,14 @@ export default function FirstRunLanguages() {
   };
 
   const preview = async () => {
-    const result = await getInstallPlan();
-    if (!result) return;
-    setPlan(result);
-    await move("preview");
+    if (working) return;
+    setWorking(true);
+    try {
+      const result = await getInstallPlan();
+      if (!result) return;
+      setPlan(result);
+      await move("preview");
+    } finally { setWorking(false); }
   };
 
   const install = async () => {
@@ -83,6 +93,7 @@ export default function FirstRunLanguages() {
           <div className="firstrun__directories">
             {(directory?.candidates ?? []).map((path) => (
               <button key={path} className={`dir-cell ${path === selected ? "is-selected" : ""}`}
+                disabled={working}
                 onClick={() => chooseDirectory(path)}>
                 <span className="dir-cell__path">{path}</span>
                 {path === selected && <StatusDot status="green" />}
@@ -91,8 +102,10 @@ export default function FirstRunLanguages() {
             {!directory?.candidates.length && <div className="dir-note">{t("set.noCsgo")}</div>}
           </div>
           <div className="firstrun__footer">
-            <button onClick={browse}>{t("set.browse")}</button>
-            <button className="is-primary" disabled={!selected || blocked} onClick={preview}>{t("first.continue")}</button>
+            <button disabled={working} onClick={browse}>{t("set.browse")}</button>
+            <button className="is-primary" disabled={!selected || blocked || working} onClick={preview}>
+              {working ? t("install.working") : t("first.continue")}
+            </button>
           </div>
         </>}
 

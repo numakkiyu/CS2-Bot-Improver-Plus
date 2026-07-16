@@ -188,7 +188,7 @@ if ($PackageRoot) {
         "addons/counterstrikesharp/shared/0Harmony/0Harmony.dll",
         "addons/counterstrikesharp/shared/BotHiderApi/BotHiderApi.dll",
         "plus-payload-manifest.json",
-        "CS2BotImproverPlus v1.4.2.2.exe",
+        "CS2BotImproverPlus.exe",
         "README.md",
         "README.zh-CN.md",
         "LICENSE"
@@ -196,7 +196,7 @@ if ($PackageRoot) {
     foreach ($relative in $requiredPackageFiles) {
         Assert-File (Join-Path $package $relative) "package file $relative"
     }
-    $packagedPanel = Join-Path $package "CS2BotImproverPlus v1.4.2.2.exe"
+    $packagedPanel = Join-Path $package "CS2BotImproverPlus.exe"
     $builtPanel = Join-Path $repo "Panel/src-tauri/target/release/cs2-bot-improver-plus-panel.exe"
     if ((Test-Path -LiteralPath $packagedPanel) -and (Test-Path -LiteralPath $builtPanel) -and
         ((Get-FileHash -LiteralPath $packagedPanel -Algorithm SHA256).Hash -ne
@@ -220,7 +220,7 @@ if ($PackageRoot) {
     if (Test-Path -LiteralPath $payloadManifestPath) {
         try {
             $payloadManifest = Get-Content -LiteralPath $payloadManifestPath -Raw | ConvertFrom-Json
-            if ($payloadManifest.schema_version -ne 1 -or $payloadManifest.package_version -ne "1.4.2.2") {
+            if ($payloadManifest.schema_version -ne 1 -or $payloadManifest.package_version -ne "1.4.2.3") {
                 Add-Failure "Package payload manifest has an unexpected schema or version."
             }
             $manifestPaths = @{}

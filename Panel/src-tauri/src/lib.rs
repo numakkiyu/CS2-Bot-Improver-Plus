@@ -12,8 +12,11 @@ mod diagnostics;
 mod installer;
 mod logging;
 mod mode_files;
+mod mode_layout;
+mod online_update;
 mod runtime_state;
 mod steam;
+mod update_core;
 use installer::{InstallPlan, InstallTransactionResult, InstallationInspection, RestoreResult};
 use mode_files::{apply_launch_mode, contains_metamod_search_path, LaunchMode};
 use runtime_state::{blocks_target_write, inspect_cs2_process, Cs2ProcessInfo};
@@ -43,6 +46,7 @@ impl AppError {
     pub(crate) fn transaction(detail: impl Into<String>) -> Self { Self::new("E1401", "installation", detail) }
     pub(crate) fn transaction_io(error: std::io::Error) -> Self { Self::transaction(error.to_string()) }
     fn launch(detail: impl Into<String>) -> Self { Self::new("E1501", "launch", detail) }
+    fn update(detail: impl Into<String>) -> Self { Self::new("E1601", "update", detail) }
 }
 
 impl From<std::io::Error> for AppError {
@@ -78,6 +82,8 @@ struct AppConfig {
     first_run_step: Option<String>,
     #[serde(default)]
     cosmetics_enabled_before_online: Option<bool>,
+    #[serde(default)]
+    cosmetics_enabled_before_preview: Option<bool>,
 }
 
 impl Default for AppConfig {
@@ -89,6 +95,7 @@ impl Default for AppConfig {
             drop_knife_bind: "\\".into(), drop_knife_subclasses: vec![],
             csgo_path: None, first_run_done: false, first_run_step: Some("language".into()),
             cosmetics_enabled_before_online: None,
+            cosmetics_enabled_before_preview: None,
         }
     }
 }
@@ -100,7 +107,17 @@ struct FilesReport { ok: bool, total: usize, present: usize, missing: Vec<String
 #[derive(Serialize)]
 struct DifficultyInfo { current: Option<String>, available: Vec<String>, active_present: bool, cs2_running: bool }
 #[derive(Serialize)]
-struct ModeInfo { current: Option<String>, online_present: bool, bots_present: bool, insecure: bool, user_count: u32, cs2_running: bool, pending: bool }
+struct ModeInfo {
+    current: Option<String>,
+    online_present: bool,
+    preview_present: bool,
+    bots_present: bool,
+    layout_healthy: bool,
+    insecure: bool,
+    user_count: u32,
+    cs2_running: bool,
+    pending: bool,
+}
 #[derive(Serialize)]
 struct LaunchResult { options: String, insecure: bool }
 #[derive(Serialize)]
@@ -364,7 +381,9 @@ fn detect_directories(app: AppHandle) -> Result<DirectoryInfo> {
     if let Some(path) = &config.csgo_path { if valid_csgo(Path::new(path)) { candidates.push(path.clone()); } }
     for path in steam::detect_cs2_directories() {
         let path = path.to_string_lossy().into_owned();
-        if !candidates.iter().any(|candidate| candidate.eq_ignore_ascii_case(&path)) { candidates.push(path); }
+        if !candidates.iter().any(|candidate| steam::paths_equal(Path::new(candidate), Path::new(&path))) {
+            candidates.push(path);
+        }
     }
     let saved = config.csgo_path.clone().filter(|p| valid_csgo(Path::new(p)));
     let selected = saved.or_else(|| (candidates.len() == 1).then(|| candidates[0].clone()));
@@ -385,6 +404,7 @@ fn select_directory(app: AppHandle, path: String) -> Result<DirectoryInfo> {
 }
 
 fn payload_root() -> Result<PathBuf> {
+    if let Some(payload) = online_update::active_payload_root() { return Ok(payload); }
     let executable = std::env::current_exe().map_err(|error| AppError::payload(error.to_string()))?;
     executable.parent().map(Path::to_path_buf)
         .ok_or_else(|| AppError::payload("Panel executable has no parent directory"))
@@ -477,11 +497,22 @@ fn mode_at(root: &Path, config: &AppConfig, running: bool) -> ModeInfo {
     let gameinfo = root.join("gameinfo.gi");
     let online_present = root.join("backup/Online/gameinfo.gi").is_file();
     let bots_present = root.join("backup/WithBots/gameinfo.gi").is_file();
+    let preview_present = root.join("addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.dll").is_file();
+    let state = app_storage::root().ok();
     let current = fs::read(&gameinfo).ok().map(|bytes| {
-        if contains_metamod_search_path(&bytes) { "bots".into() } else { "online".into() }
+        if !contains_metamod_search_path(&bytes) {
+            "online".into()
+        } else if state.as_deref().is_some_and(|state| mode_layout::is_preview(state, root)) {
+            "preview".into()
+        } else {
+            "bots".into()
+        }
     });
-    ModeInfo { pending: current.as_deref() != config.mode.as_deref(), current, online_present, bots_present,
-        insecure: config.insecure, user_count: 1, cs2_running: running }
+    let expects_preview = current.as_deref() == Some("preview");
+    let layout_healthy = mode_layout::layout_healthy(root, expects_preview);
+    ModeInfo { pending: current.as_deref() != config.mode.as_deref() || !layout_healthy, current,
+        online_present, preview_present, bots_present, layout_healthy, insecure: config.insecure,
+        user_count: 1, cs2_running: running }
 }
 
 #[tauri::command]
@@ -489,13 +520,12 @@ fn set_mode(app: AppHandle, csgo: String, mode: String) -> Result<ModeInfo> {
     let root = csgo_path(&csgo)?;
     ensure_target_not_running(&root)?;
     let launch_mode = LaunchMode::parse(Some(&mode)).map_err(AppError::invalid)?;
+    let state = local_state_root(&app)?;
+    mode_layout::recover(&state, &root)?;
     apply_launch_mode(&root, launch_mode).map_err(AppError::invalid)?;
+    mode_layout::set_preview(&state, &root, launch_mode == LaunchMode::Preview)?;
     let mut config = read_config(&app)?;
-    if launch_mode == LaunchMode::Online {
-        enter_online_safety(&root, &mut config)?;
-    } else {
-        leave_online_safety(&root, &mut config)?;
-    }
+    enforce_mode_cosmetics(&root, &mut config, launch_mode)?;
     config.mode = Some(mode.clone()); config.insecure = launch_mode.insecure();
     write_config(&app, &config)?;
     get_mode(app, csgo)
@@ -546,13 +576,11 @@ fn launch_cs2(app: AppHandle) -> Result<LaunchResult> {
         .ok_or_else(|| AppError::directory("Select the CS2 game/csgo directory before launching"))?;
     let root = csgo_path(configured_path)?;
     ensure_target_not_running(&root)?;
+    let state = local_state_root(&app)?;
+    mode_layout::recover(&state, &root)?;
     apply_launch_mode(&root, mode).map_err(AppError::invalid)?;
-
-    if mode == LaunchMode::Online {
-        enter_online_safety(&root, &mut config)?;
-    } else {
-        leave_online_safety(&root, &mut config)?;
-    }
+    mode_layout::set_preview(&state, &root, mode == LaunchMode::Preview)?;
+    enforce_mode_cosmetics(&root, &mut config, mode)?;
 
     config.insecure = mode.insecure();
     write_config(&app, &config)?;
@@ -858,6 +886,38 @@ fn leave_online_safety(root: &Path, app_config: &mut AppConfig) -> Result<()> {
     Ok(())
 }
 
+fn enter_preview_safety(root: &Path, app_config: &mut AppConfig) -> Result<()> {
+    let previous = set_knife_customizer_enabled(root, true)?;
+    if app_config.cosmetics_enabled_before_preview.is_none() {
+        app_config.cosmetics_enabled_before_preview = previous;
+    }
+    Ok(())
+}
+
+fn leave_preview_safety(root: &Path, app_config: &mut AppConfig) -> Result<()> {
+    if let Some(previous) = app_config.cosmetics_enabled_before_preview.take() {
+        set_knife_customizer_enabled(root, previous)?;
+    }
+    Ok(())
+}
+
+fn enforce_mode_cosmetics(root: &Path, app_config: &mut AppConfig, mode: LaunchMode) -> Result<()> {
+    match mode {
+        LaunchMode::Online => {
+            leave_preview_safety(root, app_config)?;
+            enter_online_safety(root, app_config)
+        }
+        LaunchMode::Preview => {
+            leave_online_safety(root, app_config)?;
+            enter_preview_safety(root, app_config)
+        }
+        LaunchMode::Bots => {
+            leave_online_safety(root, app_config)?;
+            leave_preview_safety(root, app_config)
+        }
+    }
+}
+
 #[tauri::command]
 fn get_knife_customizer(csgo: String) -> Result<KnifeCustomizerState> {
     let root = csgo_path(&csgo)?;
@@ -899,7 +959,10 @@ fn get_runtime_snapshot(app: AppHandle) -> Result<RuntimeSnapshot> {
     let running = process.running;
     let payload = payload_root().ok();
     let state = local_state_root(&app).ok();
-    if let Some(state) = &state { let _ = installer::recover_incomplete(state, &root); }
+    if let Some(state) = &state {
+        let _ = installer::recover_incomplete(state, &root);
+        if !running { let _ = mode_layout::recover(state, &root); }
+    }
     let installation = payload.as_deref().zip(state.as_deref())
         .and_then(|(payload, state)| installer::inspect_quick(payload, state, &root).ok());
 
@@ -924,19 +987,23 @@ fn inspect_installation(app: AppHandle, csgo: String) -> Result<InstallationInsp
 }
 
 #[tauri::command]
-fn get_install_plan(app: AppHandle, csgo: String) -> Result<InstallPlan> {
-    let root = csgo_path(&csgo)?;
-    ensure_target_not_running(&root)?;
-    installer::plan(&payload_root()?, &local_state_root(&app)?, &root)
+async fn get_install_plan(app: AppHandle, csgo: String) -> Result<InstallPlan> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _busy = online_update::OperationGuard::acquire()?;
+        let root = csgo_path(&csgo)?;
+        ensure_target_not_running(&root)?;
+        installer::plan(&payload_root()?, &local_state_root(&app)?, &root)
+    }).await.map_err(|error| AppError::new("E1003", "internal", format!("Install preflight task failed: {error}")))?
 }
 
 #[tauri::command]
 fn install_payload(app: AppHandle, csgo: String) -> Result<InstallTransactionResult> {
+    let _busy = online_update::OperationGuard::acquire()?;
     let root = csgo_path(&csgo)?;
     ensure_target_not_running(&root)?;
     let state = local_state_root(&app)?;
     logging::append(&state, "INFO", "install.started", &root.to_string_lossy());
-    let result = installer::install(&payload_root()?, &state, &root, false);
+    let result = with_canonical_layout(&state, &root, || installer::install(&payload_root()?, &state, &root, false));
     match &result {
         Ok(value) => logging::append(&state, "INFO", "install.completed", &format!("{} files", value.installed_files)),
         Err(error) => logging::append(&state, "ERROR", "install.failed", &error.detail),
@@ -946,11 +1013,12 @@ fn install_payload(app: AppHandle, csgo: String) -> Result<InstallTransactionRes
 
 #[tauri::command]
 fn repair_payload(app: AppHandle, csgo: String) -> Result<InstallTransactionResult> {
+    let _busy = online_update::OperationGuard::acquire()?;
     let root = csgo_path(&csgo)?;
     ensure_target_not_running(&root)?;
     let state = local_state_root(&app)?;
     logging::append(&state, "INFO", "repair.started", &root.to_string_lossy());
-    let result = installer::install(&payload_root()?, &state, &root, true);
+    let result = with_canonical_layout(&state, &root, || installer::install(&payload_root()?, &state, &root, true));
     match &result {
         Ok(value) => logging::append(&state, "INFO", "repair.completed", &format!("{} files", value.installed_files)),
         Err(error) => logging::append(&state, "ERROR", "repair.failed", &error.detail),
@@ -960,15 +1028,18 @@ fn repair_payload(app: AppHandle, csgo: String) -> Result<InstallTransactionResu
 
 #[tauri::command]
 fn restore_payload(app: AppHandle, csgo: String) -> Result<RestoreResult> {
+    let _busy = online_update::OperationGuard::acquire()?;
     let root = csgo_path(&csgo)?;
     ensure_target_not_running(&root)?;
+    let state = local_state_root(&app)?;
+    mode_layout::recover(&state, &root)?;
+    mode_layout::set_preview(&state, &root, false)?;
     let mut config = read_config(&app)?;
     apply_launch_mode(&root, LaunchMode::Online).map_err(AppError::launch)?;
-    enter_online_safety(&root, &mut config)?;
+    enforce_mode_cosmetics(&root, &mut config, LaunchMode::Online)?;
     config.mode = Some("online".into());
     config.insecure = false;
     write_config(&app, &config)?;
-    let state = local_state_root(&app)?;
     logging::append(&state, "INFO", "restore.started", &root.to_string_lossy());
     let result = installer::restore(&payload_root()?, &state, &root);
     match &result {
@@ -976,6 +1047,80 @@ fn restore_payload(app: AppHandle, csgo: String) -> Result<RestoreResult> {
         Err(error) => logging::append(&state, "ERROR", "restore.failed", &error.detail),
     }
     result
+}
+
+fn installed_plugin_version(app: &AppHandle) -> Option<String> {
+    let config = read_config(app).ok()?;
+    let root = csgo_path(config.csgo_path.as_deref()?).ok()?;
+    installer::inspect_quick(&payload_root().ok()?, &local_state_root(app).ok()?, &root).ok()?.package_version
+}
+
+#[tauri::command]
+fn get_update_snapshot(app: AppHandle) -> Result<online_update::OnlineUpdateSnapshot> {
+    online_update::snapshot(installed_plugin_version(&app).as_deref())
+}
+
+#[tauri::command]
+async fn check_online_updates(app: AppHandle, force: bool) -> Result<online_update::OnlineUpdateSnapshot> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let plugin_version = installed_plugin_version(&app);
+        let result = online_update::check(force, plugin_version.as_deref());
+        if let Err(error) = &result { online_update::record_check_error(error); }
+        result
+    }).await.map_err(|error| AppError::update(format!("Update check task failed: {error}")))?
+}
+
+#[tauri::command]
+async fn install_plugin_update(app: AppHandle, csgo: String) -> Result<online_update::UpdateResult> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let _busy = online_update::OperationGuard::acquire()?;
+        let root = csgo_path(&csgo)?;
+        ensure_target_not_running(&root)?;
+        let state = local_state_root(&app)?;
+        logging::append(&state, "INFO", "update.plugin_started", "host=github.com");
+        let (version, payload) = online_update::prepare_plugin(&app)?;
+        online_update::activate_payload(&version, &payload)?;
+        match with_canonical_layout(&state, &root, || installer::install(&payload, &state, &root, false)) {
+            Ok(value) => {
+                logging::append(&state, "INFO", "update.plugin_completed", &format!("version={version}, files={}", value.installed_files));
+                Ok(online_update::UpdateResult { component: "plugin".into(), version, installed: true,
+                    restart_required: false, rollback_succeeded: None,
+                    detail: format!("Plugin update installed ({} files)", value.installed_files) })
+            }
+            Err(error) => {
+                logging::append(&state, "ERROR", "update.plugin_failed", &format!("stage=install, rollback=attempted, {}", error.detail));
+                Err(error)
+            }
+        }
+    }).await.map_err(|error| AppError::update(format!("Plugin update task failed: {error}")))?
+}
+
+#[tauri::command]
+async fn install_panel_update(app: AppHandle) -> Result<online_update::UpdateResult> {
+    let worker_app = app.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || online_update::prepare_panel(&worker_app))
+        .await.map_err(|error| AppError::update(format!("Panel update task failed: {error}")))??;
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        app.exit(0);
+    });
+    Ok(result)
+}
+
+#[tauri::command]
+fn cancel_update() { online_update::cancel(); }
+
+fn with_canonical_layout<T>(state: &Path, root: &Path, operation: impl FnOnce() -> Result<T>) -> Result<T> {
+    mode_layout::recover(state, root)?;
+    let restore_preview = mode_layout::is_preview(state, root);
+    if restore_preview { mode_layout::set_preview(state, root, false)?; }
+    let result = operation();
+    let restore = if restore_preview { mode_layout::set_preview(state, root, true) } else { Ok(()) };
+    match (result, restore) {
+        (Ok(value), Ok(())) => Ok(value),
+        (Err(error), Ok(())) => Err(error),
+        (_, Err(error)) => Err(error),
+    }
 }
 
 #[tauri::command]
@@ -1101,6 +1246,10 @@ mod tests {
         assert_eq!(arguments, vec!["-applaunch", "730", "-insecure", "-console", "-condebug"]);
         assert_eq!(options, "-insecure -console -condebug");
 
+        let (preview_arguments, preview_options) = launch_request(LaunchMode::Preview);
+        assert_eq!(preview_arguments, vec!["-applaunch", "730", "-insecure", "-console", "-condebug"]);
+        assert_eq!(preview_options, "-insecure -console -condebug");
+
         let (online_arguments, online_options) = launch_request(LaunchMode::Online);
         assert_eq!(online_arguments, vec!["-applaunch", "730"]);
         assert!(online_options.is_empty());
@@ -1136,6 +1285,46 @@ mod tests {
         assert!(restored.enabled);
         assert!(app_config.cosmetics_enabled_before_online.is_none());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn preview_safety_temporarily_enables_and_restores_cosmetics() {
+        let root = test_root();
+        let mut config = KnifeCustomizerConfig::default();
+        config.enabled = false;
+        save_knife_config(&root, &mut config).unwrap();
+
+        let mut app_config = AppConfig::default();
+        enter_preview_safety(&root, &mut app_config).unwrap();
+        assert!(read_knife_config(&root).unwrap().enabled);
+        assert_eq!(app_config.cosmetics_enabled_before_preview, Some(false));
+
+        leave_preview_safety(&root, &mut app_config).unwrap();
+        assert!(!read_knife_config(&root).unwrap().enabled);
+        assert!(app_config.cosmetics_enabled_before_preview.is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn canonical_operation_restores_preview_layout() {
+        let base = test_root();
+        let root = base.join("game/csgo");
+        let state = base.join("state");
+        let managed = root.join("addons/counterstrikesharp/plugins/BotAI/BotAI.dll");
+        fs::create_dir_all(managed.parent().unwrap()).unwrap();
+        fs::write(&managed, b"managed").unwrap();
+        mode_layout::set_preview(&state, &root, true).unwrap();
+
+        with_canonical_layout(&state, &root, || {
+            assert!(managed.is_file());
+            assert!(!mode_layout::disabled_path(&managed).exists());
+            Ok(())
+        }).unwrap();
+
+        assert!(!managed.exists());
+        assert!(mode_layout::disabled_path(&managed).is_file());
+        assert!(mode_layout::layout_healthy(&root, true));
+        fs::remove_dir_all(base).unwrap();
     }
 
     #[test]
@@ -1238,12 +1427,23 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .setup(|_| {
+        .setup(|app| {
             if let Ok(root) = app_storage::root() {
                 let removed = logging::cleanup(&root).unwrap_or(0);
                 let archives_removed = diagnostics::cleanup_archives(&root).unwrap_or(0);
-                logging::append(&root, "INFO", "panel.started", &format!("version=1.4.2.2, logs_collected={removed}, archives_collected={archives_removed}"));
+                let update_cache_removed = online_update::cleanup_cache(None).unwrap_or(0);
+                logging::append(&root, "INFO", "panel.started", &format!("version=1.4.2.3, logs_collected={removed}, archives_collected={archives_removed}, update_cache_collected={update_cache_removed}"));
             }
+            let update_app = app.handle().clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                let plugin_version = installed_plugin_version(&update_app);
+                if let Err(error) = online_update::check(false, plugin_version.as_deref()) {
+                    online_update::record_check_error(&error);
+                    if let Ok(root) = app_storage::root() {
+                        logging::append(&root, "WARN", "update.startup_check_failed", &format!("host=github.com, {}", error.detail));
+                    }
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![get_config, save_config, detect_directories, select_directory,
@@ -1253,7 +1453,10 @@ pub fn run() {
             get_knife_customizer, save_knife_customizer, get_runtime_snapshot,
             inspect_installation, get_install_plan, install_payload, repair_payload,
             restore_payload, export_diagnostics, get_panel_memory, save_panel_memory,
-            record_panel_error])
+            record_panel_error, get_update_snapshot, check_online_updates,
+            install_panel_update, install_plugin_update, cancel_update])
         .run(tauri::generate_context!())
         .expect("error while running CS2BotImproverPlus");
 }
+
+pub fn maybe_run_update_helper() -> bool { online_update::maybe_apply_panel_update() }

@@ -33,7 +33,11 @@ mod installer;
 mod logging;
 #[path = "../../src/mode_files.rs"]
 mod mode_files;
+#[path = "../../src/mode_layout.rs"]
+mod mode_layout;
 #[path = "../../src/runtime_state.rs"]
 mod runtime_state;
 #[path = "../../src/steam.rs"]
 mod steam;
+#[path = "../../src/update_core.rs"]
+mod update_core;

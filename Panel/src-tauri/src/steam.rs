@@ -135,18 +135,24 @@ fn valid_csgo(path: &Path) -> bool {
     path.join("gameinfo.gi").is_file() && path.join("cfg").is_dir()
 }
 
+pub(crate) fn paths_equal(left: &Path, right: &Path) -> bool {
+    normalized_path_key(left) == normalized_path_key(right)
+}
+
+fn normalized_path_key(path: &Path) -> String {
+    let mut key = path.to_string_lossy().replace('/', "\\");
+    while key.ends_with('\\') && !is_windows_root(&key) { key.pop(); }
+    key.make_ascii_lowercase();
+    key
+}
+
+fn is_windows_root(path: &str) -> bool {
+    path == "\\" || (path.len() == 3 && path.as_bytes()[0].is_ascii_alphabetic()
+        && path.as_bytes()[1] == b':' && path.as_bytes()[2] == b'\\')
+}
+
 fn push_unique(paths: &mut Vec<PathBuf>, path: PathBuf) {
-    if !paths.iter().any(|existing| existing.eq_ignore_ascii_case(&path)) { paths.push(path); }
-}
-
-trait PathEqIgnoreCase {
-    fn eq_ignore_ascii_case(&self, other: &Path) -> bool;
-}
-
-impl PathEqIgnoreCase for PathBuf {
-    fn eq_ignore_ascii_case(&self, other: &Path) -> bool {
-        self.to_string_lossy().eq_ignore_ascii_case(&other.to_string_lossy())
-    }
+    if !paths.iter().any(|existing| paths_equal(existing, &path)) { paths.push(path); }
 }
 
 pub fn detect_cs2_directories() -> Vec<PathBuf> {
@@ -200,5 +206,23 @@ mod tests {
     #[test]
     fn rejects_truncated_keyvalues() {
         assert!(parse_keyvalues(r#""root" { "path" "F:\\Steam""#).is_none());
+    }
+
+    #[test]
+    fn deduplicates_equivalent_windows_paths() {
+        let mut paths = Vec::new();
+        push_unique(&mut paths, PathBuf::from(r"D:\steam\steamapps\common\Counter-Strike Global Offensive\game\csgo"));
+        push_unique(&mut paths, PathBuf::from("d:/steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/"));
+        assert_eq!(paths.len(), 1);
+    }
+
+    #[test]
+    fn path_comparison_preserves_unicode_spaces_and_root_boundaries() {
+        assert!(paths_equal(
+            Path::new(r"F:\Steam 库\steamapps\common\Counter-Strike Global Offensive\game\csgo"),
+            Path::new("f:/Steam 库/steamapps/common/Counter-Strike Global Offensive/game/csgo/"),
+        ));
+        assert!(paths_equal(Path::new(r"C:\"), Path::new("c:/")));
+        assert!(!paths_equal(Path::new(r"C:\Steam"), Path::new(r"C:\Steam2")));
     }
 }

@@ -56,6 +56,7 @@ export default function ErrorModal({ error, onClose, message, onExport }: Props)
     <Modal
       open={!!error}
       onClose={onClose}
+      scrimClassName="modal__scrim--error"
       title={
         <span className="errm__title">
           <AlertIcon size={18} /> {t("err.title")}

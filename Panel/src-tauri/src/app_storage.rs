@@ -8,6 +8,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const STATE_DIRECTORY: &str = ".csbip";
 static HIDDEN_INITIALIZED: OnceLock<()> = OnceLock::new();
+#[cfg(test)]
+pub(crate) static TEST_STATE_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct UiMemory {
@@ -110,6 +112,7 @@ mod tests {
 
     #[test]
     fn ui_memory_and_cosmetics_are_stored_under_portable_root() {
+        let _guard = TEST_STATE_ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
         let base = std::env::temp_dir().join(format!("cs2bi-storage-{}", unix_time()));
         unsafe { std::env::set_var("CS2BI_STATE_ROOT", &base); }
         let mut entries = BTreeMap::new();

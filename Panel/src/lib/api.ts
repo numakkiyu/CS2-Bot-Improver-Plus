@@ -219,12 +219,14 @@ export type KnifeCustomizerState = {
   config: KnifeCustomizerConfig;
 };
 
-export type GameMode = "online" | "bots";
+export type GameMode = "online" | "preview" | "bots";
 
 export type ModeInfo = {
   current: GameMode | null;
   online_present: boolean;
+  preview_present: boolean;
   bots_present: boolean;
+  layout_healthy: boolean;
   insecure: boolean;
   user_count: number;
   cs2_running: boolean;
@@ -259,6 +261,44 @@ export type AppConfig = {
   first_run_done: boolean;
   first_run_step?: string | null;
   cosmetics_enabled_before_online?: boolean | null;
+  cosmetics_enabled_before_preview?: boolean | null;
+};
+
+export type UpdateComponentState = {
+  current_version: string;
+  latest_version: string | null;
+  update_available: boolean;
+  compatible: boolean;
+  status: string;
+  downloaded_bytes: number;
+  total_bytes: number;
+  error: string | null;
+};
+
+export type OnlineUpdateSnapshot = {
+  checked_at: number | null;
+  release_version: string | null;
+  release_notes_url: string | null;
+  panel: UpdateComponentState;
+  plugin: UpdateComponentState;
+  busy: boolean;
+  error: string | null;
+};
+
+export type UpdateProgress = {
+  component: "panel" | "plugin";
+  stage: string;
+  downloaded_bytes: number;
+  total_bytes: number;
+};
+
+export type UpdateResult = {
+  component: "panel" | "plugin";
+  version: string;
+  installed: boolean;
+  restart_required: boolean;
+  rollback_succeeded: boolean | null;
+  detail: string;
 };
 
 export type RuntimeSnapshot = {
@@ -323,4 +363,11 @@ export const api = {
   restorePayload: (csgo: string) => invoke<RestoreResult>("restore_payload", { csgo }),
   exportDiagnostics: (csgo: string | null) =>
     invoke<DiagnosticReport>("export_diagnostics", { csgo }),
+  getUpdateSnapshot: () => invoke<OnlineUpdateSnapshot>("get_update_snapshot"),
+  checkOnlineUpdates: (force: boolean) =>
+    invoke<OnlineUpdateSnapshot>("check_online_updates", { force }),
+  installPanelUpdate: () => invoke<UpdateResult>("install_panel_update"),
+  installPluginUpdate: (csgo: string) =>
+    invoke<UpdateResult>("install_plugin_update", { csgo }),
+  cancelUpdate: () => invoke<void>("cancel_update"),
 };

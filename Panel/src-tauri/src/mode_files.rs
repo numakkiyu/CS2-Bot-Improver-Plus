@@ -6,6 +6,7 @@ pub(crate) type ModeResult<T> = std::result::Result<T, String>;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum LaunchMode {
     Online,
+    Preview,
     Bots,
 }
 
@@ -13,13 +14,14 @@ impl LaunchMode {
     pub(crate) fn parse(value: Option<&str>) -> ModeResult<Self> {
         match value {
             Some("online") => Ok(Self::Online),
+            Some("preview") => Ok(Self::Preview),
             Some("bots") => Ok(Self::Bots),
             _ => Err("Select a valid game mode before launching CS2".into()),
         }
     }
 
     pub(crate) fn insecure(self) -> bool {
-        self == Self::Bots
+        self != Self::Online
     }
 }
 
@@ -121,7 +123,7 @@ pub(crate) fn apply_launch_mode(root: &Path, mode: LaunchMode) -> ModeResult<()>
                 .into(),
         );
     }
-    if mode == LaunchMode::Bots && !contains_metamod_search_path(&installed) {
+    if mode != LaunchMode::Online && !contains_metamod_search_path(&installed) {
         return Err(
             "Enhanced bots were not enabled because active gameinfo.gi does not load Metamod"
                 .into(),

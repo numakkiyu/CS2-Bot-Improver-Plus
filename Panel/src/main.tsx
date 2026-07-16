@@ -74,10 +74,6 @@ async function fitWindowToScreen() {
   reveal();
 }
 
-fitWindowToScreen();
-// Safety net: never leave the window hidden if sizing hangs or is denied.
-setTimeout(reveal, 1200);
-
 // Disable every right-click menu (native and custom). On some machines the
 // custom menu's scrim could trap pointer events ("window looks frozen until you
 // left-click"); suppressing the context menu entirely removes that class of bug.
@@ -119,4 +115,15 @@ async function bootstrap() {
   );
 }
 
-void bootstrap();
+async function start() {
+  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get("fixture") === "updates") {
+    const { installDevFixture } = await import("./devFixture");
+    installDevFixture();
+  }
+  void fitWindowToScreen();
+  // Safety net: never leave the window hidden if sizing hangs or is denied.
+  setTimeout(reveal, 1200);
+  await bootstrap();
+}
+
+void start();

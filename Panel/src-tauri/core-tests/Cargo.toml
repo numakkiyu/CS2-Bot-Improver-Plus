@@ -1,6 +1,6 @@
 [package]
 name = "cs2bi-core-tests"
-version = "1.4.2+2"
+version = "1.4.2+3"
 edition = "2024"
 publish = false
 
@@ -12,6 +12,8 @@ fs2 = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+base64 = "0.22"
+ed25519-dalek = "2"
 sysinfo = "0.33"
 zip = { version = "2.4", default-features = false, features = ["deflate"] }
 

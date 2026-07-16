@@ -15,6 +15,7 @@ export default function ModeCard() {
   const [pending, setPending] = useState<GameMode | null>(null);
   const OPTIONS: { value: GameMode; label: string }[] = [
     { value: "online", label: t("mode.online") },
+    { value: "preview", label: t("mode.preview") },
     { value: "bots", label: t("mode.bot") },
   ];
 
@@ -33,7 +34,7 @@ export default function ModeCard() {
     const info = await applyMode(m);
     setPending(null);
     if (!info) return;
-    toast.show(m === "bots" ? "-insecure on" : "-insecure off", "green");
+    toast.show(m === "online" ? "-insecure off" : "-insecure on", "green");
   };
 
   const launch = async () => {
@@ -58,7 +59,11 @@ export default function ModeCard() {
         }))}
       />
       <button className="mode__launch" disabled={!csgoPath} onClick={launch}>
-        {current === "online" ? t("mode.launchOnline") : t("mode.launchBots")}
+        {current === "online"
+          ? t("mode.launchOnline")
+          : current === "preview"
+            ? t("mode.launchPreview")
+            : t("mode.launchBots")}
       </button>
     </Card>
   );

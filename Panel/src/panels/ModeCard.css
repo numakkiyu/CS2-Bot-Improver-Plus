@@ -19,3 +19,7 @@
 .mode__launch:disabled {
   opacity: 0.45;
 }
+
+@media (max-width: 900px) {
+  .mode__launch { font-size: 13px; }
+}

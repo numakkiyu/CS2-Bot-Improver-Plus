@@ -9,9 +9,10 @@ type Props = {
   children: ReactNode;
   footer?: ReactNode;
   width?: number;
+  scrimClassName?: string;
 };
 
-export default function Modal({ open, title, onClose, children, footer, width = 360 }: Props) {
+export default function Modal({ open, title, onClose, children, footer, width = 360, scrimClassName }: Props) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -21,7 +22,7 @@ export default function Modal({ open, title, onClose, children, footer, width = 
 
   if (!open) return null;
   return (
-    <div className="modal__scrim" onMouseDown={onClose}>
+    <div className={`modal__scrim${scrimClassName ? ` ${scrimClassName}` : ""}`} onMouseDown={onClose}>
       <div
         className="modal glass glass-strong"
         style={{ maxWidth: width }}

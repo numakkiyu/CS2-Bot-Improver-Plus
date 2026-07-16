@@ -1,6 +1,6 @@
 [package]
 name = "cs2-bot-improver-plus-panel"
-version = "1.4.2+2"
+version = "1.4.2+3"
 description = "CS2BotImproverPlus Panel"
 authors = ["ed0ard", "CS2BotImproverPlus contributors"]
 edition = "2024"
@@ -18,8 +18,11 @@ tauri-build = { version = "2.5.3", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+base64 = "0.22"
+ed25519-dalek = "2"
 fs2 = "0.4"
 sysinfo = "0.33"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 tauri = { version = "2.11.2", features = [] }
 tauri-plugin-clipboard-manager = "2.3.2"
 tauri-plugin-dialog = "2.7.1"
@@ -29,4 +32,4 @@ zip = { version = "2.4", default-features = false, features = ["deflate"] }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"
-windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem"] }
+windows-sys = { version = "0.59", features = ["Win32_Storage_FileSystem", "Win32_System_Threading"] }

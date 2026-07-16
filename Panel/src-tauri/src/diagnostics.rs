@@ -166,7 +166,7 @@ pub fn export(state_root: &Path, csgo: Option<&Path>, snapshot: &serde_json::Val
 
     collector.add_json("report/runtime-snapshot.json", snapshot)?;
     collector.add_json("report/system.json", &serde_json::json!({
-        "panel_version": "1.4.2.2",
+        "panel_version": "1.4.2.3",
         "generated_at_unix": timestamp,
         "os": std::env::consts::OS,
         "architecture": std::env::consts::ARCH,
