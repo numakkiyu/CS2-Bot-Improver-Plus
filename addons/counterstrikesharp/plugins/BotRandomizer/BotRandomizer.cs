@@ -1,6 +1,8 @@
 using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
@@ -24,6 +26,7 @@ public class BotRandomizerPlugin : BasePlugin
     private readonly Dictionary<int, int> _botKnives = new();
     private readonly Dictionary<int, int> _botKnifePaints = new();
     private readonly Dictionary<int, int> _botGloves = new();
+    private BotRandomizerOptions _options = new();
 
     private MemoryFunctionVoid<nint, string, float>? _setAttrByName;
     private ulong _nextItemId = 0xF00DCAFE;
@@ -284,6 +287,7 @@ public class BotRandomizerPlugin : BasePlugin
     {
         // Avoid generating too many logs
         _skinErrorLogged = false;
+        LoadOptions();
         LoadLegacyPaints();
 
         try
@@ -307,8 +311,11 @@ public class BotRandomizerPlugin : BasePlugin
             _botKnifePaints.Clear();
             _botGloves.Clear();
             _botGunPaints.Clear();
-            foreach (var m in CtModels) Server.PrecacheModel(m);
-            foreach (var m in TModels) Server.PrecacheModel(m);
+            if (_options.Agents)
+            {
+                foreach (var m in CtModels) Server.PrecacheModel(m);
+                foreach (var m in TModels) Server.PrecacheModel(m);
+            }
         });
 
         RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
@@ -345,50 +352,59 @@ public class BotRandomizerPlugin : BasePlugin
             && (CsTeam)player.TeamNum != CsTeam.Terrorist)
             return HookResult.Continue;
 
-        if (!_botModels.TryGetValue(player.Slot, out string? model))
+        if (!_options.Agents && !_options.Skins && !_options.Music)
+            return HookResult.Continue;
+
+        if (_options.Agents && !_botModels.TryGetValue(player.Slot, out _))
         {
             string[] pool = (CsTeam)player.TeamNum == CsTeam.CounterTerrorist ? CtModels : TModels;
-            model = pool[_rng.Next(pool.Length)];
-            _botModels[player.Slot] = model;
+            _botModels[player.Slot] = pool[_rng.Next(pool.Length)];
         }
 
-        if (!_botKits.ContainsKey(player.Slot))
+        if (_options.Music && !_botKits.ContainsKey(player.Slot))
             _botKits[player.Slot] = KitIds[_rng.Next(KitIds.Length)];
 
-        if (!_botKnives.ContainsKey(player.Slot))
+        if (_options.Skins && !_botKnives.ContainsKey(player.Slot))
             _botKnives[player.Slot] = _rng.Next(Knives.Length);
 
-        if (!_botKnifePaints.ContainsKey(player.Slot))
+        if (_options.Skins && !_botKnifePaints.ContainsKey(player.Slot))
             _botKnifePaints[player.Slot] = KnifePaints[_rng.Next(KnifePaints.Length)];
 
-        if (!_botGloves.ContainsKey(player.Slot))
+        if (_options.Skins && !_botGloves.ContainsKey(player.Slot))
             _botGloves[player.Slot] = _rng.Next(Gloves.Length);
 
         var pawn = player.PlayerPawn.Value;
-        var assignedModel = model;
-        var kitId = _botKits[player.Slot];
-        var knife = Knives[_botKnives[player.Slot]];
-        var knifePaint = _botKnifePaints[player.Slot];
-        var glove = Gloves[_botGloves[player.Slot]];
+        var assignedModel = _options.Agents ? _botModels[player.Slot] : null;
+        var kitId = _options.Music ? _botKits[player.Slot] : 0;
+        var knife = _options.Skins ? Knives[_botKnives[player.Slot]] : default;
+        var knifePaint = _options.Skins ? _botKnifePaints[player.Slot] : 0;
+        var glove = _options.Skins ? Gloves[_botGloves[player.Slot]] : default;
 
         Server.NextFrame(() =>
         {
             if (pawn == null || !pawn.IsValid) return;
 
-            pawn.SetModel(assignedModel);
-            Utilities.SetStateChanged(pawn, "CBaseEntity", "m_CBodyComponent");
+            if (_options.Agents && assignedModel != null)
+            {
+                pawn.SetModel(assignedModel);
+                Utilities.SetStateChanged(pawn, "CBaseEntity", "m_CBodyComponent");
 
-            var c = pawn.Render;
-            pawn.Render = Color.FromArgb(255, c.R, c.G, c.B);
-            Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_clrRender");
+                var c = pawn.Render;
+                pawn.Render = Color.FromArgb(255, c.R, c.G, c.B);
+                Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_clrRender");
+            }
 
             if (player == null || !player.IsValid) return;
 
-            ApplyMusicKit(player, kitId, 0);
+            if (_options.Music)
+                ApplyMusicKit(player, kitId, 0);
 
-            ApplyWearables(player, pawn, knife.DefIndex, knifePaint, glove.DefIndex, glove.PaintKit);
-            AddTimer(0.10f, () => ApplyWearables(player, pawn, knife.DefIndex, knifePaint, glove.DefIndex, glove.PaintKit));
-            AddTimer(0.25f, () => ApplyWearables(player, pawn, knife.DefIndex, knifePaint, glove.DefIndex, glove.PaintKit));
+            if (_options.Skins)
+            {
+                ApplyWearables(player, pawn, knife.DefIndex, knifePaint, glove.DefIndex, glove.PaintKit);
+                AddTimer(0.10f, () => ApplyWearables(player, pawn, knife.DefIndex, knifePaint, glove.DefIndex, glove.PaintKit));
+                AddTimer(0.25f, () => ApplyWearables(player, pawn, knife.DefIndex, knifePaint, glove.DefIndex, glove.PaintKit));
+            }
         });
 
         return HookResult.Continue;
@@ -409,7 +425,7 @@ public class BotRandomizerPlugin : BasePlugin
     // The skin is applied twice: once immediately, and once on the next frame.
     private HookResult OnGiveNamedItemPost(DynamicHook hook)
     {
-        if (_setAttrByName == null)
+        if (!_options.Skins || _setAttrByName == null)
             return HookResult.Continue;
 
         try
@@ -625,6 +641,27 @@ public class BotRandomizerPlugin : BasePlugin
         }
     }
 
+    private void LoadOptions()
+    {
+        var path = Path.Combine(ModuleDirectory, "bot_randomizer_options.json");
+        try
+        {
+            if (!File.Exists(path))
+            {
+                _options = new BotRandomizerOptions();
+                return;
+            }
+
+            _options = JsonSerializer.Deserialize<BotRandomizerOptions>(File.ReadAllText(path))
+                ?? new BotRandomizerOptions();
+        }
+        catch (Exception ex)
+        {
+            _options = new BotRandomizerOptions();
+            Logger.LogError("[BotRandomizer] Options load failed; legacy defaults retained: {Message}", ex.Message);
+        }
+    }
+
     private void AssignItemId(CEconItemView item)
     {
         var id = unchecked(_nextItemId++);
@@ -678,6 +715,9 @@ public class BotRandomizerPlugin : BasePlugin
     [GameEventHandler]
     public HookResult OnItemPickup(EventItemPickup @event, GameEventInfo info)
     {
+        if (!_options.Skins)
+            return HookResult.Continue;
+
         var player = @event.Userid;
         if (player == null || !player.IsValid || !player.IsBot)
             return HookResult.Continue;
@@ -764,6 +804,9 @@ public class BotRandomizerPlugin : BasePlugin
     [GameEventHandler(HookMode.Pre)]
     public HookResult OnRoundMvp(EventRoundMvp @event, GameEventInfo info)
     {
+        if (!_options.Music)
+            return HookResult.Continue;
+
         var player = @event.Userid;
 
         if (player == null || !player.IsValid || !player.IsBot)
@@ -797,4 +840,19 @@ public class BotRandomizerPlugin : BasePlugin
         player.MvpNoMusic = false;
         Utilities.SetStateChanged(player, "CCSPlayerController", "m_bMvpNoMusic");
     }
+}
+
+public sealed class BotRandomizerOptions
+{
+    [JsonPropertyName("skins")]
+    public bool Skins { get; set; } = true;
+
+    [JsonPropertyName("profiles")]
+    public bool Profiles { get; set; } = true;
+
+    [JsonPropertyName("agents")]
+    public bool Agents { get; set; } = true;
+
+    [JsonPropertyName("music")]
+    public bool Music { get; set; } = true;
 }

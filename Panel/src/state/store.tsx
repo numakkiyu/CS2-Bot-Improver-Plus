@@ -71,6 +71,7 @@ type Store = {
   installPayload: () => Promise<InstallTransactionResult | null>;
   repairPayload: () => Promise<InstallTransactionResult | null>;
   restorePayload: () => Promise<RestoreResult | null>;
+  restorePristineCs2: () => Promise<RestoreResult | null>;
   exportDiagnostics: () => Promise<DiagnosticReport | null>;
   applyDifficulty: (level: DifficultyLevel) => Promise<DifficultyInfo | null>;
   applyMode: (mode: GameMode) => Promise<ModeInfo | null>;
@@ -456,6 +457,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     } catch (e) { reportError(e); return null; }
   }, [directory, refreshAll, reportError]);
 
+  const restorePristineCs2 = useCallback(async () => {
+    const csgo = directory?.valid ? directory.selected : null;
+    if (!csgo) return null;
+    try {
+      const result = await api.restorePristineCs2(csgo);
+      await refreshAll();
+      return result;
+    } catch (e) { reportError(e); return null; }
+  }, [directory, refreshAll, reportError]);
+
   const exportDiagnostics = useCallback(async () => {
     const csgo = directory?.valid ? directory.selected : null;
     try { return await api.exportDiagnostics(csgo); }
@@ -604,6 +615,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     installPayload,
     repairPayload,
     restorePayload,
+    restorePristineCs2,
     exportDiagnostics,
     applyDifficulty,
     applyMode,

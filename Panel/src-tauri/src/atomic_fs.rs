@@ -6,7 +6,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(1);
 
 pub fn temporary_path(destination: &Path) -> io::Result<PathBuf> {
-    let file_name = destination.file_name()
+    let file_name = destination
+        .file_name()
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "destination has no file name"))?
         .to_string_lossy();
     let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
@@ -17,16 +18,23 @@ pub fn temporary_path(destination: &Path) -> io::Result<PathBuf> {
 }
 
 pub fn write_replace(destination: &Path, bytes: &[u8]) -> io::Result<()> {
-    if let Some(parent) = destination.parent() { fs::create_dir_all(parent)?; }
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent)?;
+    }
     let temporary = temporary_path(destination)?;
     let result = (|| {
-        let mut file = OpenOptions::new().write(true).create_new(true).open(&temporary)?;
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)?;
         file.write_all(bytes)?;
         file.sync_all()?;
         drop(file);
         replace(&temporary, destination)
     })();
-    if result.is_err() { let _ = fs::remove_file(&temporary); }
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
     result
 }
 
@@ -41,12 +49,28 @@ pub fn replace(temporary: &Path, destination: &Path) -> io::Result<()> {
         MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH, MoveFileExW,
     };
 
-    let source = temporary.as_os_str().encode_wide().chain(Some(0)).collect::<Vec<_>>();
-    let target = destination.as_os_str().encode_wide().chain(Some(0)).collect::<Vec<_>>();
+    let source = temporary
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
+    let target = destination
+        .as_os_str()
+        .encode_wide()
+        .chain(Some(0))
+        .collect::<Vec<_>>();
     let result = unsafe {
-        MoveFileExW(source.as_ptr(), target.as_ptr(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)
+        MoveFileExW(
+            source.as_ptr(),
+            target.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
     };
-    if result == 0 { Err(io::Error::last_os_error()) } else { Ok(()) }
+    if result == 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
 }
 
 #[cfg(not(windows))]

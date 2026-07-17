@@ -204,6 +204,8 @@ foreach ($plugin in $upstreamPluginBuilds) {
     }
     Copy-Tree $build (Join-Path $payload "addons\counterstrikesharp\plugins\$($plugin.Name)")
 }
+Copy-Item -LiteralPath (Join-Path $repo "addons\counterstrikesharp\plugins\BotRandomizer\bot_randomizer_options.json") `
+    -Destination (Join-Path $payload "addons\counterstrikesharp\plugins\BotRandomizer\bot_randomizer_options.json") -Force
 Copy-Tree $pluginBuild (Join-Path $payload "addons\counterstrikesharp\plugins\PlayerKnifeCustomizer")
 Copy-Tree $botImplBuild (Join-Path $payload "addons\counterstrikesharp\plugins\BotHiderImpl")
 Copy-Tree $botApiBuild (Join-Path $payload "addons\counterstrikesharp\shared\BotHiderApi")
@@ -260,7 +262,12 @@ $manifestEntries = foreach ($topLevel in @("addons", "cfg", "overrides")) {
         elseif ($relative -like "overrides/*") { "overrides" }
         else { "runtime" }
         $preserveConfig = $relative -like "*/PlayerKnifeCustomizer/player_*_presets.json" -or
-            $relative -in @("cfg/my_bot_ffa_config.cfg", "cfg/my_bot_normal_config.cfg")
+            $relative -in @(
+                "addons/counterstrikesharp/plugins/BotRandomizer/bot_randomizer_options.json",
+                "cfg/my_bot_ffa_config.cfg",
+                "cfg/my_bot_normal_config.cfg",
+                "overrides/botprofile.vpk"
+            )
         [ordered]@{
             path = $relative
             size = $file.Length

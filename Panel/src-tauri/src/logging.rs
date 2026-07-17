@@ -20,7 +20,10 @@ struct LogEntry<'a> {
 }
 
 fn now_ms() -> u128 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
 }
 
 fn log_dir(root: &Path) -> PathBuf {
@@ -33,7 +36,11 @@ fn active_log(root: &Path) -> PathBuf {
 
 fn rotate_if_needed(root: &Path) -> std::io::Result<bool> {
     let active = active_log(root);
-    if fs::metadata(&active).map(|metadata| metadata.len()).unwrap_or(0) < MAX_ACTIVE_BYTES {
+    if fs::metadata(&active)
+        .map(|metadata| metadata.len())
+        .unwrap_or(0)
+        < MAX_ACTIVE_BYTES
+    {
         return Ok(false);
     }
     let rotated = log_dir(root).join(format!("panel-{}.jsonl", now_ms()));
@@ -42,21 +49,42 @@ fn rotate_if_needed(root: &Path) -> std::io::Result<bool> {
 }
 
 pub fn append(root: &Path, level: &str, event: &str, detail: &str) {
-    let Ok(_guard) = LOG_LOCK.lock() else { return; };
+    let Ok(_guard) = LOG_LOCK.lock() else {
+        return;
+    };
     let directory = log_dir(root);
-    if fs::create_dir_all(&directory).is_err() { return; }
-    let Ok(rotated) = rotate_if_needed(root) else { return; };
-    let entry = LogEntry { timestamp_unix_ms: now_ms(), level, event, detail };
-    let Ok(mut line) = serde_json::to_vec(&entry) else { return; };
+    if fs::create_dir_all(&directory).is_err() {
+        return;
+    }
+    let Ok(rotated) = rotate_if_needed(root) else {
+        return;
+    };
+    let entry = LogEntry {
+        timestamp_unix_ms: now_ms(),
+        level,
+        event,
+        detail,
+    };
+    let Ok(mut line) = serde_json::to_vec(&entry) else {
+        return;
+    };
     line.push(b'\n');
-    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(active_log(root)) {
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(active_log(root))
+    {
         let _ = file.write_all(&line);
     }
-    if rotated { let _ = cleanup_unlocked(root); }
+    if rotated {
+        let _ = cleanup_unlocked(root);
+    }
 }
 
 pub fn cleanup(root: &Path) -> std::io::Result<usize> {
-    let _guard = LOG_LOCK.lock().map_err(|_| std::io::Error::other("log lock poisoned"))?;
+    let _guard = LOG_LOCK
+        .lock()
+        .map_err(|_| std::io::Error::other("log lock poisoned"))?;
     cleanup_unlocked(root)
 }
 
@@ -65,17 +93,25 @@ fn cleanup_unlocked(root: &Path) -> std::io::Result<usize> {
     fs::create_dir_all(&directory)?;
     let now = SystemTime::now();
     let active = active_log(root);
-    let active_size = fs::metadata(&active).map(|metadata| metadata.len()).unwrap_or(0);
+    let active_size = fs::metadata(&active)
+        .map(|metadata| metadata.len())
+        .unwrap_or(0);
     let active_files = usize::from(active.is_file());
     let mut removed = 0;
     let mut files = Vec::new();
     for entry in fs::read_dir(&directory)?.flatten() {
         let path = entry.path();
-        let Ok(metadata) = entry.metadata() else { continue; };
-        if !metadata.is_file() || path == active { continue; }
+        let Ok(metadata) = entry.metadata() else {
+            continue;
+        };
+        if !metadata.is_file() || path == active {
+            continue;
+        }
         let modified = metadata.modified().unwrap_or(UNIX_EPOCH);
         if now.duration_since(modified).unwrap_or_default() > RETENTION {
-            if fs::remove_file(&path).is_ok() { removed += 1; }
+            if fs::remove_file(&path).is_ok() {
+                removed += 1;
+            }
         } else {
             files.push((modified, metadata.len(), path));
         }
@@ -122,7 +158,11 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
 
         fn recent_count(directory: &Path) -> usize {
-            fs::read_dir(directory).unwrap().flatten().filter(|entry| entry.path().is_file()).count()
+            fs::read_dir(directory)
+                .unwrap()
+                .flatten()
+                .filter(|entry| entry.path().is_file())
+                .count()
         }
     }
 
@@ -136,7 +176,10 @@ mod tests {
             fs::write(directory.join(format!("panel-{index:02}.jsonl")), b"old").unwrap();
         }
         assert_eq!(cleanup(&root).unwrap(), 1);
-        assert_eq!(fs::read_dir(&directory).unwrap().flatten().count(), MAX_FILES);
+        assert_eq!(
+            fs::read_dir(&directory).unwrap().flatten().count(),
+            MAX_FILES
+        );
         assert!(active_log(&root).is_file());
         fs::remove_dir_all(root).unwrap();
     }

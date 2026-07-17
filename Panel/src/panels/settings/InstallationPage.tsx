@@ -1,19 +1,45 @@
 import { useState } from "react";
-import { openPath, openUrl } from "@tauri-apps/plugin-opener";
-import { ArchiveRestore, FileCheck2, FolderOpen, RefreshCw, Stethoscope, Wrench } from "lucide-react";
+import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { ArchiveRestore, FileCheck2, FolderOpen, RefreshCw, Stethoscope, Trash2, Wrench } from "lucide-react";
 import { useStore } from "../../state/store";
-import { useT } from "../../i18n";
+import { useT, type I18nKey } from "../../i18n";
 import { useToast } from "../../components/Toast";
+import type { InstallationSource, MigrationKind } from "../../lib/api";
+
+const SOURCE_KEYS: Record<InstallationSource, I18nKey> = {
+  clean: "install.source.clean",
+  managed_plus: "install.source.managed_plus",
+  legacy_plus: "install.source.legacy_plus",
+  upstream: "install.source.upstream",
+  mixed_unknown: "install.source.mixed_unknown",
+};
+
+const SOURCE_DESC_KEYS: Record<InstallationSource, I18nKey> = {
+  clean: "install.sourceDesc.clean",
+  managed_plus: "install.sourceDesc.managed_plus",
+  legacy_plus: "install.sourceDesc.legacy_plus",
+  upstream: "install.sourceDesc.upstream",
+  mixed_unknown: "install.sourceDesc.mixed_unknown",
+};
+
+const ACTION_KEYS: Record<MigrationKind, I18nKey> = {
+  fresh_install: "install.action.fresh_install",
+  managed_upgrade: "install.action.managed_upgrade",
+  adopt_legacy_plus: "install.action.adopt_legacy_plus",
+  replace_upstream: "install.action.replace_upstream",
+  blocked: "install.action.blocked",
+};
 
 export default function InstallationPage() {
   const {
     csgoPath, installation, process, verifyInstallation, installPayload, repairPayload,
-    restorePayload, exportDiagnostics, reportError,
+    restorePayload, restorePristineCs2, exportDiagnostics, reportError,
   } = useStore();
   const t = useT();
   const toast = useToast();
   const [working, setWorking] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
+  const [diagnosticPath, setDiagnosticPath] = useState<string | null>(null);
   const damaged = (installation?.missing.length ?? 0) + (installation?.corrupt.length ?? 0);
   const blocked = !!process?.running && (process.matches_selected || !process.path_accessible);
 
@@ -34,10 +60,28 @@ export default function InstallationPage() {
     });
   };
 
+  const pristine = async () => {
+    if (!window.confirm(t("install.confirmPristine"))) return;
+    await run("pristine", async () => {
+      const result = await restorePristineCs2();
+      if (result) {
+        setRestored(true);
+        toast.show(t("install.pristineDone"), "green");
+      }
+    });
+  };
+
   const diagnostics = async () => {
     await run("diagnostics", async () => {
       const result = await exportDiagnostics();
-      if (result) toast.show(t("install.exported", { path: result.path }), "green");
+      if (!result) return;
+      toast.show(t("install.exported", { path: result.path }), "green");
+      try {
+        await revealItemInDir(result.path);
+        setDiagnosticPath(null);
+      } catch {
+        setDiagnosticPath(result.path);
+      }
     });
   };
 
@@ -62,6 +106,12 @@ export default function InstallationPage() {
             </span>
           </div>
         )}
+        {installation && (
+          <div className={`install-source install-source--${installation.source}`}>
+            <span><small>{t("install.source")}</small><strong>{t(SOURCE_KEYS[installation.source])}</strong></span>
+            <p>{t(SOURCE_DESC_KEYS[installation.source])}</p>
+          </div>
+        )}
         {installation?.backup_path && (
           <button className="installation-path" onClick={() => open(installation.backup_path!)}>
             <FolderOpen size={16} /><span><small>{t("install.backup")}</small>{installation.backup_path}</span>
@@ -73,10 +123,10 @@ export default function InstallationPage() {
         <button disabled={!csgoPath || !!working} onClick={() => run("verify", verifyInstallation)}>
           <RefreshCw size={17} />{working === "verify" ? t("install.working") : t("install.verify")}
         </button>
-        {!installation?.installed && (
+        {!installation?.installed && installation?.can_install && (
           <button className="is-primary" disabled={!csgoPath || blocked || !!working}
             onClick={() => run("install", installPayload)}>
-            <FileCheck2 size={17} />{working === "install" ? t("install.working") : t("install.install")}
+            <FileCheck2 size={17} />{working === "install" ? t("install.working") : t(ACTION_KEYS[installation.migration_kind])}
           </button>
         )}
         {installation?.installed && (
@@ -84,13 +134,24 @@ export default function InstallationPage() {
             <Wrench size={17} />{working === "repair" ? t("install.working") : t("install.repair")}
           </button>
         )}
-        <button disabled={!installation?.installed || blocked || !!working} onClick={restore}>
-          <ArchiveRestore size={17} />{working === "restore" ? t("install.working") : t("install.restore")}
+        <button disabled={!installation?.restore_available || blocked || !!working} onClick={restore}>
+          <ArchiveRestore size={17} />{working === "restore" ? t("install.working") :
+            t(installation?.restore_baseline === "pre_migration" ? "install.restorePrevious" : "install.restore")}
+        </button>
+        <button className="is-danger"
+          disabled={!csgoPath || installation?.source === "clean" || blocked || !!working} onClick={pristine}>
+          <Trash2 size={17} />{working === "pristine" ? t("install.working") : t("install.pristine")}
         </button>
         <button disabled={!!working} onClick={diagnostics}>
           <Stethoscope size={17} />{working === "diagnostics" ? t("install.working") : t("install.diagnostics")}
         </button>
       </div>
+
+      {diagnosticPath && (
+        <button className="installation-path" onClick={() => open(diagnosticPath.replace(/[\\/][^\\/]+$/, ""))}>
+          <FolderOpen size={16} /><span><small>{t("install.openDiagnosticFolder")}</small>{diagnosticPath}</span>
+        </button>
+      )}
 
       {restored && (
         <button className="steam-verify" onClick={() => openUrl("steam://validate/730")}>

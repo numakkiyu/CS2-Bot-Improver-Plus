@@ -46,6 +46,19 @@
   letter-spacing: 0.5px;
 }
 
+.errm__diagnostic {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--c-blue);
+}
+
 .errm__export {
   display: inline-flex;
   align-items: center;

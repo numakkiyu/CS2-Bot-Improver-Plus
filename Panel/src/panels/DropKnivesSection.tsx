@@ -28,7 +28,8 @@ export default function DropKnivesSection() {
   const selected = new Set(dropKnives?.selected ?? []);
   const cfgPresent = dropKnives?.cfg_present ?? false;
   const running = dropKnives?.cs2_running ?? false;
-  const disabled = !csgoPath || !cfgPresent;
+  const bindDisabled = !csgoPath || !cfgPresent;
+  const cosmeticsDisabled = !csgoPath;
 
   // Yellow only if Drop Knives was changed while CS2 is running (pending restart).
   const status: Status =
@@ -50,7 +51,7 @@ export default function DropKnivesSection() {
   }, [capturing]);
 
   const toggle = (id: number) => {
-    if (disabled) return;
+    if (bindDisabled) return;
     const next = new Set(selected);
     if (next.has(id)) next.delete(id);
     else next.add(id);
@@ -68,7 +69,7 @@ export default function DropKnivesSection() {
         <span className="dk__bind-label">{t("pre.bind")}</span>
         <button
           className={`dk__bind-box ${capturing ? "is-capturing" : ""}`}
-          disabled={disabled}
+          disabled={bindDisabled}
           onClick={() => setCapturing(true)}
           title={t("cosmetics.keyHint")}
         >
@@ -76,7 +77,7 @@ export default function DropKnivesSection() {
         </button>
       </div>
 
-      <div className={`dk__grid ${disabled ? "is-disabled" : ""}`}>
+      <div className="dk__grid">
         {KNIFE_ICONS.map((k) => (
           <button
             key={k.id}
@@ -84,9 +85,9 @@ export default function DropKnivesSection() {
             onClick={() => toggle(k.id)}
             onContextMenu={(event) => {
               event.preventDefault();
-              if (!disabled) setEditingKnife(k);
+              if (!cosmeticsDisabled) setEditingKnife(k);
             }}
-            disabled={disabled}
+            disabled={cosmeticsDisabled}
             title={`${itemName(localizedSkinName(appConfig?.language, k.id, 0, `Knife ${k.id}`))} · ${t("cosmetics.leftRight")}`}
             aria-pressed={selected.has(k.id)}
           >
@@ -100,9 +101,9 @@ export default function DropKnivesSection() {
       </div>
       <button
         className={`dk__glove ${ctLoadout?.glove?.enabled || tLoadout?.glove?.enabled ? "is-selected" : ""}`}
-        disabled={disabled}
+        disabled={cosmeticsDisabled}
         onClick={() => setEditingGlove(true)}
-        onContextMenu={(event) => { event.preventDefault(); if (!disabled) setEditingGlove(true); }}
+        onContextMenu={(event) => { event.preventDefault(); if (!cosmeticsDisabled) setEditingGlove(true); }}
         title={t("cosmetics.gloveOpen")}
       >
         <span className="dk__glove-label">{t("cosmetics.playerGloves")}</span>

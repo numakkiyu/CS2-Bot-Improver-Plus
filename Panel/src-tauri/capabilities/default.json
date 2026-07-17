@@ -16,6 +16,7 @@
     "core:webview:allow-set-webview-zoom",
     "clipboard-manager:allow-write-text",
     "dialog:default",
-    "opener:default"
+    "opener:default",
+    "opener:allow-open-path"
   ]
 }

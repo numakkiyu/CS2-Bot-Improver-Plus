@@ -85,6 +85,26 @@ export type Cs2ProcessInfo = {
   matches_selected: boolean;
 };
 
+export type InstallationSource =
+  | "clean"
+  | "managed_plus"
+  | "legacy_plus"
+  | "upstream"
+  | "mixed_unknown";
+
+export type MigrationKind =
+  | "fresh_install"
+  | "managed_upgrade"
+  | "adopt_legacy_plus"
+  | "replace_upstream"
+  | "blocked";
+
+export type RestoreBaseline =
+  | "steam_original"
+  | "pre_migration"
+  | "existing_record"
+  | "none";
+
 export type InstallationInspection = {
   installed: boolean;
   package_version: string | null;
@@ -96,6 +116,12 @@ export type InstallationInspection = {
   restore_available: boolean;
   backup_path: string | null;
   interrupted_transaction: boolean;
+  source: InstallationSource;
+  source_version: string | null;
+  source_evidence: string[];
+  migration_kind: MigrationKind;
+  restore_baseline: RestoreBaseline;
+  can_install: boolean;
 };
 
 export type InstallPlan = {
@@ -110,6 +136,12 @@ export type InstallPlan = {
   required_backup_bytes: number;
   available_backup_bytes: number;
   writable: boolean;
+  source: InstallationSource;
+  source_version: string | null;
+  source_evidence: string[];
+  migration_kind: MigrationKind;
+  restore_baseline: RestoreBaseline;
+  can_install: boolean;
 };
 
 export type InstallTransactionResult = {
@@ -125,6 +157,7 @@ export type RestoreResult = {
   preserved_files: number;
   presets_backup: string | null;
   steam_verify_uri: string;
+  result_kind: "restore_previous" | "pristine";
 };
 
 export type DiagnosticReport = {
@@ -361,6 +394,7 @@ export const api = {
   repairPayload: (csgo: string) =>
     invoke<InstallTransactionResult>("repair_payload", { csgo }),
   restorePayload: (csgo: string) => invoke<RestoreResult>("restore_payload", { csgo }),
+  restorePristineCs2: (csgo: string) => invoke<RestoreResult>("restore_pristine_cs2", { csgo }),
   exportDiagnostics: (csgo: string | null) =>
     invoke<DiagnosticReport>("export_diagnostics", { csgo }),
   getUpdateSnapshot: () => invoke<OnlineUpdateSnapshot>("get_update_snapshot"),

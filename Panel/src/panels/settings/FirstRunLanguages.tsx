@@ -3,12 +3,36 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { CheckCircle2, FolderSearch, ShieldCheck } from "lucide-react";
 import { useStore } from "../../state/store";
 import { LANGUAGES } from "../../data/languages";
-import { useT } from "../../i18n";
-import type { InstallPlan } from "../../lib/api";
+import { useT, type I18nKey } from "../../i18n";
+import type { InstallationSource, InstallPlan, MigrationKind } from "../../lib/api";
 import StatusDot from "../../components/StatusDot";
 import "./settings.css";
 
 type Step = "language" | "directory" | "preview" | "complete";
+
+const SOURCE_KEYS: Record<InstallationSource, I18nKey> = {
+  clean: "install.source.clean",
+  managed_plus: "install.source.managed_plus",
+  legacy_plus: "install.source.legacy_plus",
+  upstream: "install.source.upstream",
+  mixed_unknown: "install.source.mixed_unknown",
+};
+
+const SOURCE_DESC_KEYS: Record<InstallationSource, I18nKey> = {
+  clean: "install.sourceDesc.clean",
+  managed_plus: "install.sourceDesc.managed_plus",
+  legacy_plus: "install.sourceDesc.legacy_plus",
+  upstream: "install.sourceDesc.upstream",
+  mixed_unknown: "install.sourceDesc.mixed_unknown",
+};
+
+const ACTION_KEYS: Record<MigrationKind, I18nKey> = {
+  fresh_install: "install.action.fresh_install",
+  managed_upgrade: "install.action.managed_upgrade",
+  adopt_legacy_plus: "install.action.adopt_legacy_plus",
+  replace_upstream: "install.action.replace_upstream",
+  blocked: "install.action.blocked",
+};
 
 export default function FirstRunLanguages() {
   const {
@@ -59,6 +83,7 @@ export default function FirstRunLanguages() {
   };
 
   const install = async () => {
+    if (working) return;
     setWorking(true);
     try {
       const result = await installPayload();
@@ -114,15 +139,25 @@ export default function FirstRunLanguages() {
             <h2>{t("first.preview")}</h2><p>{t("first.previewDesc")}</p>
           </span></div>
           {plan && <div className="install-preview">
+            <div className={`install-source install-source--${plan.source}`}>
+              <span><small>{t("install.source")}</small><strong>{t(SOURCE_KEYS[plan.source])}</strong></span>
+              <p>{t(SOURCE_DESC_KEYS[plan.source])}</p>
+            </div>
             <span><small>{t("install.target")}</small><strong>{plan.target}</strong></span>
             <div><b>{t("install.files", { n: plan.total_files })}</b><b>{t("install.newFiles", { n: plan.new_files })}</b><b>{t("install.overwritten", { n: plan.overwritten_files })}</b></div>
             <span><small>{t("install.backup")}</small><strong>{plan.backup_path}</strong></span>
           </div>}
           <div className="firstrun__footer">
             <button onClick={() => move("directory")}>{t("first.back")}</button>
-            <button className="is-primary" disabled={!plan || working || blocked} onClick={install}>
-              {working ? t("install.working") : t("install.install")}
-            </button>
+            {plan?.can_install ? (
+              <button className="is-primary" disabled={working || blocked} onClick={install}>
+                {working ? t("install.working") : t(ACTION_KEYS[plan.migration_kind])}
+              </button>
+            ) : (
+              <button className="is-primary" disabled={working} onClick={finish}>
+                {t("first.openWithoutInstall")}
+              </button>
+            )}
           </div>
         </>}
 

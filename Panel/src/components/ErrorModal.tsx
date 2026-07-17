@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Stethoscope } from "lucide-react";
+import { FolderOpen, Stethoscope } from "lucide-react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { openPath, revealItemInDir } from "@tauri-apps/plugin-opener";
 import Modal from "./Modal";
 import { AlertIcon, CopyIcon } from "./icons";
 import { useToast } from "./Toast";
@@ -24,6 +25,7 @@ export default function ErrorModal({ error, onClose, message, onExport }: Props)
   const toast = useToast();
   const t = useT();
   const [exporting, setExporting] = useState(false);
+  const [diagnosticPath, setDiagnosticPath] = useState<string | null>(null);
   if (!error) return null;
 
   const localized = KNOWN_CATS.includes(error.category)
@@ -46,7 +48,15 @@ export default function ErrorModal({ error, onClose, message, onExport }: Props)
     setExporting(true);
     try {
       const report = await onExport();
-      if (report) toast.show(t("install.exported", { path: report.path }), "green");
+      if (report) {
+        toast.show(t("install.exported", { path: report.path }), "green");
+        try {
+          await revealItemInDir(report.path);
+          setDiagnosticPath(null);
+        } catch {
+          setDiagnosticPath(report.path);
+        }
+      }
     } finally {
       setExporting(false);
     }
@@ -74,6 +84,15 @@ export default function ErrorModal({ error, onClose, message, onExport }: Props)
     >
       <p className="errm__msg">{primaryMessage}</p>
       {showDetail && <p className="errm__detail">{error.detail}</p>}
+      {diagnosticPath && (
+        <button
+          className="errm__diagnostic"
+          onClick={() => openPath(diagnosticPath.replace(/[\\/][^\\/]+$/, ""))}
+          title={diagnosticPath}
+        >
+          <FolderOpen size={14} /> {t("install.openDiagnosticFolder")}
+        </button>
+      )}
       <button className="errm__code" onClick={copy} title={t("err.copyCode")}>
         <span className="errm__code-text">{error.code}</span>
         <CopyIcon size={14} />

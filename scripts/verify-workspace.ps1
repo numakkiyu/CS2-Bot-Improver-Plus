@@ -70,8 +70,12 @@ else {
             }
         }
     )
-    if ($changed.Count -gt 0) {
-        Add-Failure "Upstream enhanced-bot modules were modified: $($changed -join ', ')"
+    $allowedUpstreamChanges = @(
+        "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.cs"
+    )
+    $unexpectedChanges = @($changed | Where-Object { $_ -notin $allowedUpstreamChanges })
+    if ($unexpectedChanges.Count -gt 0) {
+        Add-Failure "Upstream enhanced-bot modules were modified: $($unexpectedChanges -join ', ')"
     }
 }
 
@@ -86,6 +90,8 @@ $requiredSources = @(
     "Panel/src/panels/GlovePresetModal.tsx",
     "Panel/src/panels/WeaponPresetModal.tsx",
     "Panel/src/panels/MusicKitPresetModal.tsx",
+    "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.cs",
+    "addons/counterstrikesharp/plugins/BotRandomizer/bot_randomizer_options.json",
     "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.cs",
     "addons/counterstrikesharp/plugins/BotHiderImpl/BotHiderImplPlugin.cs"
 )
@@ -265,8 +271,10 @@ if ($PackageRoot) {
             $expectedPreserveConfigs = @(
                 "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/player_knife_presets.json",
                 "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/player_gun_presets.json",
+                "addons/counterstrikesharp/plugins/BotRandomizer/bot_randomizer_options.json",
                 "cfg/my_bot_ffa_config.cfg",
-                "cfg/my_bot_normal_config.cfg"
+                "cfg/my_bot_normal_config.cfg",
+                "overrides/botprofile.vpk"
             )
             foreach ($relative in $expectedPreserveConfigs) {
                 if ($manifestPolicies[$relative] -ne "preserve-config") {

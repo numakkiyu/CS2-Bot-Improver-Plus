@@ -20,6 +20,7 @@ import PresetsPanel from "./panels/PresetsPanel";
 import BotItemsPanel from "./panels/BotItemsPanel";
 import CommandsPanel from "./panels/CommandsPanel";
 import WeaponPresetsPanel from "./panels/WeaponPresetsPanel";
+import PlusGuideArticle from "./panels/PlusGuideArticle";
 import SettingsView from "./panels/settings/SettingsView";
 import FirstRunLanguages from "./panels/settings/FirstRunLanguages";
 import { useStore } from "./state/store";
@@ -137,6 +138,7 @@ export default function App() {
                   <ExternalLink size={16} strokeWidth={1.9} />
                 </span>
               </button>
+              <PlusGuideArticle />
             </div>
           )}
         </main>

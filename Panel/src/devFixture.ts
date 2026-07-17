@@ -18,6 +18,8 @@ export function installDevFixture() {
     total: 128, healthy: 128, missing: [], corrupt: [], restore_available: true,
     backup_path: "F:\\CS2BotImproverPlus\\.csbip\\installations\\abcdef",
     interrupted_transaction: false,
+    source: "managed_plus", source_version: "1.4.2.4", source_evidence: [".csbip installation record"],
+    migration_kind: "managed_upgrade", restore_baseline: "steam_original", can_install: true,
   };
   const runtime = {
     directory: { candidates: [csgo], selected: csgo, valid: true, needs_choice: false, steam_found: true },

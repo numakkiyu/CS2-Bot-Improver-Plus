@@ -517,6 +517,21 @@
   color: var(--text-secondary);
   font-size: 10px;
 }
+.install-source {
+  display: grid;
+  gap: 6px;
+  padding: 11px 12px;
+  border-left: 3px solid var(--c-blue);
+  border-radius: var(--r-sm);
+  background: rgba(0, 122, 255, 0.07);
+}
+.install-preview > .install-source { display: grid; }
+.install-source > span { display: grid; gap: 3px; }
+.install-source strong { font-family: inherit; font-size: 12px; }
+.install-source p { margin: 0; color: var(--text-tertiary); font-size: 11px; line-height: 1.45; }
+.install-source--legacy_plus,
+.install-source--upstream { border-left-color: #b57a00; background: rgba(181, 122, 0, 0.08); }
+.install-source--mixed_unknown { border-left-color: var(--c-red); background: rgba(255, 59, 48, 0.08); }
 .firstrun__complete {
   display: grid;
   justify-items: center;
@@ -559,6 +574,11 @@
 .installation-path small { color: var(--text-tertiary); font-size: 9px; }
 .installation-path span { overflow-wrap: anywhere; font-size: 10px; }
 .installation-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.installation-actions .is-danger {
+  border-color: rgba(215, 48, 39, 0.24);
+  color: #b32d25;
+  background: rgba(255, 59, 48, 0.07);
+}
 .steam-verify { justify-self: start; }
 
 /* Online update */
