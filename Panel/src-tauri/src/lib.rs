@@ -451,7 +451,10 @@ fn validate_files_at(app: Option<&AppHandle>, root: &Path, verify_hashes: bool) 
         "addons/counterstrikesharp/plugins/BotAI/BotAI.dll", "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.dll",
         "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.dll",
         "addons/MetaMod/bin/win64/server.dll", "addons/counterstrikesharp/bin/win64/counterstrikesharp.dll"];
-    let missing: Vec<String> = required.iter().filter(|p| !root.join(p).is_file()).map(|p| p.to_string()).collect();
+    let missing: Vec<String> = required.iter().filter(|p| {
+        let canonical = root.join(p);
+        !canonical.is_file() && !mode_layout::disabled_path(&canonical).is_file()
+    }).map(|p| p.to_string()).collect();
     Ok(FilesReport { ok: missing.is_empty(), total: required.len(), present: required.len() - missing.len(), missing, misplaced: None })
 }
 
@@ -465,11 +468,29 @@ fn same_file(a: &Path, b: &Path) -> bool { fs::read(a).ok().zip(fs::read(b).ok()
 
 fn difficulty_at(root: &Path, running: bool) -> DifficultyInfo {
     let active = root.join("overrides/botprofile.vpk");
+    let selected = mode_layout::active_or_disabled(&active);
     let current = ["Low", "Medium", "High"].iter()
-        .find(|name| same_file(&active, &root.join(format!("overrides/{name}/botprofile.vpk"))))
+        .find(|name| selected.as_deref().is_some_and(|path|
+            same_file(path, &root.join(format!("overrides/{name}/botprofile.vpk")))))
         .map(|name| name.to_string());
     DifficultyInfo { current, available: vec!["Low".into(), "Medium".into(), "High".into()],
-        active_present: active.is_file(), cs2_running: running }
+        active_present: selected.is_some(), cs2_running: running }
+}
+
+fn set_difficulty_at(root: &Path, state: &Path, level: &str, running: bool) -> Result<DifficultyInfo> {
+    if !["Low", "Medium", "High"].contains(&level) {
+        return Err(AppError::invalid("Unknown difficulty"));
+    }
+    let source = root.join(format!("overrides/{level}/botprofile.vpk"));
+    let bytes = fs::read(&source).map_err(|error| AppError::payload(format!(
+        "The {level} difficulty profile is missing or unreadable ({}): {error}", source.display())))?;
+    mode_layout::write_managed_file(
+        root,
+        "overrides/botprofile.vpk",
+        &bytes,
+        mode_layout::is_preview(state, root),
+    )?;
+    Ok(difficulty_at(root, running))
 }
 
 #[tauri::command]
@@ -479,11 +500,10 @@ fn get_difficulty(csgo: String) -> Result<DifficultyInfo> {
 }
 
 #[tauri::command]
-fn set_difficulty(csgo: String, level: String) -> Result<DifficultyInfo> {
+fn set_difficulty(app: AppHandle, csgo: String, level: String) -> Result<DifficultyInfo> {
     let root = csgo_path(&csgo)?;
-    if !["Low", "Medium", "High"].contains(&level.as_str()) { return Err(AppError::invalid("Unknown difficulty")); }
-    fs::copy(root.join(format!("overrides/{level}/botprofile.vpk")), root.join("overrides/botprofile.vpk"))?;
-    get_difficulty(csgo)
+    let running = inspect_cs2_process(Some(&root)).running;
+    set_difficulty_at(&root, &local_state_root(&app)?, &level, running)
 }
 
 #[tauri::command]
@@ -1328,6 +1348,60 @@ mod tests {
     }
 
     #[test]
+    fn legacy_file_validation_accepts_preview_disabled_files() {
+        let root = test_root();
+        let active_required = [
+            "gameinfo.gi",
+            "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.dll",
+            "addons/MetaMod/bin/win64/server.dll",
+            "addons/counterstrikesharp/bin/win64/counterstrikesharp.dll",
+        ];
+        let preview_required = [
+            "cfg/my_bot_normal_config.cfg",
+            "cfg/my_bot_ffa_config.cfg",
+            "addons/counterstrikesharp/plugins/BotAI/BotAI.dll",
+            "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.dll",
+        ];
+        for relative in active_required {
+            let path = root.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"active").unwrap();
+        }
+        for relative in preview_required {
+            let path = mode_layout::disabled_path(&root.join(relative));
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"disabled").unwrap();
+        }
+
+        let report = validate_files_at(None, &root, false).unwrap();
+
+        assert!(report.ok, "preview-disabled files were reported missing: {:?}", report.missing);
+        assert!(report.missing.is_empty());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn difficulty_change_stays_disabled_in_preview_mode() {
+        let base = test_root();
+        let root = base.join("game/csgo");
+        let state = base.join("state");
+        let profile = root.join("overrides/High/botprofile.vpk");
+        let active = root.join("overrides/botprofile.vpk");
+        fs::create_dir_all(profile.parent().unwrap()).unwrap();
+        fs::write(&profile, b"high").unwrap();
+        fs::write(&active, b"medium").unwrap();
+        mode_layout::set_preview(&state, &root, true).unwrap();
+
+        let info = set_difficulty_at(&root, &state, "High", false).unwrap();
+
+        assert_eq!(info.current.as_deref(), Some("High"));
+        assert!(!active.exists());
+        assert_eq!(fs::read(mode_layout::disabled_path(&active)).unwrap(), b"high");
+        assert!(mode_layout::layout_healthy(&root, true));
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
     fn panel_round_trip_preserves_gun_presets() {
         let root = test_root();
         let mut config = KnifeCustomizerConfig::default();
@@ -1432,7 +1506,7 @@ pub fn run() {
                 let removed = logging::cleanup(&root).unwrap_or(0);
                 let archives_removed = diagnostics::cleanup_archives(&root).unwrap_or(0);
                 let update_cache_removed = online_update::cleanup_cache(None).unwrap_or(0);
-                logging::append(&root, "INFO", "panel.started", &format!("version=1.4.2.3, logs_collected={removed}, archives_collected={archives_removed}, update_cache_collected={update_cache_removed}"));
+                logging::append(&root, "INFO", "panel.started", &format!("version=1.4.2.4, logs_collected={removed}, archives_collected={archives_removed}, update_cache_collected={update_cache_removed}"));
             }
             let update_app = app.handle().clone();
             tauri::async_runtime::spawn_blocking(move || {

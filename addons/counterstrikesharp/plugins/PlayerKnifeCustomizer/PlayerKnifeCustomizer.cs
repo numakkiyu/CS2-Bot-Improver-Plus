@@ -16,7 +16,7 @@ namespace PlayerKnifeCustomizer;
 public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
 {
     public override string ModuleName => "PlayerCosmetics";
-    public override string ModuleVersion => "0.4.0";
+    public override string ModuleVersion => "0.4.1";
     public override string ModuleAuthor => "CS2BotImproverPlus contributors";
     public override string ModuleDescription => "Applies Panel-defined player cosmetic presets";
 
@@ -155,6 +155,8 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     {
         var attacker = @event.Attacker;
         var victim = @event.Userid;
+        if (victim is { IsValid: true } && victim.Handle != nint.Zero)
+            _applyTracker.Cancel(victim.Handle);
         if (!CanApplyToPlayer(attacker) || victim == null || !victim.IsValid || attacker == victim)
             return HookResult.Continue;
 
@@ -202,8 +204,13 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         long generation = _applyTracker.Begin(playerHandle, phases);
 
         Server.NextFrame(() => RunApplyPipeline(playerHandle, generation, false));
-        AddTimer(0.10f, () => RunApplyPipeline(playerHandle, generation, false), TimerFlags.STOP_ON_MAPCHANGE);
-        AddTimer(0.25f, () => RunApplyPipeline(playerHandle, generation, true), TimerFlags.STOP_ON_MAPCHANGE);
+        for (int index = 0; index < ApplyPipelineContext.RetryDelays.Length; index++)
+        {
+            bool finalAttempt = index == ApplyPipelineContext.RetryDelays.Length - 1;
+            AddTimer(ApplyPipelineContext.RetryDelays[index],
+                () => RunApplyPipeline(playerHandle, generation, finalAttempt),
+                TimerFlags.STOP_ON_MAPCHANGE);
+        }
     }
 
     private void RunApplyPipeline(nint playerHandle, long generation, bool finalAttempt)
@@ -220,20 +227,26 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         }
         var team = GetCosmeticTeam(player);
         var pawn = player!.PlayerPawn.Value;
-        if (team == null || pawn == null || !pawn.IsValid || pawn.Handle == nint.Zero)
+        if (!ApplyPipelineContext.IsReady(
+                player.PawnIsAlive,
+                pawn is { IsValid: true },
+                pawn?.Handle ?? nint.Zero,
+                team))
         {
             if (finalAttempt) _applyTracker.MarkRetryExhausted(playerHandle, generation);
             return;
         }
-        if (!_applyTracker.TryBindContext(playerHandle, generation, pawn.Handle, (int)team.Value))
+        var readyPawn = pawn!;
+        var readyTeam = team!.Value;
+        if (!_applyTracker.TryBindContext(playerHandle, generation, readyPawn.Handle, (int)readyTeam))
             return;
 
         TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Knife,
-            () => TryApplyDefaultKnife(pawn, team.Value), "knife pipeline");
+            () => TryApplyDefaultKnife(readyPawn, readyTeam), "knife pipeline");
         TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Gloves,
-            () => TryApplyGlove(playerHandle, generation, pawn, team.Value), "glove pipeline");
+            () => TryApplyGlove(playerHandle, readyPawn, readyTeam), "glove pipeline");
         TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Guns,
-            () => TryApplyGunPresets(pawn, team.Value), "gun pipeline");
+            () => TryApplyGunPresets(readyPawn, readyTeam), "gun pipeline");
         TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Music,
             () => { ApplyMusicKit(player); return true; }, "music pipeline");
         if (finalAttempt) _applyTracker.MarkRetryExhausted(playerHandle, generation);
@@ -349,7 +362,7 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         }
     }
 
-    private bool TryApplyGlove(nint playerHandle, long generation, CCSPlayerPawn pawn, CosmeticTeam team)
+    private bool TryApplyGlove(nint playerHandle, CCSPlayerPawn pawn, CosmeticTeam team)
     {
         var preset = _config.Loadouts.For(team).Glove;
         if (!preset.Enabled) return true;
@@ -372,10 +385,10 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             nint pawnHandle = pawn.Handle;
             AddTimer(0.20f, () =>
             {
-                if (pawnHandle == nint.Zero || !_applyTracker.IsCurrent(playerHandle, generation)) return;
+                if (pawnHandle == nint.Zero) return;
                 var player = ResolvePlayer(playerHandle);
                 var currentPawn = player?.PlayerPawn.Value;
-                if (currentPawn is { IsValid: true } && currentPawn.Handle == pawnHandle)
+                if (player?.PawnIsAlive == true && currentPawn is { IsValid: true } && currentPawn.Handle == pawnHandle)
                     currentPawn.AcceptInput("SetBodygroup", value: "first_or_third_person,1");
             }, TimerFlags.STOP_ON_MAPCHANGE);
             return true;
@@ -759,6 +772,17 @@ public sealed class ApplyGenerationTracker
 
     public void Cancel(nint playerHandle) => _states.Remove(playerHandle);
     public void CancelAll() => _states.Clear();
+}
+
+public static class ApplyPipelineContext
+{
+    // Deathmatch and retake can publish player_spawn before the replacement
+    // Pawn and its econ services are fully live. Keep retries bounded while
+    // allowing the replacement Pawn enough time to become authoritative.
+    public static readonly float[] RetryDelays = [0.10f, 0.25f, 0.50f, 0.90f];
+
+    public static bool IsReady(bool pawnAlive, bool pawnValid, nint pawnHandle, CosmeticTeam? team) =>
+        pawnAlive && pawnValid && pawnHandle != nint.Zero && team.HasValue;
 }
 
 public readonly record struct ApplyErrorDecision(bool ShouldLog, int Suppressed);

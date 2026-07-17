@@ -8,6 +8,7 @@ use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const MANIFEST_FILE: &str = "plus-payload-manifest.json";
+pub const PANEL_UPDATE_MARKER: &str = "csbip-panel-update.json";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PayloadManifest {
@@ -163,7 +164,19 @@ fn installation_dir(state_root: &Path, target: &Path) -> PathBuf {
 
 fn read_manifest_document(payload_root: &Path) -> Result<PayloadManifest> {
     let path = payload_root.join(MANIFEST_FILE);
-    let bytes = fs::read(&path).map_err(|_| AppError::payload(format!("Payload manifest not found: {}", path.display())))?;
+    let bytes = fs::read(&path).map_err(|_| {
+        if payload_root.join(PANEL_UPDATE_MARKER).is_file() {
+            AppError::payload(
+                "This is the Panel-only online-update component, not the complete installer. Download and extract CS2BotImproverPlus-v1.4.2.4-windows.zip for a first installation."
+            )
+        } else {
+            AppError::payload(format!(
+                "The complete plugin payload is missing. Keep CS2BotImproverPlus.exe beside addons, cfg, overrides, and {}. Expected: {}",
+                MANIFEST_FILE,
+                path.display()
+            ))
+        }
+    })?;
     let manifest: PayloadManifest = serde_json::from_slice(&bytes)
         .map_err(|error| AppError::payload(format!("Invalid payload manifest: {error}")))?;
     if manifest.schema_version != 1 || manifest.entries.is_empty() {
@@ -658,7 +671,7 @@ mod tests {
         let hash = sha256(&payload.join("cfg/test.cfg")).unwrap();
         write_json_atomic(&payload.join(MANIFEST_FILE), &PayloadManifest {
             schema_version: 1,
-            package_version: "1.4.2.3".to_string(),
+            package_version: "1.4.2.4".to_string(),
             entries: vec![PayloadEntry {
                 path: "cfg/test.cfg".to_string(), size: 4, sha256: hash,
                 component: "config".to_string(), ownership: "plus".to_string(),
@@ -851,6 +864,21 @@ mod tests {
     fn rejects_parent_directory_payload_paths() {
         assert!(safe_relative("../gameinfo.gi").is_err());
         assert!(safe_relative(r"C:\\game\\csgo").is_err());
+    }
+
+    #[test]
+    fn panel_only_update_package_has_an_actionable_first_install_error() {
+        let base = root("panel-only-marker");
+        let payload = base.join("panel-only");
+        fs::create_dir_all(&payload).unwrap();
+        fs::write(payload.join(PANEL_UPDATE_MARKER), b"{}").unwrap();
+
+        let error = read_manifest_document(&payload).unwrap_err();
+
+        assert_eq!(error.code, "E1301");
+        assert!(error.detail.contains("Panel-only online-update component"));
+        assert!(error.detail.contains("CS2BotImproverPlus-v1.4.2.4-windows.zip"));
+        fs::remove_dir_all(base).unwrap();
     }
 
     #[test]

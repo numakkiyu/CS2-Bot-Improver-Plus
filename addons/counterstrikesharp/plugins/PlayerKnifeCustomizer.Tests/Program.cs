@@ -113,6 +113,27 @@ Require(!tracker.IsCurrent(playerHandle, 3000), "Map or round cleanup must cance
 Require(tracker.ActiveCount == 0 && tracker.ContextInvalidations == 1000,
     "Lifecycle diagnostics must count invalidated Pawn contexts without retaining generations.");
 
+Require(!ApplyPipelineContext.IsReady(false, true, (nint)0x3000, CosmeticTeam.Ct),
+    "A dead Pawn exposed by an early deathmatch spawn callback must not bind the new generation.");
+Require(ApplyPipelineContext.IsReady(true, true, (nint)0x3001, CosmeticTeam.Ct),
+    "A live replacement Pawn must be accepted on a later bounded retry.");
+Require(ApplyPipelineContext.RetryDelays[^1] >= 0.90f,
+    "The bounded retry window must cover delayed deathmatch and retake respawns.");
+
+for (int i = 0; i < 1000; i++)
+{
+    tracker.Cancel(playerHandle);
+    long respawn = tracker.Begin(playerHandle, CosmeticApplyPhase.All);
+    nint oldCorpse = (nint)(0x4000 + i * 2);
+    nint newPawn = oldCorpse + 1;
+    Require(!ApplyPipelineContext.IsReady(false, true, oldCorpse, CosmeticTeam.T),
+        "A corpse must not become the bound context for a rapid respawn.");
+    Require(tracker.TryBindContext(playerHandle, respawn, newPawn, (int)CosmeticTeam.T),
+        "The live replacement Pawn must bind after death cancellation.");
+    Require(tracker.Complete(playerHandle, respawn, CosmeticApplyPhase.All),
+        "Every cosmetic phase must be eligible to complete after a rapid respawn.");
+}
+
 var throttle = new ApplyErrorThrottle(TimeSpan.FromSeconds(30));
 var now = DateTimeOffset.UtcNow;
 Require(throttle.Check("gun", now).ShouldLog, "The first native write error must be logged.");

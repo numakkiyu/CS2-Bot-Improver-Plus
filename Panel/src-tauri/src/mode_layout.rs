@@ -86,15 +86,75 @@ fn apply_layout(target: &Path, preview: bool) -> Result<()> {
                 })?;
             }
             (true, true) => {
-                return Err(AppError::transaction(format!(
-                    "Both active and disabled mode files exist: {}",
-                    canonical.display()
-                )));
+                // A settings write or interrupted upgrade can create a fresh
+                // active file beside the managed disabled copy. The active
+                // file is the newest requested content, so retain it while
+                // converging to the requested layout.
+                if preview {
+                    atomic_fs::replace(&canonical, &disabled).map_err(|error| {
+                        AppError::transaction(format!(
+                            "Cannot reconcile managed preview file ({}): {error}",
+                            canonical.display()
+                        ))
+                    })?;
+                } else {
+                    fs::remove_file(&disabled).map_err(|error| {
+                        AppError::transaction(format!(
+                            "Cannot remove stale disabled mode file ({}): {error}",
+                            disabled.display()
+                        ))
+                    })?;
+                }
             }
             (false, _) => {}
         }
     }
     Ok(())
+}
+
+pub(crate) fn write_managed_file(
+    target: &Path,
+    relative: &str,
+    bytes: &[u8],
+    preview: bool,
+) -> Result<()> {
+    if !MANAGED_FILES.contains(&relative) {
+        return Err(AppError::transaction(format!(
+            "Refusing to write an unmanaged mode file: {relative}"
+        )));
+    }
+    let canonical = target.join(relative);
+    let disabled = disabled_path(&canonical);
+    let (destination, stale) = if preview {
+        (&disabled, &canonical)
+    } else {
+        (&canonical, &disabled)
+    };
+    atomic_fs::write_replace(destination, bytes).map_err(AppError::transaction_io)?;
+    if stale.is_file() {
+        fs::remove_file(stale).map_err(AppError::transaction_io)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn active_or_disabled(path: &Path) -> Option<PathBuf> {
+    if path.is_file() {
+        Some(path.to_path_buf())
+    } else {
+        let disabled = disabled_path(path);
+        disabled.is_file().then_some(disabled)
+    }
+}
+
+fn inferred_preview(target: &Path) -> bool {
+    let mut disabled = 0usize;
+    let mut active = 0usize;
+    for relative in MANAGED_FILES {
+        let canonical = target.join(relative);
+        active += usize::from(canonical.is_file());
+        disabled += usize::from(disabled_path(&canonical).is_file());
+    }
+    disabled > 0 && active == 0
 }
 
 pub(crate) fn recover(state_root: &Path, target: &Path) -> Result<()> {
@@ -152,6 +212,7 @@ pub(crate) fn is_preview(state_root: &Path, target: &Path) -> bool {
         .ok()
         .and_then(|bytes| serde_json::from_slice::<LayoutState>(&bytes).ok())
         .is_some_and(|state| state.preview && state.target == target.to_string_lossy())
+        || inferred_preview(target)
 }
 
 pub(crate) fn layout_healthy(target: &Path, preview: bool) -> bool {
@@ -235,6 +296,40 @@ mod tests {
         assert!(disabled_path(&managed).is_file());
         assert!(!directory.join("transaction.json").exists());
         assert!(is_preview(&state, &target));
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn preview_reconciles_an_active_file_created_beside_a_disabled_file() {
+        let base = root();
+        let target = base.join("game/csgo");
+        let state = base.join("state");
+        let managed = target.join("overrides/botprofile.vpk");
+        let disabled = disabled_path(&managed);
+        fs::create_dir_all(managed.parent().unwrap()).unwrap();
+        fs::write(&disabled, b"old difficulty").unwrap();
+        fs::write(&managed, b"new difficulty").unwrap();
+
+        set_preview(&state, &target, true).unwrap();
+
+        assert!(!managed.exists());
+        assert_eq!(fs::read(&disabled).unwrap(), b"new difficulty");
+        assert!(layout_healthy(&target, true));
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn preview_layout_is_inferred_after_the_portable_panel_is_moved() {
+        let base = root();
+        let target = base.join("game/csgo");
+        let old_state = base.join("old-panel-state");
+        let new_state = base.join("new-panel-state");
+        let managed = target.join(MANAGED_FILES[0]);
+        fs::create_dir_all(managed.parent().unwrap()).unwrap();
+        fs::write(&managed, b"managed").unwrap();
+        set_preview(&old_state, &target, true).unwrap();
+
+        assert!(is_preview(&new_state, &target));
         fs::remove_dir_all(base).unwrap();
     }
 }

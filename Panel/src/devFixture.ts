@@ -14,7 +14,7 @@ export function installDevFixture() {
     layout_healthy: true, insecure: true, user_count: 1, cs2_running: false, pending: false,
   };
   const installation = {
-    installed: true, package_version: "1.4.2.3", manifest_available: true,
+    installed: true, package_version: "1.4.2.4", manifest_available: true,
     total: 128, healthy: 128, missing: [], corrupt: [], restore_available: true,
     backup_path: "F:\\CS2BotImproverPlus\\.csbip\\installations\\abcdef",
     interrupted_transaction: false,
@@ -34,9 +34,9 @@ export function installDevFixture() {
     checked_at: 1784169000, release_version: "1.4.2.4",
     release_notes_url: "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/tag/v1.4.2.4",
     busy: false, error: null,
-    panel: { current_version: "1.4.2.3", latest_version: "1.4.2.4", update_available: true,
+    panel: { current_version: "1.4.2.4", latest_version: "1.4.2.5", update_available: true,
       compatible: true, status: "available", downloaded_bytes: 7_340_032, total_bytes: 12_582_912, error: null },
-    plugin: { current_version: "1.4.2.3", latest_version: "1.4.2.4", update_available: true,
+    plugin: { current_version: "1.4.2.4", latest_version: "1.4.2.5", update_available: true,
       compatible: true, status: "available", downloaded_bytes: 0, total_bytes: 52_428_800, error: null },
   };
 

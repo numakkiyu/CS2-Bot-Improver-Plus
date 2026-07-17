@@ -10,7 +10,7 @@ import type { DiagnosticReport } from "../lib/api";
 import "./ErrorModal.css";
 
 const KNOWN_CATS = ["path", "permission", "steam", "parse", "io", "config", "internal",
-  "filesystem", "validation", "directory", "process", "payload", "installation", "launch"];
+  "filesystem", "validation", "directory", "process", "payload", "installation", "launch", "update"];
 
 type Props = {
   error: AppError | null;

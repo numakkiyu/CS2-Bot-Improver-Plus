@@ -9,7 +9,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 
-pub const CURRENT_VERSION: &str = "1.4.2.3";
+pub const CURRENT_VERSION: &str = "1.4.2.4";
 pub const MANIFEST_URL: &str =
     "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/latest/download/latest.json";
 const SIGNATURE_URL: &str =
@@ -835,13 +835,13 @@ mod tests {
         let base = test_root("cs2bi-update-cleanup");
         unsafe { std::env::set_var("CS2BI_STATE_ROOT", &base); }
         let payloads = base.join("updates/payloads");
-        for version in ["1.4.2.1", "1.4.2.2", "1.4.2.3"] {
+        for version in ["1.4.2.2", "1.4.2.3", "1.4.2.4"] {
             fs::create_dir_all(payloads.join(version)).unwrap();
         }
-        assert_eq!(cleanup_cache(Some("1.4.2.1")).unwrap(), 1);
+        assert_eq!(cleanup_cache(Some("1.4.2.2")).unwrap(), 1);
         let remaining = fs::read_dir(&payloads).unwrap().flatten().count();
         assert_eq!(remaining, 2);
-        assert!(payloads.join("1.4.2.1").is_dir());
+        assert!(payloads.join("1.4.2.2").is_dir());
         fs::remove_dir_all(&base).unwrap();
         unsafe { std::env::remove_var("CS2BI_STATE_ROOT"); }
     }

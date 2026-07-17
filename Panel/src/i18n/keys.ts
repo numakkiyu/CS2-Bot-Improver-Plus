@@ -279,7 +279,7 @@ export const EN = {
   "errcat.validation": "The requested setting or game state is not valid.",
   "errcat.directory": "The selected CS2 directory is invalid or unavailable.",
   "errcat.process": "CS2 must be closed before this operation.",
-  "errcat.payload": "The packaged plugin files are missing or failed verification.",
+  "errcat.payload": "The installation package is incomplete. For a first install, use the full CS2BotImproverPlus package and keep the Panel beside addons, cfg, overrides, and the payload manifest.",
   "errcat.installation": "The installation transaction failed and was rolled back.",
   "errcat.launch": "Steam or CS2 could not be launched.",
   "errcat.update": "The online update failed verification, download, installation, or rollback.",

@@ -117,7 +117,7 @@ $upstreamPayload = $payloadCandidates |
     Select-Object -First 1
 if (-not $upstreamPayload) { throw "Could not locate the upstream game/csgo payload." }
 
-$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2.3-windows"
+$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2.4-windows"
 $payload = $releaseRoot
 Copy-Tree $upstreamPayload.FullName $releaseRoot
 Get-ChildItem -LiteralPath $releaseRoot -Filter "Panel*.exe" -File | Remove-Item -Force
@@ -273,7 +273,7 @@ $manifestEntries = foreach ($topLevel in @("addons", "cfg", "overrides")) {
 }
 $payloadManifest = [ordered]@{
     schema_version = 1
-    package_version = "1.4.2.3"
+    package_version = "1.4.2.4"
     entries = @($manifestEntries | Sort-Object path)
 }
 $payloadManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $payload "plus-payload-manifest.json") -Encoding utf8
@@ -286,16 +286,22 @@ Get-ChildItem -LiteralPath $OutputDirectory -File -ErrorAction SilentlyContinue 
     Where-Object { $_.Name -match '^CS2BotImproverPlus-.*\.zip$|^latest\.json(\.sig)?$|^SHA256SUMS\.txt$' } |
     Remove-Item -Force
 
-$fullZip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2.3-windows.zip"
+$fullZip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2.4-windows.zip"
 Compress-Archive -Path $releaseRoot -DestinationPath $fullZip -CompressionLevel Optimal
 
 $panelStage = Join-Path $stage "panel-update"
 New-Item -ItemType Directory -Path $panelStage -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $releaseRoot "CS2BotImproverPlus.exe") -Destination $panelStage -Force
+@{
+    schema_version = 1
+    component = "panel-online-update"
+    version = "1.4.2.4"
+    first_install_supported = $false
+} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $panelStage "csbip-panel-update.json") -Encoding utf8
 if (Test-Path -LiteralPath (Join-Path $releaseRoot "WebView2Loader.dll")) {
     Copy-Item -LiteralPath (Join-Path $releaseRoot "WebView2Loader.dll") -Destination $panelStage -Force
 }
-$panelZip = Join-Path $OutputDirectory "CS2BotImproverPlus-panel-v1.4.2.3-windows.zip"
+$panelZip = Join-Path $OutputDirectory "CS2BotImproverPlus-panel-v1.4.2.4-windows.zip"
 Compress-Archive -Path (Join-Path $panelStage "*") -DestinationPath $panelZip -CompressionLevel Optimal
 
 $pluginStage = Join-Path $stage "plugin-update"
@@ -304,29 +310,29 @@ foreach ($name in @("addons", "cfg", "overrides", "plus-payload-manifest.json"))
     $source = Join-Path $releaseRoot $name
     if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $pluginStage -Recurse -Force }
 }
-$pluginZip = Join-Path $OutputDirectory "CS2BotImproverPlus-plugin-v1.4.2.3-windows.zip"
+$pluginZip = Join-Path $OutputDirectory "CS2BotImproverPlus-plugin-v1.4.2.4-windows.zip"
 Compress-Archive -Path (Join-Path $pluginStage "*") -DestinationPath $pluginZip -CompressionLevel Optimal
 
-$releaseBase = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/download/v1.4.2.3"
+$releaseBase = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/download/v1.4.2.4"
 $latest = [ordered]@{
     schema_version = 1
-    release_version = "1.4.2.3"
+    release_version = "1.4.2.4"
     published_at = [DateTimeOffset]::UtcNow.ToString("o")
-    release_notes_url = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/tag/v1.4.2.3"
+    release_notes_url = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/tag/v1.4.2.4"
     components = [ordered]@{
         panel = [ordered]@{
-            version = "1.4.2.3"
+            version = "1.4.2.4"
             url = "$releaseBase/$([IO.Path]::GetFileName($panelZip))"
             size = (Get-Item -LiteralPath $panelZip).Length
             sha256 = (Get-FileHash -LiteralPath $panelZip -Algorithm SHA256).Hash.ToLowerInvariant()
-            min_panel_version = "1.4.2.3"
+            min_panel_version = "1.4.2.4"
         }
         plugin = [ordered]@{
-            version = "1.4.2.3"
+            version = "1.4.2.4"
             url = "$releaseBase/$([IO.Path]::GetFileName($pluginZip))"
             size = (Get-Item -LiteralPath $pluginZip).Length
             sha256 = (Get-FileHash -LiteralPath $pluginZip -Algorithm SHA256).Hash.ToLowerInvariant()
-            min_panel_version = "1.4.2.3"
+            min_panel_version = "1.4.2.4"
         }
     }
 }

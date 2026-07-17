@@ -107,9 +107,10 @@ else {
     }
 }
 if ($playerCosmetics -notmatch "Server\.NextFrame\(\(\) => RunApplyPipeline\(playerHandle, generation, false\)\)" -or
-    $playerCosmetics -notmatch "AddTimer\(0\.10f, \(\) => RunApplyPipeline\(playerHandle, generation, false\)" -or
-    $playerCosmetics -notmatch "AddTimer\(0\.25f, \(\) => RunApplyPipeline\(playerHandle, generation, true\)" -or
-    $playerCosmetics -notmatch "TryBindContext\(playerHandle, generation, pawn\.Handle, \(int\)team\.Value\)") {
+    $playerCosmetics -notmatch "RetryDelays = \[0\.10f, 0\.25f, 0\.50f, 0\.90f\]" -or
+    $playerCosmetics -notmatch "finalAttempt = index == ApplyPipelineContext\.RetryDelays\.Length - 1" -or
+    $playerCosmetics -notmatch "player\.PawnIsAlive" -or
+    $playerCosmetics -notmatch "TryBindContext\(playerHandle, generation, readyPawn\.Handle, \(int\)readyTeam\)") {
     Add-Failure "PlayerCosmetics generation pipeline no longer has bounded retries and Pawn/team context validation."
 }
 if ($playerCosmetics -notmatch "private static bool HasReadyAttributeLists\(CEconItemView item\)" -or
@@ -220,7 +221,7 @@ if ($PackageRoot) {
     if (Test-Path -LiteralPath $payloadManifestPath) {
         try {
             $payloadManifest = Get-Content -LiteralPath $payloadManifestPath -Raw | ConvertFrom-Json
-            if ($payloadManifest.schema_version -ne 1 -or $payloadManifest.package_version -ne "1.4.2.3") {
+            if ($payloadManifest.schema_version -ne 1 -or $payloadManifest.package_version -ne "1.4.2.4") {
                 Add-Failure "Package payload manifest has an unexpected schema or version."
             }
             $manifestPaths = @{}
