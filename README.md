@@ -1,295 +1,368 @@
+<div align="center">
+
 # CS2BotImproverPlus
 
 **English** | [简体中文](README.zh-CN.md)
 
-CS2BotImproverPlus is a downstream distribution of
-[ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver). It retains the upstream bot systems and
-`game/csgo` installation layout while adding player cosmetic presets.
+<br/>
 
-Current version: **1.4.2.1**<br>
+<a href="https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases"><img alt="Release" src="https://img.shields.io/github/v/release/numakkiyu/CS2-Bot-Improver-Plus?display_name=tag&sort=semver"></a>
+<img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078D4">
+<a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/numakkiyu/CS2-Bot-Improver-Plus"></a>
+<a href="https://github.com/ed0ard/CS2-Bot-Improver"><img alt="Upstream" src="https://img.shields.io/badge/upstream-ed0ard%2FCS2--Bot--Improver-2ea44f"></a>
 
-## Plus Features
+<br/>
+<br/>
 
-### Player Cosmetic Presets
+[Download a published build](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases) · [View upstream](https://github.com/ed0ard/CS2-Bot-Improver) · [Report an issue](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/issues)
 
-- Knife presets: knife type, paint kit, wear, pattern seed, name tag, default knife selection, StatTrak state, and
-  starting StatTrak count.
-- Glove preset: glove model, paint kit, wear, and pattern seed.
-- Weapon presets: a separate paint kit, wear, pattern seed, and name tag for each supported weapon. StatTrak and
-  Souvenir options are enabled only for compatible catalog entries.
-- Music kit preset for human players.
+</div>
 
-The Panel writes the selected values to `player_knife_presets.json` and `player_gun_presets.json` in the installed
-`PlayerKnifeCustomizer` plugin directory. The CounterStrikeSharp module is displayed as `PlayerCosmetics`.
+> [!IMPORTANT]
+> CS2BotImproverPlus is a Windows distribution based on [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
+>
+> The Plus branch retains and synchronizes all upstream enhanced-bot features, then adds player cosmetic presets, a redesigned Panel, managed installation, recovery, diagnostics, and online updates
+>
+> Upstream remains the source of the core bot systems and receives full credit for that work
 
-### Preset Application
+<div align="center">
 
-- Knife, glove, weapon, and music-kit presets apply only to human-player slots.
-- Knife, glove, and inventory presets are applied when the player spawns.
-- Weapon presets are also applied when a matching weapon is purchased, granted, or picked up.
-- Configured dropped knives receive the matching knife preset.
-- A configured StatTrak counter increases when that weapon is used for a player kill and is written back to the
-  preset configuration.
-- The configured music kit is applied to the player and to the round-MVP event.
-- Paint kits and wear ranges are validated against the bundled weapon catalog before application.
+The current `main` branch targets **1.4.2.4**
 
-### Extended Panel
+**Guide:** [First installation](#four-step-first-installation) · [Existing installation](#updating-an-existing-installation) · [Launch modes](#choose-the-correct-mode) · [Cosmetics](#player-cosmetic-presets) · [Recovery](#installation-updates-and-recovery) · [Troubleshooting](#troubleshooting)
 
-- Dedicated knife, glove, weapon, and music-kit preset editors with catalog search and image previews.
-- Searchable command cards with click-to-copy support.
-- Visual professional-team lineup cards with CT/T selection and complete console commands.
-- Multiplayer connection instructions in the Commands view.
+</div>
 
-### Game Modes
-
-- **Enhanced Bots** adds the Metamod search path to the currently installed `gameinfo.gi` and launches CS2 with
-  `-insecure -console -condebug`.
-- **Online Mode** removes the Metamod search path, disables player cosmetic application, and launches CS2 without
-  adding `-insecure`.
-- Mode files are regenerated from the `gameinfo.gi` in the current game directory.
-
-## Plus Installation (Windows)
-
-1. Download and extract `CS2BotImproverPlus-v1.4.2.1-windows.zip` from the
-   [Plus releases](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases).
-2. Keep `CS2BotImproverPlus v1.4.2.1.exe` in any convenient location.
-3. Copy `addons`, `cfg`, and `overrides` to the CS2 `game/csgo` directory.
-4. Open the Plus Panel and select the installed `game/csgo` directory if it is not detected automatically.
-5. Close CS2 before switching between **Enhanced Bots** and **Online Mode**.
+<p align="center">
+  <img src="./Panel/src/assets/guide/01-overview.png" alt="CS2BotImproverPlus overview" width="100%">
+</p>
 
 ---
 
-## CS2-Bot-Improver Features
+## What Plus Adds
 
-1. Makes bots aim better and more human-like
-2. Allows bots to throw nades deftly according to the situation
-3. Improves bots' movement
-4. Fixes most bot stuck issues
-5. Allows bots to buy everything and overhauls their economy management
-6. Refines bot behavior, allowing them to spray, flick, spam smokes and anti-flash
-7. Assigns each bot their own knife, gloves, weapon skins, agent model, music kit, avatar, and profile
-8. Makes bots smarter, more organized, and more alert to their surroundings
-9. Changes bot names to pro and random players. (the characteristics of each pro player are based on stats from [HLTV](https://www.hltv.org/))
-10. Removes the prefix from bot names
-11. Tweaks game rules to make them more friendly to bots
-12. Adds some commands to make the game more fun
+- CT and T player loadouts with independent knives, gloves, and weapon skins
+- Shared weapons can use one linked skin or separate CT and T skins
+- Human-player music kit presets and compatible StatTrak or Souvenir options
+- Three launch modes for online play, cosmetic preview, and enhanced bots
+- A four-step installer that detects clean CS2, older Plus builds, and the original upstream plugin
+- Transactional backups, installation verification, repair, rollback, and pristine-CS2 recovery
+- Separate online updates for the Panel and plugin payload
+- One-click diagnostic ZIP export that opens the output folder automatically
+- A built-in guide with real screenshots and troubleshooting steps
 
-### Installation
+## Before You Start
 
-#### Windows
+> [!WARNING]
+> Close CS2 before installing, repairing, restoring, updating plugins, changing difficulty, or switching modes
 
-1. Download the latest **CS2BotImprover.zip** in [Releases](https://github.com/ed0ard/CS2-Bot-Improver/releases) and unzip it
+- Plus is currently packaged for Windows
+- Extract the complete ZIP to a normal folder before opening the Panel
+- Keep `CS2BotImproverPlus.exe`, `addons`, `cfg`, `overrides`, and `plus-payload-manifest.json` together
+- Do not run the Panel from inside the ZIP
+- The correct game directory ends with `Counter-Strike Global Offensive\game\csgo`
+- Cosmetic preview and enhanced-bot mode use `-insecure` and cannot enter official matchmaking
+- For Linux builds and upstream-only installation, use the [upstream project](https://github.com/ed0ard/CS2-Bot-Improver)
 
-   (If you run a dedicated server that is not only for bot matches, please download **CS2BotImprover_rules_unchanged.zip**)
+## Four-Step First Installation
 
-2. Put **Panel v1.4.2.1.exe** anywhere convenient
+### 1. Choose the Panel language
 
-<img width="128" height="128" alt="App" src="https://github.com/user-attachments/assets/7271dc7d-2436-484b-8359-6531f4abd710" />
+The language selection only changes the Panel and does not write anything to CS2
 
-3. Open the root of CS2 and navigate to `game/csgo` directory
+Panel memory, settings, logs, update cache, and preserved presets are stored in the portable `.csbip` folder beside the Panel
 
-<img width="405" height="256" alt="snap_1" src="https://github.com/user-attachments/assets/ae2be90e-6742-4f1f-8e0c-096b728d5dbd" />
+<p align="center">
+  <img src="./Panel/src/assets/guide/08-first-language.jpg" alt="Choose the Panel language" width="100%">
+</p>
 
-3. Copy all the remaining files in `CS2BotImprover` and paste them into `game/csgo`
+### 2. Confirm the `game/csgo` directory
 
-<img width="540" height="181" alt="snap_windows" src="https://github.com/user-attachments/assets/6a8645fc-78e7-4f3a-92d3-5d1b6d913918" />
+The Panel searches Steam registry data, every `libraryfolders.vdf`, and the CS2 app manifest
 
-4. Open **Panel v1.4.2.1.exe**, select **Bot Mode**, then click **Launch CS2**
+- One valid installation is selected automatically
+- Multiple installations require you to choose the one actually launched by Steam
+- Use Browse only when automatic detection cannot find the correct installation
+- Do not select the CS2 root, `game`, `bin`, or the Panel folder
 
-<img width="339" height="129" alt="Panel_1" src="https://github.com/user-attachments/assets/dc806991-c940-43cf-a614-f49012fae4a7" />
+<p align="center">
+  <img src="./Panel/src/assets/guide/09-first-directory.jpg" alt="Select the CS2 game directory" width="100%">
+</p>
 
+### 3. Review the installation plan
 
-#### Linux
+The preview identifies the existing environment before changing files
 
-1. Download the latest **CS2BotImprover_for_Linux.zip** in [Releases](https://github.com/ed0ard/CS2-Bot-Improver/releases) and unzip it
+| Detected environment | Panel action | Preserved data |
+| --- | --- | --- |
+| Clean CS2 | Install Plus | Existing files are backed up before replacement |
+| Managed Plus | Update or repair Plus | Original backup and player presets are retained |
+| Older Plus | Adopt and update | Existing cosmetics and migration files are preserved |
+| Original upstream plugin | Replace with Plus | The upstream installation is backed up first |
+| Mixed or unknown plugins | Block automatic installation | Export diagnostics or return to pristine CS2 first |
 
-2. Put **Command.txt** anywhere convenient
+<p align="center">
+  <img src="./Panel/src/assets/guide/10-first-preview.jpg" alt="Review the installation plan" width="100%">
+</p>
 
-3. Open the root of CS2 and navigate to `game/csgo` directory
+### 4. Install and enter the Panel
 
-<img width="405" height="256" alt="snap_1" src="https://github.com/user-attachments/assets/ae2be90e-6742-4f1f-8e0c-096b728d5dbd" />
+Installation uses a transaction journal, verifies every copied file, and rolls back completed steps if an operation fails
 
-4. Copy all the remaining files in `CS2BotImprover` and paste them into `game/csgo`
+Do not launch CS2, close the Panel, or repeatedly click the install button while the transaction is running
 
-<img width="535" height="180" alt="snap_linux" src="https://github.com/user-attachments/assets/9bda7b1d-43d3-49cf-a283-27b124b894e0" />
+<p align="center">
+  <img src="./Panel/src/assets/guide/11-first-complete.jpg" alt="Installation completed" width="100%">
+</p>
 
-5. Add `-insecure` in launch options
+## Updating an Existing Installation
 
-<img width="130" height="153" alt="snap_3" src="https://github.com/user-attachments/assets/4c775e36-3fc3-4a19-9cb1-4f0c9327838c" /><br>
-<img width="625" height="423" alt="snap_4" src="https://github.com/user-attachments/assets/ac0b0c57-ee67-4e33-96fb-146d14714fc8" />
+Prefer **Settings → Online Update** when it is available
+
+For a manual package update, close CS2 and the old Panel, extract the new package into the existing portable Panel folder, and keep the hidden `.csbip` folder
+
+If the new package must use a different folder, copy the complete old `.csbip` folder beside the new Panel before opening it so the original backups, installation records, presets, and logs remain connected
+
+The installer can distinguish a managed Plus installation, an older manually copied Plus installation, the original upstream plugin, and a partial mixed environment
+
+It does not treat your cosmetic JSON, selected difficulty, or managed bot options as corrupted payload files
+
+<p align="center">
+  <img src="./Panel/src/assets/guide/12-first-mixed.jpg" alt="Existing or mixed plugin environment detection" width="100%">
+</p>
+
+If the environment is classified as mixed or unknown, do not manually overwrite it again
+
+Export diagnostics, use **Restore pristine CS2** for recognized enhanced-plugin files, run Steam file verification, and then perform a clean first installation
+
+## Choose the Correct Mode
+
+| Mode | What is enabled | Matchmaking |
+| --- | --- | :---: |
+| Normal matchmaking | Enhanced-plugin loading is disabled | Available |
+| Cosmetics preview | PlayerCosmetics only, with official normal bots | Blocked |
+| Enhanced bots | Full upstream bot systems and player cosmetics | Blocked |
+
+Always choose a mode in Overview before launching CS2 from the Panel
+
+### Normal matchmaking
+
+Use this mode for ordinary online play
+
+The Panel removes the managed MetaMod search path and does not add `-insecure`
+
+### Cosmetics preview
+
+Use this mode when you only want to inspect your knife, gloves, guns, and music kit
+
+Enhanced-bot AI, difficulty, buying, profiles, agents, and behavior systems are disabled, while official normal bots continue to work
+
+### Enhanced bots
+
+Use this mode for the complete Plus experience
+
+It enables all synchronized upstream bot features, the selected difficulty, bot items, commands, and player cosmetics
+
+## Player Cosmetic Presets
+
+### CT and T weapons
+
+The Weapon Presets page separates CT-only, T-only, and shared weapons
+
+- CT-only and T-only weapons keep independent team presets
+- Shared weapons link both teams by default
+- Disable **Use the same skin for CT/T** to configure each side independently
+- Enabling the link again copies the currently edited side to the other team
+- Compatible catalog entries expose StatTrak or Souvenir controls
+- StatTrak values are written back to the matching team preset
+
+<p align="center">
+  <img src="./Panel/src/assets/guide/02-weapon-presets.png" alt="CT and T weapon presets" width="100%">
+</p>
+
+### CT and T knives and gloves
+
+Knife and glove dialogs share the current CT or T selection
+
+Each team stores its own model, paint kit, wear, pattern seed, name tag, default knife, and supported StatTrak values
+
+Only the default knife held by the player is guaranteed to receive the configured appearance, while dropped ground knives are not given live cosmetic rendering
+
+### Bot presets
+
+The Presets page controls bot aiming, grenade behavior, the dropped-knife key, and entry points for player knife and glove settings
+
+<p align="center">
+  <img src="./Panel/src/assets/guide/03-bot-presets.png" alt="Bot behavior and player knife presets" width="100%">
+</p>
+
+## Other Panel Pages
+
+### Bot Items
+
+Bot skins, profiles, agents, and music kits can be enabled independently without overwriting the human player's CT and T presets
+
+<p align="center">
+  <img src="./Panel/src/assets/guide/06-bot-items.png" alt="Bot item controls" width="100%">
+</p>
 
 ### Commands
 
-#### Aim
+Commands are grouped by common actions, bot behavior, teams, coordinated purchases, and connection tasks
 
-`bot_aim mixed`  
-Bots select aiming spots flexibly based on situations (default)
+Select a category or search by purpose, then click a command to copy the exact console text
 
-`bot_aim head`  
-Bots prioritize aiming at the head
+<p align="center">
+  <img src="./Panel/src/assets/guide/07-commands.png" alt="Search and copy CS2 commands" width="100%">
+</p>
 
-`bot_aim body`  
-Bots prioritize aiming at the torso
+The original upstream command collection remains available in [Commands.txt](https://github.com/ed0ard/CS2-Bot-Improver/blob/main/Commands.txt)
 
-`bot_aim`  
-Check the current aim mode
+## Installation, Updates, and Recovery
 
-#### Nades
+### Installation health
 
-`bot_nades off`  
-Bots won't throw any nades
+**Settings → Installation and Recovery** shows the detected environment, installed version, managed-file health, backup location, and available actions
 
-`bot_nades normal`  
-Bots follow almost the same count limits as human players (default)
+Changing cosmetics, CT/T presets, difficulty, or managed bot options must not be reported as payload corruption
 
-`bot_nades more`  
-Bots use the same decision logic as normal mode with higher count limits
+<p align="center">
+  <img src="./Panel/src/assets/guide/04-installation-recovery.jpg" alt="Installation and recovery page" width="49%">
+  <img src="./Panel/src/assets/guide/13-health-repair.jpg" alt="Installation health and repair" width="49%">
+</p>
 
-`bot_nades max`  
-Bots have minimal limitations and think less before throwing nades
+### Online updates
 
-`bot_nades`  
-Shows the current nade throwing mode
+The Panel and plugin payload are checked and installed separately
 
-#### Buy
+- Startup checks are non-blocking and cached for six hours
+- Manual checks bypass the cache
+- Plugin updates require the selected CS2 process to be closed
+- Downloads are verified by signature, size, and SHA-256 before installation
+- Player presets use the preserve-config policy and are not overwritten by repair or update
 
-Input the weapon's name in your console to give every bot this weapon from the next round
+<p align="center">
+  <img src="./Panel/src/assets/guide/05-online-update.png" alt="Panel and plugin online updates" width="100%">
+</p>
 
-The valid names of weapons:  
-`elite`  
-`p250`  
-`fn57`  
-`deagle`  
-`cz75a`  
-`r8`  
-`bizon`  
-`p90`  
-`mp5sd`  
-`mp9`  
-`mp7`  
-`mac10`  
-`ump45`  
-`mag7`  
-`sawedoff`  
-`nova`  
-`xm1014`  
-`famas`  
-`galilar`  
-`m4a1`  
-`m4a1s`  
-`ak47`  
-`aug`  
-`sg556`  
-`ssg08`  
-`awp`  
-`scar20`  
-`g3sg1`  
-`negev`  
-`m249`
+### Recovery actions
 
-`bot_buy`  
-Bot would buy as usual
+| Action | Use it when | Result |
+| --- | --- | --- |
+| Verify installation | You want a fresh health result | Performs a read-only managed-file check |
+| Repair installation | Managed files are missing or damaged | Reinstalls only affected payload files |
+| Restore original state | A managed Plus installation must be rolled back | Restores installation-time backups and removes Plus-owned new files |
+| Restore pristine CS2 | Plus or upstream enhanced plugins must be removed | Deletes recognized enhanced-plugin files, preserves unknown third-party files, then asks for Steam verification |
+| Export diagnostics | A problem is reproducible or unclear | Creates a ZIP and opens its folder automatically |
 
-#### Teams
+Player cosmetic presets are copied to the portable `.csbip/presets` area before a managed restore
 
-To add pro teams to your match, copy from [Commands.txt](https://github.com/ed0ard/CS2-Bot-Improver/blob/main/Commands.txt) and paste them to your game console. You can also add new teams in this format.
+## Troubleshooting
 
-For example, if you wanna add Vit to CT, copy the commands below.
+### All directory and file states are red
 
-<img width="301" height="237" alt="snap_5" src="https://github.com/user-attachments/assets/a895f3a6-58f8-47dc-b6f5-b60c1b32fecd" />
+The Panel has not found a valid `game/csgo` directory, so install and launch actions remain unavailable
 
-#### Knives
+Open **Settings → Directory**, select the folder that directly contains `gameinfo.gi` and `cfg`, then refresh the inspection
 
-Point at the ground and press `\` on your keyboard to generate all kinds of knives there.
+<p align="center">
+  <img src="./Panel/src/assets/guide/15-directory-missing.jpg" alt="CS2 directory is missing" width="100%">
+</p>
 
-#### Flying Scoutsman
+### The environment is mixed or unknown
 
-`scouts_on`  
-`scouts_off`  
-Input the command after a match begins to turn on/off Flying Scoutsman
+The Panel found only part of Plus or the upstream plugin together with files whose ownership cannot be proven safely
 
-### Panel Guide (Windows-Only)
+Export diagnostics before deleting or overwriting anything, use **Restore pristine CS2** to remove recognized enhanced-plugin files, run Steam file verification, and then start a clean first installation
 
-#### Status Lights
-🟢 No issues detected  
-🟡 Restart CS2 to apply changes  
-🔴 Files missing. Click the red light to view the list of missing files  
+### Buttons are disabled or installation appears stuck
 
-<img width="481" height="82" alt="Status Lights" src="https://github.com/user-attachments/assets/26a947e2-4e0e-423f-bce8-f220d88509a2" />
+The selected CS2 installation is probably still running or another installation transaction owns the file lock
 
-### Matchmaking & Bot Mode Toggle
-Select your desired mode, then click `Launch CS2`
+Close CS2 completely, wait for `cs2.exe` to disappear, keep the Panel open, and retry after the status refreshes
 
-<img width="472" height="179" alt="Mode_2" src="https://github.com/user-attachments/assets/3f9254fa-4cbe-4854-8fd1-0f35228fff77" />
+<p align="center">
+  <img src="./Panel/src/assets/guide/14-process-lock.jpg" alt="CS2 process lock" width="100%">
+</p>
 
-### Settings
-Click the <img width="31" height="32" alt="Settings" src="https://github.com/user-attachments/assets/7f94176b-79f1-4e22-9495-4589c4dea9eb" /> icon in the top-right corner to open `Settings`
+### One or more managed files are reported as modified
 
-### Commands
-Click `Commands`, click a block to auto-copy, or type keywords to search
+Click **Verify installation** first
 
-<img width="350" height="420" alt="Screenshot 2026-06-14 090901" src="https://github.com/user-attachments/assets/957cfafb-900d-4450-b985-13d3e8efc375" />
+Only use **Repair installation** when a managed payload file is actually missing or damaged, and keep CS2 closed during repair
 
-## FAQ
+Cosmetic presets, difficulty selections, and supported bot option files are preserved and should not be counted as corruption
 
-### How to play bot matches with friends
+### Online update cannot connect or verification fails
 
-1. Start a bot match and input the required commands. Then type `status` in the console  
-<img width="597" height="141" alt="snap_6" src="https://github.com/user-attachments/assets/792c4b4f-1d56-4a39-9186-b301cbff1846" />
+The updater stops before installation when network, signature, size, hash, compatibility, or rollback validation fails
 
-2. Copy the text after `steamid:`, add `connect ` before it (don’t forget the space between them)  
-3. Send the full command to your friends and have them paste it into their consoles
+Keep the current version, confirm GitHub connectivity, retry a manual check, and export diagnostics if the same error repeats
 
-### How to manually change the difficulty level
+<p align="center">
+  <img src="./Panel/src/assets/guide/16-update-error.jpg" alt="Online update error details" width="100%">
+</p>
 
-1. Open the root of CS2 and navigate to `game/csgo/overrides` directory  
-2. Open the `Low` for easy difficulty, `Medium` for a mixed difficulty based on HLTV stats (default), and `High` for extreme difficulty  
-3. Copy `botprofile.vpk` and paste it into `game/csgo/overrides` before launching the game
+### Cosmetics do not appear
 
-### How to manually switch to normal online match mode
+- Use Cosmetics preview or Enhanced bots mode
+- Confirm the current CT or T knife, glove, and weapon presets are enabled
+- Verify and repair the managed installation before using recovery actions
+- Normal matchmaking intentionally disables PlayerCosmetics
 
-1. Open the root of CS2 and navigate to `game/csgo/backup/Online` directory  
-2. Copy `gameinfo.gi` and paste it to `game/csgo` directory (Replace the file in the destination)  
-3. Delete `-insecure` in your launch options  
+### Restore original state does not produce clean CS2
 
-After modification, if you wanna **play with bots again**, navigate to `game/csgo/backup/WithBots` directory, replace the file as above and add the launch option
+**Restore original state** returns a managed installation to its recorded pre-install state, which may itself contain an older Plus or upstream plugin
 
-### How to manually disable bot weapon skins, agent skins, music kits, knives and gloves
+Use **Restore pristine CS2** when all recognized enhanced-plugin files must be removed, then complete Steam file verification before launching the game
 
-1. Open the root of CS2 and navigate to `game/csgo/addons/counterstrikesharp/plugins`  
-2. Rename the `BotRandomizer` folder to `BotRandomizer_disabled`  
-3. Navigate to `addons/counterstrikesharp/configs/core.json` and set `FollowCS2ServerGuidelines` to `true`
+### CS2 freezes or crashes
 
-### How to manually disable bot steam profiles
+Reopen the Panel immediately and use **Export diagnostics**
 
-1. Open the root of CS2 and navigate to `game/csgo/addons`  
-2. Rename the `BotHider` folder to `BotHider_disabled`  
+Send the ZIP together with the selected mode, map, game type, team, and exact reproduction steps
 
-### How to run the plugin well on workshop maps
+For team-selection crashes, include how long the game remained on the team selection screen before CT or T was chosen
 
-Add `-disable_workshop_command_filtering` to your launch options
+## Upstream Features Retained by Plus
 
-### How to surf normally
+Plus keeps the feature set from [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver), including
 
-Run `sv_standable_normal 0.7` in your game console
+1. More capable and human-like bot aim
+2. Situation-aware grenade usage
+3. Improved bot movement and stuck handling
+4. Expanded weapon buying and economy management
+5. Spraying, flicking, smoke spam, and anti-flash behavior
+6. Bot knives, gloves, weapon skins, agents, music kits, avatars, and profiles
+7. More organized and alert bot decision making
+8. Professional and randomized player names based on HLTV data
+9. Bot-friendly game-rule adjustments
+10. Additional console commands and team lineups
+
+For upstream implementation details, Linux instructions, and original documentation, visit [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
 
 ## Credits
-[metamod-source](https://github.com/alliedmodders/metamod-source)  
-[CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp)  
-[Ray-Trace](https://github.com/FUNPLAY-pro-CS2/Ray-Trace)  
-[CS2-Bullseye-Bot](https://github.com/ed0ard/CS2-Bullseye-Bot)  
-[CS2-Bot-NadeSystem](https://github.com/ed0ard/CS2-Bot-NadeSystem)  
-[CS2_ExecAfter_No_Admin](https://github.com/ed0ard/CS2_ExecAfter_No_Admin) forked from [kus](https://github.com/kus)  
-[CS2-Bot-Randomizer](https://github.com/ed0ard/CS2-Bot-Randomizer)  
-[CS2-Bot-Hider](https://github.com/XBribo/CS2-Bot-Hider) by [XBribo](https://github.com/XBribo)  
-[CS2-Bot-Controller](https://github.com/XBribo/CS2-Bot-Controller) by [XBribo](https://github.com/XBribo)  
-[CSGOBetterBots](https://github.com/manicogaming/CSGOBetterBots/blob/master/addons/sourcemod/data/bot_info.json) by [manico](https://github.com/manicogaming)  
-[CS2-Smarter-Bot](https://github.com/ed0ard/CS2-Smarter-Bot)  
-[CS2-BotAI](https://github.com/ed0ard/CS2-BotAI) forked from [Austin](https://github.com/Austinbots)  
-[CS2-BotAI-for-Linux](https://github.com/Austinbots/CS2-BotAI)  
-[CS2-Bot-Buy](https://github.com/ed0ard/CS2-Bot-Buy)  
-[RoundDamageRecap](https://github.com/YuGeYu/LBTV-CS2-Bot-Enhancer/tree/main/addons/counterstrikesharp/plugins/RoundDamageRecap) by [YuGeYu](https://github.com/YuGeYu)  
-[Apple-Style-GUI](https://github.com/ed0ard/Apple-Style-GUI)  
+
+- [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
+- [Metamod:Source](https://github.com/alliedmodders/metamod-source)
+- [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp)
+- [Ray-Trace](https://github.com/FUNPLAY-pro-CS2/Ray-Trace)
+- [CS2-Bot-Randomizer](https://github.com/ed0ard/CS2-Bot-Randomizer)
+- [CS2-Bot-Hider](https://github.com/XBribo/CS2-Bot-Hider)
+- [CS2-Bot-Controller](https://github.com/XBribo/CS2-Bot-Controller)
+- [CS2-BotAI](https://github.com/ed0ard/CS2-BotAI)
+- [CS2-Bot-Buy](https://github.com/ed0ard/CS2-Bot-Buy)
+- [CS2-Bot-NadeSystem](https://github.com/ed0ard/CS2-Bot-NadeSystem)
+- [RoundDamageRecap](https://github.com/YuGeYu/LBTV-CS2-Bot-Enhancer/tree/main/addons/counterstrikesharp/plugins/RoundDamageRecap)
 
 ## License
-AGPL-3.0
+
+[AGPL-3.0](LICENSE)
+
+---
+
+<div align="center">
+
+[Back to top](#cs2botimproverplus)
+
+</div>

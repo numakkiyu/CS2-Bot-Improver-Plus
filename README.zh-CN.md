@@ -1,290 +1,368 @@
+<div align="center">
+
 # CS2BotImproverPlus
 
 [English](README.md) | **简体中文**
 
-CS2BotImproverPlus 是
-[ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver) 的下游发行版。项目保留上游的人机系统和
-`game/csgo` 安装目录结构，并添加玩家饰品预设
+<br/>
 
-当前版本：**1.4.2.1**<br>
+<a href="https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases"><img alt="发行版本" src="https://img.shields.io/github/v/release/numakkiyu/CS2-Bot-Improver-Plus?display_name=tag&sort=semver"></a>
+<img alt="支持平台" src="https://img.shields.io/badge/platform-Windows-0078D4">
+<a href="LICENSE"><img alt="许可证" src="https://img.shields.io/github/license/numakkiyu/CS2-Bot-Improver-Plus"></a>
+<a href="https://github.com/ed0ard/CS2-Bot-Improver"><img alt="上游项目" src="https://img.shields.io/badge/upstream-ed0ard%2FCS2--Bot--Improver-2ea44f"></a>
 
-## Plus 功能
+<br/>
+<br/>
 
-### 玩家饰品预设
+[下载已发布版本](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases) · [查看上游项目](https://github.com/ed0ard/CS2-Bot-Improver) · [提交问题反馈](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/issues)
 
-- 刀具预设：刀具类型、涂装编号、磨损、模板编号、名称标签、默认刀具、StatTrak 开关和 StatTrak 初始数值
-- 手套预设：手套型号、涂装编号、磨损和模板编号
-- 武器预设：为每种受支持的武器分别设置涂装编号、磨损、模板编号和名称标签。只有目录数据标记为兼容的皮肤才能
-  开启 StatTrak 或纪念品选项
-- 为真人玩家设置音乐盒预设
+</div>
 
-面板将设置结果写入已安装 `PlayerKnifeCustomizer` 插件目录中的 `player_knife_presets.json` 和
-`player_gun_presets.json`。该 CounterStrikeSharp 模块在插件列表中显示为 `PlayerCosmetics`
+> [!IMPORTANT]
+> CS2BotImproverPlus 是基于 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver) 开发的 Windows 增强发行分支
+>
+> Plus 分支完整保留并同步上游增强人机功能，在此基础上增加玩家饰品预设、重新设计的面板、受管安装与恢复、诊断导出和在线更新
+>
+> 核心人机系统来自上游项目，相关成果与贡献归属于原作者及上游贡献者
 
-### 预设应用方式
+<div align="center">
 
-- 刀具、手套、武器和音乐盒预设只应用于真人玩家槽位
-- 玩家出生时应用刀具、手套和库存武器预设
-- 购买、发放或拾取对应武器时再次应用该武器的预设
-- 配置过的掉落刀具会应用对应刀具预设
-- 使用已配置 StatTrak 的武器击杀玩家时，对应计数会增加并写回预设配置
-- 音乐盒预设会应用到玩家以及回合 MVP 事件
-- 应用前根据内置武器目录验证涂装兼容性和磨损范围
+当前 `main` 分支源码版本为 **1.4.2.4**
 
-### 扩展面板
+**教程导航：** [首次安装](#四步完成首次安装) · [已有安装](#更新已有安装) · [启动模式](#选择正确的启动模式) · [玩家饰品](#玩家饰品预设) · [更新恢复](#安装更新与恢复) · [常见问题](#常见问题)
 
-- 提供刀具、手套、武器和音乐盒预设编辑器，支持目录搜索和图片预览
-- 指令卡片支持搜索和点击复制
-- 职业战队阵容以可视化卡片显示，可选择 CT/T 并复制完整控制台指令
-- 指令页面包含联机连接步骤
+</div>
 
-### 游戏模式
-
-- **增强人机**会在当前安装的 `gameinfo.gi` 中加入 Metamod 搜索路径，并使用
-  `-insecure -console -condebug` 启动 CS2
-- **正常匹配**会移除 Metamod 搜索路径、禁用玩家饰品应用，并在启动 CS2 时不额外添加 `-insecure`
-- 模式文件根据当前游戏目录中的 `gameinfo.gi` 动态生成
-
-## Plus 安装（Windows）
-
-1. 从 [Plus Releases](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases) 下载并解压
-   `CS2BotImproverPlus-v1.4.2.1-windows.zip`。
-2. 将 `CS2BotImproverPlus v1.4.2.1.exe` 放在任意方便的位置。
-3. 将 `addons`、`cfg` 和 `overrides` 复制到 CS2 的 `game/csgo` 目录。
-4. 打开 Plus 面板；如果未自动识别安装目录，请手动选择 `game/csgo`。
-5. 在**增强人机**和**正常匹配**之间切换前必须先关闭 CS2。
+<p align="center">
+  <img src="./Panel/src/assets/guide/01-overview.png" alt="CS2BotImproverPlus 概览页面" width="100%">
+</p>
 
 ---
 
-## CS2-Bot-Improver 功能
-1. 让人机的瞄准更强且更接近真人
-2. 让人机根据局势熟练地投掷道具
-3. 改进人机的移动
-4. 修复大多数人机卡住的问题
-5. 允许人机购买所有武器，并重新设计其经济管理
-6. 优化人机行为，使其能够压枪扫射、甩枪、穿烟射击和背闪
-7. 为每个人机分配独立的刀具、手套、武器皮肤、探员模型、音乐盒、头像和个人资料
-8. 让人机更聪明、更有组织，并提高对周围环境的警觉性
-9. 将人机名称替换为职业选手和随机玩家名称（每位职业选手的特点基于 [HLTV](https://www.hltv.org/) 数据）
-10. 移除人机名称前缀
-11. 调整游戏规则，使其更适合人机
-12. 添加一些能够增加游戏乐趣的指令
+## Plus 新增内容
 
-### 安装
+- 玩家刀具、手套和武器皮肤支持 CT 与 T 两套独立预设
+- 双方共用武器可以使用同一皮肤，也可以解除联动后分别设置
+- 真人玩家音乐盒预设以及兼容皮肤的 StatTrak 和纪念品选项
+- 正常匹配、饰品预览、增强人机三种启动模式
+- 四步首次安装向导，自动识别纯净 CS2、旧版 Plus 和上游原版插件
+- 事务式备份、安装验证、修复、回滚和恢复纯净 CS2
+- 面板与插件负载分别进行在线更新
+- 一键导出诊断 ZIP，并自动打开日志包所在文件夹
+- 面板内置真实截图教程和常见问题处理流程
 
-#### Windows
+## 开始之前
 
-1. 从 [Releases](https://github.com/ed0ard/CS2-Bot-Improver/releases) 下载最新的 **CS2BotImprover.zip** 并解压
+> [!WARNING]
+> 安装、修复、恢复、更新插件、切换难度或切换模式前必须完整关闭 CS2
 
-   （如果运行的专用服务器不只用于人机对局，请下载 **CS2BotImprover_rules_unchanged.zip**）
+- Plus 当前提供 Windows 版本
+- 打开面板前先把完整 ZIP 解压到普通文件夹
+- `CS2BotImproverPlus.exe`、`addons`、`cfg`、`overrides` 和 `plus-payload-manifest.json` 必须保持在同一个目录
+- 不要直接在压缩包里面运行面板
+- 正确的游戏目录末尾应为 `Counter-Strike Global Offensive\game\csgo`
+- 饰品预览和增强人机模式会使用 `-insecure`，不能进入官方匹配
+- Linux 版本和仅使用上游原版插件的安装方法请查看[上游项目](https://github.com/ed0ard/CS2-Bot-Improver)
 
-2. 将 **Panel v1.4.2.1.exe** 放在任意方便的位置
+## 四步完成首次安装
 
-<img width="128" height="128" alt="App" src="https://github.com/user-attachments/assets/7271dc7d-2436-484b-8359-6531f4abd710" />
+### 1. 选择面板语言
 
-3. 打开 CS2 根目录并进入 `game/csgo` 目录
+语言选择只会改变面板显示，不会向 CS2 写入任何文件
 
-<img width="405" height="256" alt="snap_1" src="https://github.com/user-attachments/assets/ae2be90e-6742-4f1f-8e0c-096b728d5dbd" />
+面板记忆、设置、日志、更新缓存和保留的玩家预设会存放在面板旁边的便携式 `.csbip` 文件夹
 
-3. 复制 `CS2BotImprover` 中剩余的全部文件，并粘贴到 `game/csgo`
+<p align="center">
+  <img src="./Panel/src/assets/guide/08-first-language.jpg" alt="选择面板语言" width="100%">
+</p>
 
-<img width="540" height="181" alt="snap_windows" src="https://github.com/user-attachments/assets/6a8645fc-78e7-4f3a-92d3-5d1b6d913918" />
+### 2. 确认 `game/csgo` 游戏目录
 
-4. 打开 **Panel v1.4.2.1.exe**，选择 **Bot Mode**，然后点击 **Launch CS2**
+面板会搜索 Steam 注册表、所有 `libraryfolders.vdf` 和 CS2 应用清单
 
-<img width="339" height="129" alt="Panel_1" src="https://github.com/user-attachments/assets/dc806991-c940-43cf-a614-f49012fae4a7" />
+- 只找到一个有效安装时会自动选择
+- 找到多个安装时必须选择实际通过 Steam 启动的那一份
+- 只有自动检测失败时才需要点击浏览并手动选择
+- 不要选择 CS2 根目录、`game`、`bin` 或面板所在目录
 
+<p align="center">
+  <img src="./Panel/src/assets/guide/09-first-directory.jpg" alt="选择 CS2 游戏目录" width="100%">
+</p>
 
-#### Linux
+### 3. 检查安装预览
 
-1. 从 [Releases](https://github.com/ed0ard/CS2-Bot-Improver/releases) 下载最新的 **CS2BotImprover_for_Linux.zip** 并解压
+修改文件前，面板会先识别当前游戏环境
 
-2. 将 **Command.txt** 放在任意方便的位置
+| 检测到的环境 | 面板执行的操作 | 保留的数据 |
+| --- | --- | --- |
+| 纯净 CS2 | 安装 Plus | 覆盖前备份原有文件 |
+| 已纳管 Plus | 更新或修复 Plus | 保留首次原始备份和玩家预设 |
+| 旧版 Plus | 一键接管并更新 | 保留现有饰品和迁移前文件 |
+| 上游原版插件 | 一键替换为 Plus | 先备份当前上游安装 |
+| 混合或未知插件 | 禁止自动安装 | 先导出诊断或恢复纯净 CS2 |
 
-3. 打开 CS2 根目录并进入 `game/csgo` 目录
+<p align="center">
+  <img src="./Panel/src/assets/guide/10-first-preview.jpg" alt="检查安装计划" width="100%">
+</p>
 
-<img width="405" height="256" alt="snap_1" src="https://github.com/user-attachments/assets/ae2be90e-6742-4f1f-8e0c-096b728d5dbd" />
+### 4. 完成安装并进入面板
 
-4. 复制 `CS2BotImprover` 中剩余的全部文件，并粘贴到 `game/csgo`
+安装过程使用事务日志，复制后会逐个验证文件，任何步骤失败都会尝试回滚已完成的操作
 
-<img width="535" height="180" alt="snap_linux" src="https://github.com/user-attachments/assets/9bda7b1d-43d3-49cf-a283-27b124b894e0" />
+安装过程中不要启动 CS2、关闭面板或连续重复点击安装按钮
 
-5. 在启动项中添加 `-insecure`
+<p align="center">
+  <img src="./Panel/src/assets/guide/11-first-complete.jpg" alt="安装完成" width="100%">
+</p>
 
-<img width="130" height="153" alt="snap_3" src="https://github.com/user-attachments/assets/4c775e36-3fc3-4a19-9cb1-4f0c9327838c" /><br>
-<img width="625" height="423" alt="snap_4" src="https://github.com/user-attachments/assets/ac0b0c57-ee67-4e33-96fb-146d14714fc8" />
+## 更新已有安装
 
-### 指令
+可以使用时优先选择**设置 → 在线更新**
 
-#### 瞄准
+手动更新压缩包时，先关闭 CS2 和旧面板，把新包解压到原来的便携面板目录，并保留隐藏的 `.csbip` 文件夹
 
-`bot_aim mixed`<br>
-人机会根据局势灵活选择瞄准位置（默认）
+如果必须更换面板目录，需要先把旧目录中的完整 `.csbip` 文件夹复制到新面板旁边，再打开新面板，这样原始备份、安装登记、玩家预设和日志才不会断开
 
-`bot_aim head`<br>
-人机优先瞄准头部
+安装器可以区分已经纳管的 Plus、以前手动覆盖的旧版 Plus、上游原版增强人机插件和不完整的混合环境
 
-`bot_aim body`<br>
-人机优先瞄准身体
+玩家饰品 JSON、当前难度和受支持的人机选项不会被当成负载损坏文件
 
-`bot_aim`<br>
-查看当前瞄准模式
+<p align="center">
+  <img src="./Panel/src/assets/guide/12-first-mixed.jpg" alt="识别旧版或混合插件环境" width="100%">
+</p>
 
-#### 道具
+如果环境被识别为混合或未知插件，不要继续手动覆盖
 
-`bot_nades off`<br>
-人机不会投掷任何道具
+先导出诊断，再使用**恢复纯净 CS2**清理能够确认的增强插件文件，完成 Steam 文件验证后重新进行纯净首次安装
 
-`bot_nades normal`<br>
-人机遵循与真人玩家基本相同的道具数量限制（默认）
+## 选择正确的启动模式
 
-`bot_nades more`<br>
-人机使用与 normal 模式相同的决策逻辑，但拥有更高的道具数量限制
+| 模式 | 启用的内容 | 官方匹配 |
+| --- | --- | :---: |
+| 正常匹配 | 关闭增强插件加载 | 可以进入 |
+| 饰品预览 | 只启用玩家饰品，保留官方普通人机 | 禁止进入 |
+| 增强人机 | 启用完整上游人机系统和玩家饰品 | 禁止进入 |
 
-`bot_nades max`<br>
-人机受到的限制最少，投掷道具前的思考也更少
+每次启动 CS2 前，先在概览页面选择需要的模式，再通过面板启动游戏
 
-`bot_nades`<br>
-显示当前道具投掷模式
+### 正常匹配
 
-#### 购买
+用于普通在线游戏
 
-在控制台中输入武器名称，从下一回合开始让所有人机获得该武器
+面板会移除受管的 MetaMod 搜索路径，并且不会添加 `-insecure`
 
-有效的武器名称：<br>
-`elite`<br>
-`p250`<br>
-`fn57`<br>
-`deagle`<br>
-`cz75a`<br>
-`r8`<br>
-`bizon`<br>
-`p90`<br>
-`mp5sd`<br>
-`mp9`<br>
-`mp7`<br>
-`mac10`<br>
-`ump45`<br>
-`mag7`<br>
-`sawedoff`<br>
-`nova`<br>
-`xm1014`<br>
-`famas`<br>
-`galilar`<br>
-`m4a1`<br>
-`m4a1s`<br>
-`ak47`<br>
-`aug`<br>
-`sg556`<br>
-`ssg08`<br>
-`awp`<br>
-`scar20`<br>
-`g3sg1`<br>
-`negev`<br>
-`m249`
+### 饰品预览
 
-`bot_buy`<br>
-人机恢复正常购买
+只需要查看玩家刀具、手套、枪皮和音乐盒时使用
 
-#### 战队
+增强人机 AI、难度、购买、档案、探员和行为系统全部关闭，官方普通人机仍然可以正常使用
 
-如需在对局中添加职业战队，请从 [Commands.txt](https://github.com/ed0ard/CS2-Bot-Improver/blob/main/Commands.txt) 复制指令并粘贴到游戏控制台。也可以按照相同格式添加新战队。
+### 增强人机
 
-例如，如需将 Vit 添加到 CT，请复制以下指令。
+用于完整的 Plus 体验
 
-<img width="301" height="237" alt="snap_5" src="https://github.com/user-attachments/assets/a895f3a6-58f8-47dc-b6f5-b60c1b32fecd" />
+该模式会启用全部同步的上游人机功能、当前难度、人机物品、控制台指令和玩家饰品
 
-#### 刀具
+## 玩家饰品预设
 
-瞄准地面并按下键盘上的 `\`，即可在地面生成各种刀具。
+### CT 与 T 武器
 
-#### 跳狙飞人
+武器预设页面按照 CT 专属、T 专属和双方共用武器分类
 
-`scouts_on`<br>
-`scouts_off`<br>
-对局开始后输入指令，开启或关闭跳狙飞人模式
+- CT 与 T 专属武器分别保存，不会互相覆盖
+- 双方共用武器默认联动同一个皮肤
+- 关闭“CT/T 使用同一皮肤”后可以分别设置两边
+- 重新启用联动时，以当前正在编辑的阵营覆盖另一边
+- 只有兼容的目录条目才会显示 StatTrak 或纪念品选项
+- StatTrak 数值会写回对应阵营预设
 
-### 面板指南（仅 Windows）
+<p align="center">
+  <img src="./Panel/src/assets/guide/02-weapon-presets.png" alt="CT 与 T 武器预设" width="100%">
+</p>
 
-#### 状态指示灯
-🟢 未检测到问题<br>
-🟡 需要重启 CS2 才能应用更改<br>
-🔴 文件缺失，点击红色指示灯查看缺失文件列表<br>
+### CT 与 T 刀具和手套
 
-<img width="481" height="82" alt="Status Lights" src="https://github.com/user-attachments/assets/26a947e2-4e0e-423f-bce8-f220d88509a2" />
+刀具与手套弹窗共用当前 CT 或 T 阵营选择
 
-### 匹配与人机模式切换
-选择所需模式，然后点击 `Launch CS2`
+两边可以分别保存型号、涂装、磨损、模板、名称标签、默认刀具和受支持的 StatTrak 数值
 
-<img width="472" height="179" alt="Mode_2" src="https://github.com/user-attachments/assets/3f9254fa-4cbe-4854-8fd1-0f35228fff77" />
+只保证玩家手中默认刀能够应用设置后的外观，不再为掉落到地面的刀即时渲染皮肤
 
-### 设置
-点击右上角的 <img width="31" height="32" alt="Settings" src="https://github.com/user-attachments/assets/7f94176b-79f1-4e22-9495-4589c4dea9eb" /> 图标打开 `Settings`
+### 人机预设
 
-### 指令
-点击 `Commands`，再点击指令块即可自动复制，也可以输入关键词搜索
+预设页面用于设置人机瞄准、投掷物行为、掉落刀具按键，以及玩家 CT 与 T 刀具手套入口
 
-<img width="350" height="420" alt="Screenshot 2026-06-14 090901" src="https://github.com/user-attachments/assets/957cfafb-900d-4450-b985-13d3e8efc375" />
+<p align="center">
+  <img src="./Panel/src/assets/guide/03-bot-presets.png" alt="人机行为和玩家刀具预设" width="100%">
+</p>
+
+## 其他面板页面
+
+### 人机物品
+
+人机皮肤、档案、探员和音乐盒可以分别启用，不会覆盖真人玩家自己的 CT 与 T 预设
+
+<p align="center">
+  <img src="./Panel/src/assets/guide/06-bot-items.png" alt="人机物品设置" width="100%">
+</p>
+
+### 控制台指令
+
+指令按照常用、人机、战队、协同购买和连接用途分类
+
+选择分类或按照用途搜索，点击指令即可复制准确的控制台文字
+
+<p align="center">
+  <img src="./Panel/src/assets/guide/07-commands.png" alt="搜索和复制 CS2 控制台指令" width="100%">
+</p>
+
+上游原始指令集合仍可在 [Commands.txt](https://github.com/ed0ard/CS2-Bot-Improver/blob/main/Commands.txt) 查看
+
+## 安装、更新与恢复
+
+### 安装健康状态
+
+在**设置 → 安装与恢复**中可以查看检测到的环境、已安装版本、受管文件健康度、备份位置和可用操作
+
+修改饰品、CT/T 预设、难度或受管人机选项不会被报告为负载损坏
+
+<p align="center">
+  <img src="./Panel/src/assets/guide/04-installation-recovery.jpg" alt="安装与恢复页面" width="49%">
+  <img src="./Panel/src/assets/guide/13-health-repair.jpg" alt="安装健康状态和修复" width="49%">
+</p>
+
+### 在线更新
+
+面板和插件负载会分别检查和安装更新
+
+- 启动检查不会阻塞面板，并且会缓存六小时
+- 手动检查更新会绕过缓存
+- 插件更新前必须关闭所选目录对应的 CS2
+- 下载内容通过签名、大小和 SHA-256 验证后才会安装
+- 玩家预设使用保留配置策略，不会被修复或更新覆盖
+
+<p align="center">
+  <img src="./Panel/src/assets/guide/05-online-update.png" alt="面板和插件在线更新" width="100%">
+</p>
+
+### 恢复操作的区别
+
+| 操作 | 适用情况 | 结果 |
+| --- | --- | --- |
+| 验证安装 | 需要重新检查健康状态 | 只读检查所有受管文件 |
+| 修复安装 | 受管文件确实缺失或损坏 | 只重新安装受影响的负载文件 |
+| 一键恢复原样 | 需要撤销已经纳管的 Plus 安装 | 恢复安装时备份并删除 Plus 新建文件 |
+| 恢复纯净 CS2 | 需要删除 Plus 或上游增强插件 | 删除确认属于增强版的文件，保留未知第三方文件，然后提示 Steam 验证 |
+| 导出诊断 | 问题可以复现或原因不明确 | 创建 ZIP 并自动打开所在文件夹 |
+
+执行受管恢复前，玩家饰品预设会复制到便携式 `.csbip/presets` 目录
 
 ## 常见问题
 
-### 如何与好友进行人机对局
+### 目录和文件状态全部显示红色
 
-1. 开始一场人机对局并输入所需指令，然后在控制台输入 `status`<br>
-<img width="597" height="141" alt="snap_6" src="https://github.com/user-attachments/assets/792c4b4f-1d56-4a39-9186-b301cbff1846" />
+面板没有找到有效的 `game/csgo` 目录，因此安装和启动按钮会保持不可用
 
-2. 复制 `steamid:` 后面的文本，并在前面添加 `connect `（注意中间需要保留空格）<br>
-3. 将完整指令发送给好友，让好友粘贴到各自的控制台中
+打开**设置 → 目录**，选择直接包含 `gameinfo.gi` 和 `cfg` 的文件夹，然后刷新检查结果
 
-### 如何手动修改难度
+<p align="center">
+  <img src="./Panel/src/assets/guide/15-directory-missing.jpg" alt="CS2 目录无效" width="100%">
+</p>
 
-1. 打开 CS2 根目录并进入 `game/csgo/overrides` 目录<br>
-2. `Low` 为简单难度，`Medium` 为基于 HLTV 数据的混合难度（默认），`High` 为极高难度<br>
-3. 启动游戏前，复制对应目录中的 `botprofile.vpk` 并粘贴到 `game/csgo/overrides`
+### 安装环境显示混合或未知插件
 
-### 如何手动切换到正常在线匹配模式
+面板只找到部分 Plus 或上游插件，同时存在无法安全确认归属的文件
 
-1. 打开 CS2 根目录并进入 `game/csgo/backup/Online` 目录<br>
-2. 复制 `gameinfo.gi` 并粘贴到 `game/csgo` 目录，替换目标文件<br>
-3. 删除启动项中的 `-insecure`<br>
+删除或覆盖任何内容前先导出诊断，使用**恢复纯净 CS2**删除能够确认的增强插件文件，完成 Steam 文件验证后重新进行纯净首次安装
 
-完成修改后，如需**再次进行人机对局**，请进入 `game/csgo/backup/WithBots` 目录，按照上述方式替换文件并添加启动项
+### 按钮全部变灰或安装看起来卡住
 
-### 如何手动禁用人机武器皮肤、探员皮肤、音乐盒、刀具和手套
+所选 CS2 目录可能仍在运行，或者另一个安装事务仍然持有文件锁
 
-1. 打开 CS2 根目录并进入 `game/csgo/addons/counterstrikesharp/plugins` 目录<br>
-2. 将 `BotRandomizer` 文件夹重命名为 `BotRandomizer_disabled`<br>
-3. 打开 `addons/counterstrikesharp/configs/core.json`，将 `FollowCS2ServerGuidelines` 设置为 `true`
+完整退出 CS2，等待 `cs2.exe` 消失，保持面板开启，状态刷新后再重试
 
-### 如何手动禁用人机 Steam 个人资料
+<p align="center">
+  <img src="./Panel/src/assets/guide/14-process-lock.jpg" alt="CS2 进程安全锁" width="100%">
+</p>
 
-1. 打开 CS2 根目录并进入 `game/csgo/addons` 目录<br>
-2. 将 `BotHider` 文件夹重命名为 `BotHider_disabled`<br>
+### 提示一个或多个受管文件被修改
 
-### 如何在创意工坊地图中正常运行插件
+先点击**验证安装**重新检查
 
-在启动项中添加 `-disable_workshop_command_filtering`
+只有受管负载文件确实缺失或损坏时才使用**修复安装**，修复期间必须关闭 CS2
 
-### 如何正常进行滑翔
+玩家饰品预设、难度和受支持的人机选项会被保留，不应该计入损坏文件
 
-在游戏控制台中运行 `sv_standable_normal 0.7`
+### 在线更新无法连接或验证失败
+
+网络、签名、大小、哈希、兼容性或回滚验证失败时，更新器会在安装前停止
+
+保留当前版本，确认能够连接 GitHub 后手动重新检查，相同错误反复出现时导出诊断
+
+<p align="center">
+  <img src="./Panel/src/assets/guide/16-update-error.jpg" alt="在线更新错误详情" width="100%">
+</p>
+
+### 饰品没有显示
+
+- 使用饰品预览或增强人机模式
+- 确认当前 CT 或 T 的刀具、手套和武器预设已经启用
+- 使用恢复功能前，先验证并修复受管安装
+- 正常匹配模式会主动关闭 PlayerCosmetics
+
+### 一键恢复原样后仍然不是纯净 CS2
+
+**一键恢复原样**会回到受管安装记录中的安装前状态，而安装前状态本身可能已经包含旧版 Plus 或上游插件
+
+需要删除所有能够确认的增强插件时，应使用**恢复纯净 CS2**，然后在启动游戏前完成 Steam 文件验证
+
+### CS2 卡死或闪退
+
+立即重新打开面板并点击**导出诊断**
+
+提交 ZIP 时同时说明当前模式、地图、玩法、阵营和准确触发步骤
+
+如果是在选边阶段闪退，还需要说明停留在选边页面多久后才选择 CT 或 T
+
+## Plus 保留的上游功能
+
+Plus 完整保留 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver) 的功能体系，包括
+
+1. 更强且更接近真人的瞄准方式
+2. 根据局势使用投掷物
+3. 改进人机移动并减少卡住
+4. 扩展武器购买和经济管理
+5. 压枪扫射、甩枪、穿烟射击和背闪行为
+6. 人机刀具、手套、武器皮肤、探员、音乐盒、头像和档案
+7. 更有组织且更警觉的人机决策
+8. 基于 HLTV 数据的职业选手和随机玩家名称
+9. 更适合人机对局的游戏规则
+10. 扩展控制台指令和职业战队阵容
+
+上游实现细节、Linux 安装说明和原始文档请访问 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
 
 ## 致谢
-[metamod-source](https://github.com/alliedmodders/metamod-source)<br>
-[CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp)<br>
-[Ray-Trace](https://github.com/FUNPLAY-pro-CS2/Ray-Trace)<br>
-[CS2-Bullseye-Bot](https://github.com/ed0ard/CS2-Bullseye-Bot)<br>
-[CS2-Bot-NadeSystem](https://github.com/ed0ard/CS2-Bot-NadeSystem)<br>
-[CS2_ExecAfter_No_Admin](https://github.com/ed0ard/CS2_ExecAfter_No_Admin)，fork 自 [kus](https://github.com/kus)<br>
-[CS2-Bot-Randomizer](https://github.com/ed0ard/CS2-Bot-Randomizer)<br>
-[CS2-Bot-Hider](https://github.com/XBribo/CS2-Bot-Hider)，作者：[XBribo](https://github.com/XBribo)<br>
-[CSGOBetterBots](https://github.com/manicogaming/CSGOBetterBots/blob/master/addons/sourcemod/data/bot_info.json)，作者：[manico](https://github.com/manico)<br>
-[CS2-Smarter-Bot](https://github.com/ed0ard/CS2-Smarter-Bot)<br>
-[CS2-BotAI](https://github.com/ed0ard/CS2-BotAI)，fork 自 [Austin](https://github.com/Austinbots)<br>
-[CS2-BotAI-for-Linux](https://github.com/Austinbots/CS2-BotAI)<br>
-[CS2-Bot-Buy](https://github.com/ed0ard/CS2-Bot-Buy)<br>
-[RoundDamageRecap](https://github.com/YuGeYu/LBTV-CS2-Bot-Enhancer/tree/main/addons/counterstrikesharp/plugins/RoundDamageRecap)，作者：[YuGeYu](https://github.com/YuGeYu)<br>
-[Apple-Style-GUI](https://github.com/ed0ard/Apple-Style-GUI)<br>
+
+- [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
+- [Metamod:Source](https://github.com/alliedmodders/metamod-source)
+- [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp)
+- [Ray-Trace](https://github.com/FUNPLAY-pro-CS2/Ray-Trace)
+- [CS2-Bot-Randomizer](https://github.com/ed0ard/CS2-Bot-Randomizer)
+- [CS2-Bot-Hider](https://github.com/XBribo/CS2-Bot-Hider)
+- [CS2-Bot-Controller](https://github.com/XBribo/CS2-Bot-Controller)
+- [CS2-BotAI](https://github.com/ed0ard/CS2-BotAI)
+- [CS2-Bot-Buy](https://github.com/ed0ard/CS2-Bot-Buy)
+- [CS2-Bot-NadeSystem](https://github.com/ed0ard/CS2-Bot-NadeSystem)
+- [RoundDamageRecap](https://github.com/YuGeYu/LBTV-CS2-Bot-Enhancer/tree/main/addons/counterstrikesharp/plugins/RoundDamageRecap)
 
 ## 许可证
-AGPL-3.0
+
+[AGPL-3.0](LICENSE)
+
+---
+
+<div align="center">
+
+[返回顶部](#cs2botimproverplus)
+
+</div>
