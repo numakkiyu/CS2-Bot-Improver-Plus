@@ -71,7 +71,8 @@ else {
         }
     )
     $allowedUpstreamChanges = @(
-        "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.cs"
+        "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.cs",
+        "addons/counterstrikesharp/plugins/BotRandomizer/bot_randomizer_options.json"
     )
     $unexpectedChanges = @($changed | Where-Object { $_ -notin $allowedUpstreamChanges })
     if ($unexpectedChanges.Count -gt 0) {
