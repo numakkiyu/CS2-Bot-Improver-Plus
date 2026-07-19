@@ -2,6 +2,7 @@
   "upstream": {
     "repository": "https://github.com/ed0ard/CS2-Bot-Improver",
     "baseCommit": "97fd57d2ee1e14e408ae3ca7b1b0cae596a792cc",
+    "sourceCommit": "7a7c30afe606db0eb157a2f19e97f7b8bfea5930",
     "release": "v1.4.2",
     "windowsAsset": {
       "name": "CS2BotImprover.zip",
@@ -53,12 +54,12 @@
   },
   "botHider": {
     "repository": "https://github.com/XBribo/CS2-Bot-Hider",
-    "release": "v0.3.1",
+    "release": "v0.3.3",
     "windowsAsset": {
-      "name": "BotHider-windows-0.3.1.zip",
-      "url": "https://github.com/XBribo/CS2-Bot-Hider/releases/download/v0.3.1/BotHider-windows-0.3.1.zip",
-      "sha256": "41eb79b4fdcbb354131422484dc142e4248a926671d705e0330c5a0e1e2a43c5"
+      "name": "BotHider-windows-0.3.3.zip",
+      "url": "https://github.com/XBribo/CS2-Bot-Hider/releases/download/v0.3.3/BotHider-windows-0.3.3.zip",
+      "sha256": "838f23217687462d87bbfab49d9cd9b6ae602d65f80fad3cc0758b38533642bc"
     },
-    "windowsDllSha256": "7eaa9abd55888d67e961e833f3244570221ba4778626a44c21ad5277649aab67"
+    "windowsDllSha256": "1c0559a2da917c60b8d3dbb3e4f2b673a499bb52b879241e63fe34b3f803cd9d"
   }
 }

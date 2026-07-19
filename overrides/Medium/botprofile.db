@@ -13338,3 +13338,9 @@ ProSteady+RiflePro+FreemanPersonality "damag3"
 	LookAngleStiffnessAttacking = 1150.0
 	LookAngleDampingAttacking = 50.0
 End
+
+ProSteady+RiflePro+RiflePersonality "b1t"
+End
+
+ProSteady+RiflePro+RiflePersonality "MATYS"
+End

@@ -1,8 +1,8 @@
 [CmdletBinding()]
 param(
-    [string]$DotNet = "dotnet",
-    [string]$Cargo = "cargo",
-    [string]$Rustc = "rustc",
+    [string]$DotNet,
+    [string]$Cargo,
+    [string]$Rustc,
     [string]$RustToolchain,
     [string]$LlvmBin,
     [string]$XwinCache,
@@ -71,12 +71,10 @@ function Assert-ChildPath {
 }
 
 if (-not $SkipBuild) {
-    $buildArguments = @{
-        DotNet = $DotNet
-        Cargo = $Cargo
-        Rustc = $Rustc
-        SkipNpmInstall = $SkipNpmInstall
-    }
+    $buildArguments = @{ SkipNpmInstall = $SkipNpmInstall }
+    if ($DotNet) { $buildArguments.DotNet = $DotNet }
+    if ($Cargo) { $buildArguments.Cargo = $Cargo }
+    if ($Rustc) { $buildArguments.Rustc = $Rustc }
     if ($RustToolchain) { $buildArguments.RustToolchain = $RustToolchain }
     if ($LlvmBin) { $buildArguments.LlvmBin = $LlvmBin }
     if ($XwinCache) { $buildArguments.XwinCache = $XwinCache }
@@ -117,7 +115,7 @@ $upstreamPayload = $payloadCandidates |
     Select-Object -First 1
 if (-not $upstreamPayload) { throw "Could not locate the upstream game/csgo payload." }
 
-$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2.4-windows"
+$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2.5-windows"
 $payload = $releaseRoot
 Copy-Tree $upstreamPayload.FullName $releaseRoot
 Get-ChildItem -LiteralPath $releaseRoot -Filter "Panel*.exe" -File | Remove-Item -Force
@@ -193,9 +191,11 @@ $upstreamPluginBuilds = @(
     @{ Name = "BotAI"; Framework = "net10.0" },
     @{ Name = "BotAimImprover"; Framework = "net10.0" },
     @{ Name = "BotBuy"; Framework = "net8.0" },
+    @{ Name = "BotControllerImpl"; Framework = "net10.0" },
     @{ Name = "BotRandomizer"; Framework = "net10.0" },
     @{ Name = "NadeSystem"; Framework = "net10.0" },
-    @{ Name = "RoundDamageRecap"; Framework = "net8.0" }
+    @{ Name = "RoundDamageRecap"; Framework = "net10.0" }
+    @{ Name = "PlusMatchCoordinator"; Framework = "net8.0" }
 )
 foreach ($plugin in $upstreamPluginBuilds) {
     $build = Join-Path $repo "addons\counterstrikesharp\plugins\$($plugin.Name)\bin\Release\$($plugin.Framework)"
@@ -204,11 +204,17 @@ foreach ($plugin in $upstreamPluginBuilds) {
     }
     Copy-Tree $build (Join-Path $payload "addons\counterstrikesharp\plugins\$($plugin.Name)")
 }
+$botControllerApiBuild = Join-Path $repo "addons\counterstrikesharp\shared\BotControllerApi\bin\Release\net10.0"
+if (-not (Test-Path -LiteralPath (Join-Path $botControllerApiBuild "BotControllerApi.dll"))) {
+    throw "Expected BotController shared API build output was not produced: $botControllerApiBuild"
+}
+Copy-Tree $botControllerApiBuild (Join-Path $payload "addons\counterstrikesharp\shared\BotControllerApi")
 Copy-Item -LiteralPath (Join-Path $repo "addons\counterstrikesharp\plugins\BotRandomizer\bot_randomizer_options.json") `
     -Destination (Join-Path $payload "addons\counterstrikesharp\plugins\BotRandomizer\bot_randomizer_options.json") -Force
 Copy-Tree $pluginBuild (Join-Path $payload "addons\counterstrikesharp\plugins\PlayerKnifeCustomizer")
 Copy-Tree $botImplBuild (Join-Path $payload "addons\counterstrikesharp\plugins\BotHiderImpl")
 Copy-Tree $botApiBuild (Join-Path $payload "addons\counterstrikesharp\shared\BotHiderApi")
+Copy-Item -LiteralPath (Join-Path $repo "addons\counterstrikesharp\shared\MatchCore\rating-plus-3.0-proxy-v1.json") -Destination (Join-Path $payload "addons\counterstrikesharp\plugins\PlusMatchCoordinator\rating-plus-3.0-proxy-v1.json") -Force
 
 # BotHiderImpl resolves Harmony from CounterStrikeSharp's shared library directory.
 # The build target stages it below the plugin output so packaging can remain
@@ -251,6 +257,7 @@ $manifestEntries = foreach ($topLevel in @("addons", "cfg", "overrides")) {
         $relative = [IO.Path]::GetRelativePath($payload, $file.FullName).Replace("\", "/")
         $plusOwned = $relative -like "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/*" -or
             $relative -like "addons/counterstrikesharp/plugins/BotHiderImpl/*" -or
+            $relative -like "addons/counterstrikesharp/plugins/PlusMatchCoordinator/*" -or
             $relative -like "addons/counterstrikesharp/shared/BotHiderApi/*" -or
             $relative -in @("cfg/my_bot_ffa_config.cfg", "cfg/my_bot_normal_config.cfg")
         $component = if ($relative -like "addons/counterstrikesharp/plugins/*") {
@@ -280,7 +287,7 @@ $manifestEntries = foreach ($topLevel in @("addons", "cfg", "overrides")) {
 }
 $payloadManifest = [ordered]@{
     schema_version = 1
-    package_version = "1.4.2.4"
+    package_version = "1.4.2.5"
     entries = @($manifestEntries | Sort-Object path)
 }
 $payloadManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $payload "plus-payload-manifest.json") -Encoding utf8
@@ -293,7 +300,7 @@ Get-ChildItem -LiteralPath $OutputDirectory -File -ErrorAction SilentlyContinue 
     Where-Object { $_.Name -match '^CS2BotImproverPlus-.*\.zip$|^latest\.json(\.sig)?$|^SHA256SUMS\.txt$' } |
     Remove-Item -Force
 
-$fullZip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2.4-windows.zip"
+$fullZip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2.5-windows.zip"
 Compress-Archive -Path $releaseRoot -DestinationPath $fullZip -CompressionLevel Optimal
 
 $panelStage = Join-Path $stage "panel-update"
@@ -302,13 +309,13 @@ Copy-Item -LiteralPath (Join-Path $releaseRoot "CS2BotImproverPlus.exe") -Destin
 @{
     schema_version = 1
     component = "panel-online-update"
-    version = "1.4.2.4"
+    version = "1.4.2.5"
     first_install_supported = $false
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $panelStage "csbip-panel-update.json") -Encoding utf8
 if (Test-Path -LiteralPath (Join-Path $releaseRoot "WebView2Loader.dll")) {
     Copy-Item -LiteralPath (Join-Path $releaseRoot "WebView2Loader.dll") -Destination $panelStage -Force
 }
-$panelZip = Join-Path $OutputDirectory "CS2BotImproverPlus-panel-v1.4.2.4-windows.zip"
+$panelZip = Join-Path $OutputDirectory "CS2BotImproverPlus-panel-v1.4.2.5-windows.zip"
 Compress-Archive -Path (Join-Path $panelStage "*") -DestinationPath $panelZip -CompressionLevel Optimal
 
 $pluginStage = Join-Path $stage "plugin-update"
@@ -317,29 +324,29 @@ foreach ($name in @("addons", "cfg", "overrides", "plus-payload-manifest.json"))
     $source = Join-Path $releaseRoot $name
     if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $pluginStage -Recurse -Force }
 }
-$pluginZip = Join-Path $OutputDirectory "CS2BotImproverPlus-plugin-v1.4.2.4-windows.zip"
+$pluginZip = Join-Path $OutputDirectory "CS2BotImproverPlus-plugin-v1.4.2.5-windows.zip"
 Compress-Archive -Path (Join-Path $pluginStage "*") -DestinationPath $pluginZip -CompressionLevel Optimal
 
-$releaseBase = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/download/v1.4.2.4"
+$releaseBase = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/download/v1.4.2.5"
 $latest = [ordered]@{
     schema_version = 1
-    release_version = "1.4.2.4"
+    release_version = "1.4.2.5"
     published_at = [DateTimeOffset]::UtcNow.ToString("o")
-    release_notes_url = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/tag/v1.4.2.4"
+    release_notes_url = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/tag/v1.4.2.5"
     components = [ordered]@{
         panel = [ordered]@{
-            version = "1.4.2.4"
+            version = "1.4.2.5"
             url = "$releaseBase/$([IO.Path]::GetFileName($panelZip))"
             size = (Get-Item -LiteralPath $panelZip).Length
             sha256 = (Get-FileHash -LiteralPath $panelZip -Algorithm SHA256).Hash.ToLowerInvariant()
-            min_panel_version = "1.4.2.4"
+            min_panel_version = "1.4.2.5"
         }
         plugin = [ordered]@{
-            version = "1.4.2.4"
+            version = "1.4.2.5"
             url = "$releaseBase/$([IO.Path]::GetFileName($pluginZip))"
             size = (Get-Item -LiteralPath $pluginZip).Length
             sha256 = (Get-FileHash -LiteralPath $pluginZip -Algorithm SHA256).Hash.ToLowerInvariant()
-            min_panel_version = "1.4.2.4"
+            min_panel_version = "1.4.2.5"
         }
     }
 }

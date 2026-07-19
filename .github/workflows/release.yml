@@ -3,7 +3,7 @@ name: Build signed release
 on:
   push:
     tags:
-      - "v1.4.2.4"
+      - "v1.4.2.5"
 
 permissions:
   contents: write
@@ -65,9 +65,9 @@ jobs:
           draft: true
           generate_release_notes: false
           files: |
-            artifacts/CS2BotImproverPlus-v1.4.2.4-windows.zip
-            artifacts/CS2BotImproverPlus-panel-v1.4.2.4-windows.zip
-            artifacts/CS2BotImproverPlus-plugin-v1.4.2.4-windows.zip
+            artifacts/CS2BotImproverPlus-v1.4.2.5-windows.zip
+            artifacts/CS2BotImproverPlus-panel-v1.4.2.5-windows.zip
+            artifacts/CS2BotImproverPlus-plugin-v1.4.2.5-windows.zip
             artifacts/latest.json
             artifacts/latest.json.sig
             artifacts/SHA256SUMS.txt

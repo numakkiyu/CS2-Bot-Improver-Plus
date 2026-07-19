@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
-import { ArchiveRestore, FileCheck2, FolderOpen, RefreshCw, Stethoscope, Trash2, Wrench } from "lucide-react";
+import { ArchiveRestore, CheckCircle2, CircleAlert, CircleX, ClipboardCheck, FileCheck2, FolderOpen, RefreshCw, Stethoscope, Trash2, Wrench } from "lucide-react";
 import { useStore } from "../../state/store";
 import { useT, type I18nKey } from "../../i18n";
 import { useToast } from "../../components/Toast";
-import type { InstallationSource, MigrationKind } from "../../lib/api";
+import { api, type InstallCheckReport, type InstallationSource, type MigrationKind } from "../../lib/api";
+import Modal from "../../components/Modal";
 
 const SOURCE_KEYS: Record<InstallationSource, I18nKey> = {
   clean: "install.source.clean",
@@ -40,6 +41,8 @@ export default function InstallationPage() {
   const [working, setWorking] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
   const [diagnosticPath, setDiagnosticPath] = useState<string | null>(null);
+  const [checks, setChecks] = useState<InstallCheckReport | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"restore" | "pristine" | null>(null);
   const damaged = (installation?.missing.length ?? 0) + (installation?.corrupt.length ?? 0);
   const blocked = !!process?.running && (process.matches_selected || !process.path_accessible);
 
@@ -50,7 +53,7 @@ export default function InstallationPage() {
   };
 
   const restore = async () => {
-    if (!window.confirm(t("install.confirmRestore"))) return;
+    setConfirmAction(null);
     await run("restore", async () => {
       const result = await restorePayload();
       if (result) {
@@ -61,7 +64,7 @@ export default function InstallationPage() {
   };
 
   const pristine = async () => {
-    if (!window.confirm(t("install.confirmPristine"))) return;
+    setConfirmAction(null);
     await run("pristine", async () => {
       const result = await restorePristineCs2();
       if (result) {
@@ -82,6 +85,14 @@ export default function InstallationPage() {
       } catch {
         setDiagnosticPath(result.path);
       }
+    });
+  };
+
+  const runChecks = async () => {
+    if (!csgoPath) return;
+    await run("checks", async () => {
+      try { setChecks(await api.runInstallChecks(csgoPath)); }
+      catch (error) { reportError(error); }
     });
   };
 
@@ -120,6 +131,9 @@ export default function InstallationPage() {
       </section>
 
       <div className="installation-actions">
+        <button className="is-primary" disabled={!csgoPath || !!working} onClick={runChecks}>
+          <ClipboardCheck size={17} />{working === "checks" ? t("install.working") : t("install.runChecks")}
+        </button>
         <button disabled={!csgoPath || !!working} onClick={() => run("verify", verifyInstallation)}>
           <RefreshCw size={17} />{working === "verify" ? t("install.working") : t("install.verify")}
         </button>
@@ -134,18 +148,36 @@ export default function InstallationPage() {
             <Wrench size={17} />{working === "repair" ? t("install.working") : t("install.repair")}
           </button>
         )}
-        <button disabled={!installation?.restore_available || blocked || !!working} onClick={restore}>
+        <button disabled={!installation?.restore_available || blocked || !!working} onClick={() => setConfirmAction("restore")}>
           <ArchiveRestore size={17} />{working === "restore" ? t("install.working") :
             t(installation?.restore_baseline === "pre_migration" ? "install.restorePrevious" : "install.restore")}
         </button>
         <button className="is-danger"
-          disabled={!csgoPath || installation?.source === "clean" || blocked || !!working} onClick={pristine}>
+          disabled={!csgoPath || installation?.source === "clean" || blocked || !!working} onClick={() => setConfirmAction("pristine")}>
           <Trash2 size={17} />{working === "pristine" ? t("install.working") : t("install.pristine")}
         </button>
         <button disabled={!!working} onClick={diagnostics}>
           <Stethoscope size={17} />{working === "diagnostics" ? t("install.working") : t("install.diagnostics")}
         </button>
       </div>
+
+      {checks && (
+        <section className={`install-check-report report-${checks.overall}`}>
+          <div className="install-check-summary">
+            <span><ClipboardCheck size={18} /><strong>{t("install.checkReport")}</strong></span>
+            <span className="install-check-counts"><b className="check-pass">{checks.pass_count} {t("install.pass")}</b><b className="check-warn">{checks.warn_count} {t("install.warn")}</b><b className="check-fail">{checks.fail_count} {t("install.fail")}</b></span>
+          </div>
+          <div className="install-check-list">
+            {checks.checks.map((check) => {
+              const Icon = check.status === "pass" ? CheckCircle2 : check.status === "warn" ? CircleAlert : CircleX;
+              return <details className={`install-check check-${check.status}`} key={check.code} open={check.status === "fail"}>
+                <summary><Icon size={16} /><span><strong>{check.title}</strong><small>{check.code}</small></span></summary>
+                <div><p><b>{t("install.evidence")}</b>{check.evidence}</p><p><b>{t("install.cause")}</b>{check.cause}</p><p><b>{t("install.solution")}</b>{check.action}</p></div>
+              </details>;
+            })}
+          </div>
+        </section>
+      )}
 
       {diagnosticPath && (
         <button className="installation-path" onClick={() => open(diagnosticPath.replace(/[\\/][^\\/]+$/, ""))}>
@@ -158,6 +190,9 @@ export default function InstallationPage() {
           {t("install.openSteamVerify")}
         </button>
       )}
+      <Modal open={!!confirmAction} title={confirmAction === "pristine" ? t("install.pristine") : t("install.restore")} onClose={() => setConfirmAction(null)} footer={<><button className="install-confirm-cancel" onClick={() => setConfirmAction(null)}>{t("common.cancel")}</button><button className="install-confirm-accept" onClick={() => void (confirmAction === "pristine" ? pristine() : restore())}>{confirmAction === "pristine" ? t("install.pristine") : t("install.restore")}</button></>}>
+        <p className="install-confirm-copy">{confirmAction === "pristine" ? t("install.confirmPristine") : t("install.confirmRestore")}</p>
+      </Modal>
     </div>
   );
 }

@@ -160,6 +160,26 @@ public class BotAimImprover : BasePlugin
     public override void Load(bool hotReload)
     {
         bool win = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        if (win)
+        {
+            // Two independent Windows sessions crashed in counterstrikesharp.dll
+            // with the same access-violation bucket after this Post hook became
+            // active. Keep the upstream implementation available for Linux, but
+            // do not register the unsafe high-frequency native hook on Windows.
+            Logger.LogCritical("[BotAimImprover] Windows native aim hook disabled by PLUS P0 safety policy.");
+            return;
+        }
+
+        // A PLUS match runs nine bots at once and records detailed events. The
+        // native aim hook is intentionally skipped for that isolated workflow:
+        // it is the only unmanaged high-frequency path in the stack and was the
+        // last active hook before the observed counterstrikesharp.dll crash.
+        if (File.Exists(Path.Combine(Server.GameDirectory, ".csbip", "match-active.json")))
+        {
+            Logger.LogWarning("[BotAimImprover] Native aim hook disabled for the active PLUS match session.");
+            return;
+        }
+
         _off = win ? WindowsOffsets : LinuxOffsets;
 
         try

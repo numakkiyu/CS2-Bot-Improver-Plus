@@ -1,4 +1,10 @@
 namespace BotHiderApi;
+
+public static class BotHiderContract
+{
+    public const int MaxPlayerNameUtf8Bytes = 31;
+}
+
 // Slot is the engine player slot (CCSPlayerController.Slot.Value)
 public interface IBotHiderApi
 {
@@ -14,6 +20,9 @@ public interface IBotHiderApi
 
     string GetCrosshairCode(int slot);
 
+    // Returns whether a custom avatar is currently applied to the managed bot
+    bool HasBotAvatar(int slot);
+
     // Returns the current scoreboard flair item definition index
     uint GetScoreboardFlair(int slot);
 
@@ -26,13 +35,16 @@ public interface IBotHiderApi
     // Set crosshair code, empty or "0" to clear
     bool SetCrosshairCode(int slot, string code);
 
-    // returns false if the slot/name is invalid.
+    // Reads and applies a PNG avatar file, or clears it when pngPath is "0"
+    bool SetBotAvatar(int slot, string pngPath);
+
+    // Normalizes the name to at most 31 UTF-8 bytes and rejects an empty result
     bool SetPersonaName(int slot, string name);
 
     // returns false if the slot/flair is invalid
     bool SetScoreboardFlair(int slot, uint itemDefIndex);
 
-    // Global disguise toggle; off lets the bot manager spawn bots on aim_*/practice maps
+    // Global disguise toggle
     bool SetDisguise(bool enabled);
 
     // Display-name source toggle; true=bot_info.json name, false=botprofile name (affects newly created bots)

@@ -1,11 +1,15 @@
 [CmdletBinding()]
 param(
-    [string]$DotNet = "dotnet",
-    [string]$Cargo = "cargo",
-    [string]$Rustc = "rustc",
+    [string]$DotNet,
+    [string]$Cargo,
+    [string]$Rustc,
     [string]$RustToolchain = "stable-x86_64-pc-windows-msvc",
     [string]$LlvmBin,
     [string]$XwinCache,
+    [string]$CargoHome,
+    [string]$RustupHome,
+    [string]$NodeBin,
+    [string]$Npm,
     [switch]$SkipNpmInstall
 )
 
@@ -13,6 +17,27 @@ $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 $panel = Join-Path $repo "Panel"
 $cache = Join-Path $repo ".cache"
+$localBuildConfig = Join-Path $repo ".local-build.ps1"
+if (Test-Path -LiteralPath $localBuildConfig -PathType Leaf) {
+    . $localBuildConfig
+}
+
+function Resolve-ToolExecutable {
+    param([string]$Value, [string]$Label)
+    if (Test-Path -LiteralPath $Value -PathType Leaf) {
+        return (Resolve-Path -LiteralPath $Value).Path
+    }
+    $command = Get-Command $Value -ErrorAction SilentlyContinue
+    if ($command) { return $command.Source }
+    throw "Build tool $Label was not found: $Value"
+}
+
+if (-not $DotNet) { $DotNet = "dotnet" }
+if (-not $Cargo) { $Cargo = "cargo" }
+if (-not $Rustc) { $Rustc = "rustc" }
+$DotNet = Resolve-ToolExecutable $DotNet "dotnet"
+$Cargo = Resolve-ToolExecutable $Cargo "cargo"
+$Rustc = Resolve-ToolExecutable $Rustc "rustc"
 $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot "dependencies.json") -Raw | ConvertFrom-Json
 
 function Invoke-Checked {
@@ -80,19 +105,25 @@ function Get-RayTraceApi {
 $cargo = (Get-Command $Cargo -ErrorAction Stop).Source
 $rustc = (Get-Command $Rustc -ErrorAction Stop).Source
 
-$npm = (Get-Command npm.cmd -ErrorAction SilentlyContinue)?.Source
-if (-not $npm) { $npm = (Get-Command npm -ErrorAction Stop).Source }
+$npm = if ($Npm) { Resolve-ToolExecutable $Npm "npm" }
+else {
+    $command = Get-Command npm.cmd -ErrorAction SilentlyContinue
+    if (-not $command) { $command = Get-Command npm -ErrorAction Stop }
+    $command.Source
+}
 
 $environmentNames = @(
     "CARGO_HOME",
     "CARGO_TARGET_DIR",
     "DOTNET_CLI_HOME",
+    "DOTNET_ROLL_FORWARD",
     "NUGET_HTTP_CACHE_PATH",
     "NUGET_PACKAGES",
     "npm_config_cache",
     "PATH",
     "RC",
     "RUSTC",
+    "RUSTUP_HOME",
     "RUSTUP_TOOLCHAIN",
     "XWIN_CACHE_DIR"
 )
@@ -103,9 +134,11 @@ foreach ($name in $environmentNames) {
 
 try {
     New-Item -ItemType Directory -Path $cache -Force | Out-Null
-    $env:CARGO_HOME = Join-Path $cache "cargo-home"
+    $env:CARGO_HOME = if ($CargoHome) { $CargoHome } else { Join-Path $cache "cargo-home" }
+    if ($RustupHome) { $env:RUSTUP_HOME = $RustupHome }
     $env:CARGO_TARGET_DIR = Join-Path $panel "src-tauri\target"
     $env:DOTNET_CLI_HOME = Join-Path $cache "dotnet-home"
+    $env:DOTNET_ROLL_FORWARD = "Major"
     $env:NUGET_HTTP_CACHE_PATH = Join-Path $cache "nuget\http"
     $env:NUGET_PACKAGES = Join-Path $cache "nuget\packages"
     $env:npm_config_cache = Join-Path $cache "npm"
@@ -119,12 +152,12 @@ try {
     $resourceCompiler = Join-Path $LlvmBin "llvm-rc.exe"
     foreach ($tool in @($clang, $linker, $resourceCompiler)) {
         if (-not (Test-Path -LiteralPath $tool)) {
-            throw "Portable LLVM tool not found: $tool"
+            throw "LLVM tool not found: $tool"
         }
     }
     $cargoXwin = Join-Path $env:CARGO_HOME "bin\cargo-xwin.exe"
     if (-not (Test-Path -LiteralPath $cargoXwin)) {
-        throw "cargo-xwin is not installed in the project cache: $cargoXwin"
+        throw "cargo-xwin is not installed in the configured Cargo home: $cargoXwin"
     }
 
     $env:XWIN_CACHE_DIR = $XwinCache
@@ -132,7 +165,9 @@ try {
     $rustTarget = "x86_64-pc-windows-msvc"
     $targetDirectory = Join-Path $panel "src-tauri\target-msvc"
     $env:CARGO_TARGET_DIR = $targetDirectory
-    $toolPaths = @((Split-Path $cargo), (Split-Path $rustc), $LlvmBin, (Split-Path $cargoXwin)) | Select-Object -Unique
+    $nodePath = if ($NodeBin) { (Resolve-Path -LiteralPath $NodeBin).Path } else { $null }
+    $toolPaths = @((Split-Path $cargo), (Split-Path $rustc), $LlvmBin, (Split-Path $cargoXwin), $nodePath) |
+        Where-Object { $_ } | Select-Object -Unique
     $env:PATH = ($toolPaths -join ";") + ";" + $env:PATH
 
     if (-not $SkipNpmInstall) {
@@ -145,15 +180,21 @@ try {
         @{ Path = "addons\counterstrikesharp\plugins\BotAI\BotAI.csproj"; Properties = @() },
         @{ Path = "addons\counterstrikesharp\plugins\BotAimImprover\BotAimImprover.csproj"; Properties = @("-p:RayTraceApiPath=$rayTraceApi") },
         @{ Path = "addons\counterstrikesharp\plugins\BotBuy\BotBuy.csproj"; Properties = @() },
+        @{ Path = "addons\counterstrikesharp\plugins\BotControllerImpl\BotControllerImpl.csproj"; Properties = @() },
         @{ Path = "addons\counterstrikesharp\plugins\BotRandomizer\BotRandomizer.csproj"; Properties = @() },
         @{ Path = "addons\counterstrikesharp\plugins\NadeSystem\NadeSystem.csproj"; Properties = @("-p:RayTraceApiPath=$rayTraceApi") },
         @{ Path = "addons\counterstrikesharp\plugins\RoundDamageRecap\RoundDamageRecap.csproj"; Properties = @() },
         @{ Path = "addons\counterstrikesharp\plugins\PlayerKnifeCustomizer\PlayerKnifeCustomizer.csproj"; Properties = @() },
         @{ Path = "addons\counterstrikesharp\plugins\BotHiderImpl\BotHiderImpl.csproj"; Properties = @() }
+        @{ Path = "addons\counterstrikesharp\plugins\PlusMatchCoordinator\PlusMatchCoordinator.csproj"; Properties = @() }
     )
     foreach ($project in $pluginProjects) {
         Invoke-Checked $DotNet (@("build", $project.Path, "-c", "Release", "--nologo") + $project.Properties)
     }
+    Invoke-Checked $DotNet @(
+        "run", "--project", "addons\counterstrikesharp\shared\MatchCore.Tests\MatchCore.Tests.csproj",
+        "-c", "Release", "--nologo"
+    )
     Invoke-Checked $DotNet @(
         "run", "--project", "addons\counterstrikesharp\plugins\PlayerKnifeCustomizer.Tests\PlayerKnifeCustomizer.Tests.csproj",
         "-c", "Release"
@@ -166,7 +207,11 @@ try {
     ) $tauriSource
 
     $testRoot = Join-Path $targetDirectory "$rustTarget\debug\deps"
-    $testExecutables = @(Get-ChildItem -LiteralPath $testRoot -File -Filter "cs2_bot_improver_plus_panel*.exe")
+    # Cargo retains hash-named test executables from older source revisions.
+    # Run only the newest binary for the application and library test targets.
+    $testExecutables = @(Get-ChildItem -LiteralPath $testRoot -File -Filter "cs2_bot_improver_plus_panel*.exe" |
+        Group-Object { if ($_.BaseName -like "*_lib-*") { "lib" } else { "app" } } |
+        ForEach-Object { $_.Group | Sort-Object LastWriteTime -Descending | Select-Object -First 1 })
     if ($testExecutables.Count -eq 0) {
         throw "No Panel test executables were produced under $testRoot"
     }

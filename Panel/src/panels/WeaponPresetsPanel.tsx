@@ -8,6 +8,7 @@ import WeaponPresetModal from "./WeaponPresetModal";
 import MusicKitPresetModal from "./MusicKitPresetModal";
 import { MUSIC_KITS, musicKitName } from "../data/musicKits";
 import CosmeticsTeamSwitch, { useCosmeticsTeam } from "../components/CosmeticsTeamSwitch";
+import CosmeticsPresetActions from "../components/CosmeticsPresetActions";
 import "./WeaponPresetsPanel.css";
 
 export default function WeaponPresetsPanel({ onBack }: { onBack?: () => void }) {
@@ -40,7 +41,7 @@ export default function WeaponPresetsPanel({ onBack }: { onBack?: () => void }) 
     })}
   </div>;
 
-  return <SubPage title={t("weapons.title")} onBack={onBack} right={<span className="wp__summary">{count} / {teamWeapons.length}</span>}>
+  return <SubPage title={t("weapons.title")} onBack={onBack} right={<><span className="wp__summary">{count} / {teamWeapons.length}</span><CosmeticsPresetActions csgoPath={csgoPath} onImported={setConfig} onError={reportError} /></>}>
     <div className="wp__team-bar">
       <div><small>{t("weapons.teamLoadout")}</small><strong>{team === "ct" ? t("weapons.ctLoadout") : t("weapons.tLoadout")}</strong></div>
       <CosmeticsTeamSwitch value={team} onChange={setTeam} ariaLabel={t("weapons.teamLoadout")} compact />

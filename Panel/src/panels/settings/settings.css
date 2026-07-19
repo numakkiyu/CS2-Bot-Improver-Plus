@@ -580,6 +580,26 @@
   background: rgba(255, 59, 48, 0.07);
 }
 .steam-verify { justify-self: start; }
+.install-check-report { display: grid; gap: 10px; padding-top: 4px; }
+.install-check-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.install-check-summary > span:first-child { display: flex; align-items: center; gap: 8px; color: var(--c-blue); }
+.install-check-summary strong { color: var(--text-primary); font-size: 13px; }
+.install-check-counts { display: flex; flex-wrap: wrap; gap: 6px; }
+.install-check-counts b { padding: 4px 7px; border-radius: 6px; font-size: 9px; }
+.check-pass { background: rgba(52,199,89,.11); color: #248b3f; }
+.check-warn { background: rgba(255,149,0,.11); color: #9a5a00; }
+.check-fail { background: rgba(255,59,48,.1); color: #b32d25; }
+.install-check-list { display: grid; gap: 4px; }
+.install-check { border: 1px solid rgba(120,120,128,.13); border-radius: var(--r-sm); background: rgba(255,255,255,.34); overflow: hidden; }
+.install-check summary { min-height: 40px; display: flex; align-items: center; gap: 9px; padding: 0 11px; cursor: pointer; list-style: none; }
+.install-check summary::-webkit-details-marker { display: none; }
+.install-check summary > span { min-width: 0; display: flex; align-items: baseline; gap: 7px; }
+.install-check summary strong { color: var(--text-secondary); font-size: 11px; }
+.install-check summary small { color: var(--text-tertiary); font: 9px ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
+.install-check.check-pass summary > svg { color: var(--c-green); } .install-check.check-warn summary > svg { color: var(--c-orange); } .install-check.check-fail summary > svg { color: var(--c-red); }
+.install-check > div { display: grid; gap: 7px; padding: 9px 12px 11px 36px; border-top: 1px solid rgba(120,120,128,.11); }
+.install-check p { margin: 0; display: grid; gap: 2px; color: var(--text-tertiary); font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.install-check p b { color: var(--text-secondary); font-size: 9px; text-transform: uppercase; }
 
 /* Online update */
 .online-update-page {
@@ -754,3 +774,7 @@
 @media (max-width: 900px) {
   .firstrun__card { max-width: 620px; }
 }
+.install-confirm-copy { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 1.55; }
+.install-confirm-cancel, .install-confirm-accept { min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--r-sm); font-size: 12px; font-weight: 750; }
+.install-confirm-cancel { background: rgba(120,120,128,.12); color: var(--text-secondary); }
+.install-confirm-accept { background: rgba(255,59,48,.13); color: var(--c-red); }

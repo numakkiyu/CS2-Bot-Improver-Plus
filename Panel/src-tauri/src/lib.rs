@@ -3,14 +3,17 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use sysinfo::{ProcessesToUpdate, System};
 use tauri::{AppHandle, Manager};
 
 mod app_storage;
 mod atomic_fs;
 mod diagnostics;
+mod install_checks;
 mod installer;
 mod logging;
+mod match_system;
 mod mode_files;
 mod mode_layout;
 mod online_update;
@@ -18,6 +21,8 @@ mod runtime_state;
 mod steam;
 mod update_core;
 use installer::{InstallPlan, InstallTransactionResult, InstallationInspection, RestoreResult};
+use install_checks::InstallCheckReport;
+use match_system::{MatchCatalog, MatchResult, MatchSession, MatchRequest, MatchState, PrepareMatchInput};
 use mode_files::{LaunchMode, apply_launch_mode, contains_metamod_search_path};
 use runtime_state::{Cs2ProcessInfo, blocks_target_write, inspect_cs2_process};
 
@@ -375,6 +380,30 @@ struct KnifeCustomizerState {
     config: KnifeCustomizerConfig,
 }
 
+const COSMETICS_EXPORT_SCHEMA_VERSION: u8 = 1;
+const COSMETICS_EXPORT_KIND: &str = "cs2bip-cosmetics-preset";
+const MAX_COSMETICS_IMPORT_BYTES: u64 = 4 * 1024 * 1024;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct CosmeticsPresetBundle {
+    schema_version: u8,
+    kind: String,
+    exported_at_unix: u64,
+    config: KnifeCustomizerConfig,
+}
+
+#[derive(Serialize)]
+struct CosmeticsPresetExportResult {
+    path: String,
+    size_bytes: u64,
+}
+
+#[derive(Serialize)]
+struct CosmeticsPresetImportResult {
+    state: KnifeCustomizerState,
+    backup_path: Option<String>,
+}
+
 fn legacy_config_path(app: &AppHandle) -> Result<PathBuf> {
     let dir = app
         .path()
@@ -431,6 +460,15 @@ fn ensure_target_not_running(root: &Path) -> Result<()> {
         };
         return Err(AppError::process(detail));
     }
+    Ok(())
+}
+
+fn ensure_steam_app_idle(root: &Path) -> Result<()> {
+    steam::wait_for_app_730_idle(root, Duration::from_secs(15)).map_err(|detail| {
+        AppError::transaction(format!(
+            "Steam is modifying CS2 files. Pause the App 730 update or verification, wait for Steam activity to finish, then retry installation. {detail}"
+        ))
+    })?;
     Ok(())
 }
 
@@ -752,8 +790,8 @@ fn mode_at(root: &Path, config: &AppConfig, running: bool) -> ModeInfo {
             "bots".into()
         }
     });
-    let expects_preview = current.as_deref() == Some("preview");
-    let layout_healthy = mode_layout::layout_healthy(root, expects_preview);
+    let expects_managed_plugins_disabled = current.as_deref() != Some("bots");
+    let layout_healthy = mode_layout::layout_healthy(root, expects_managed_plugins_disabled);
     ModeInfo {
         pending: current.as_deref() != config.mode.as_deref() || !layout_healthy,
         current,
@@ -775,7 +813,7 @@ fn set_mode(app: AppHandle, csgo: String, mode: String) -> Result<ModeInfo> {
     let state = local_state_root(&app)?;
     mode_layout::recover(&state, &root)?;
     apply_launch_mode(&root, launch_mode).map_err(AppError::invalid)?;
-    mode_layout::set_preview(&state, &root, launch_mode == LaunchMode::Preview)?;
+    mode_layout::set_preview(&state, &root, launch_mode != LaunchMode::Bots)?;
     let mut config = read_config(&app)?;
     enforce_mode_cosmetics(&root, &mut config, launch_mode)?;
     write_bot_randomizer_options(&root, &config.bot_items)?;
@@ -820,8 +858,8 @@ fn find_steam_executable() -> Result<PathBuf> {
 fn launch_request(mode: LaunchMode) -> (Vec<&'static str>, String) {
     if mode.insecure() {
         (
-            vec!["-applaunch", "730", "-insecure", "-console", "-condebug"],
-            "-insecure -console -condebug".into(),
+            vec!["-applaunch", "730", "-insecure", "-console"],
+            "-insecure -console".into(),
         )
     } else {
         (vec!["-applaunch", "730"], String::new())
@@ -840,7 +878,7 @@ fn launch_cs2(app: AppHandle) -> Result<LaunchResult> {
     let state = local_state_root(&app)?;
     mode_layout::recover(&state, &root)?;
     apply_launch_mode(&root, mode).map_err(AppError::invalid)?;
-    mode_layout::set_preview(&state, &root, mode == LaunchMode::Preview)?;
+    mode_layout::set_preview(&state, &root, mode != LaunchMode::Bots)?;
     enforce_mode_cosmetics(&root, &mut config, mode)?;
     write_bot_randomizer_options(&root, &config.bot_items)?;
 
@@ -853,6 +891,131 @@ fn launch_cs2(app: AppHandle) -> Result<LaunchResult> {
         options,
         insecure: mode.insecure(),
     })
+}
+
+#[tauri::command]
+fn get_match_catalog(_app: AppHandle, csgo: Option<String>) -> Result<MatchCatalog> {
+    let selected = csgo.as_deref().map(csgo_path).transpose()?;
+    match_system::load_catalog(&payload_root()?, selected.as_deref())
+}
+
+#[tauri::command]
+fn prepare_and_launch_match(app: AppHandle, csgo: String, input: PrepareMatchInput) -> Result<MatchRequest> {
+    let root = csgo_path(&csgo)?;
+    ensure_target_not_running(&root)?;
+    let state = local_state_root(&app)?;
+    mode_layout::recover(&state, &root)?;
+    apply_launch_mode(&root, LaunchMode::Bots).map_err(AppError::invalid)?;
+    let difficulty = match input.difficulty.as_str() {
+        "low" => "Low",
+        "medium" => "Medium",
+        "high" => "High",
+        _ => return Err(AppError::invalid("Difficulty must be low, medium, or high")),
+    };
+    set_difficulty_at(&root, &state, difficulty, false)?;
+    let request = match_system::prepare(&root, &payload_root()?, input)?;
+    match_system::watch(app.clone(), &root)?;
+    let steam = find_steam_executable()?;
+    let map = request.map_id.clone();
+    let mut arguments = vec!["-applaunch", "730", "-insecure", "-console", "+game_type", "0", "+game_mode", "1", "+tv_enable", if request.record_demo { "1" } else { "0" }, "+map", &map];
+    if let Err(error) = Command::new(steam)
+        .args(arguments.drain(..))
+        .spawn()
+    {
+        let _ = match_system::interrupt_active(&root, "LAUNCH_FAILED", &format!("steam_launch_failed: {error}"), true);
+        return Err(AppError::launch(format!("Steam could not launch the match map: {error}")));
+    }
+    monitor_match_process(root, request.session_id.clone());
+    Ok(request)
+}
+
+fn monitor_match_process(root: PathBuf, session_id: String) {
+    std::thread::spawn(move || {
+        let launch_deadline = Instant::now() + Duration::from_secs(120);
+        loop {
+            if !match_system::active(&root)
+                .ok()
+                .flatten()
+                .is_some_and(|session| session.session_id == session_id)
+            {
+                return;
+            }
+            if cs2_running() {
+                break;
+            }
+            if Instant::now() >= launch_deadline {
+                let _ = match_system::interrupt_active(
+                    &root,
+                    "CS2_LAUNCH_TIMEOUT",
+                    "cs2_process_did_not_start_within_120_seconds",
+                    false,
+                );
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(500));
+        }
+
+        loop {
+            std::thread::sleep(Duration::from_secs(1));
+            if !match_system::active(&root)
+                .ok()
+                .flatten()
+                .is_some_and(|session| session.session_id == session_id && matches!(
+                    session.state,
+                    MatchState::Launching | MatchState::Loading | MatchState::Warmup | MatchState::Live
+                ))
+            {
+                return;
+            }
+            if !cs2_running() {
+                let _ = match_system::interrupt_active(
+                    &root,
+                    "CS2_EXITED",
+                    "cs2_process_exited_before_match_completion",
+                    false,
+                );
+                return;
+            }
+        }
+    });
+}
+
+#[tauri::command]
+fn get_active_match(csgo: String) -> Result<Option<MatchSession>> {
+    let root = csgo_path(&csgo)?;
+    let active = match_system::active(&root)?;
+    if active.as_ref().is_some_and(|session| {
+        matches!(session.state, MatchState::Launching | MatchState::Loading | MatchState::Warmup | MatchState::Live) &&
+            !cs2_running() &&
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs().saturating_sub(session.created_at_unix) >= 30
+    }) {
+        let _ = match_system::interrupt_active(&root, "CS2_EXITED", "cs2_exited_before_match_completion", false)?;
+        return match_system::active(&root);
+    }
+    Ok(active)
+}
+
+#[tauri::command]
+fn list_match_history(csgo: String) -> Result<Vec<MatchSession>> {
+    match_system::history(&csgo_path(&csgo)?)
+}
+
+#[tauri::command]
+fn get_match_result(csgo: String, session_id: String) -> Result<MatchResult> {
+    match_system::get_result(&csgo_path(&csgo)?, &session_id)
+}
+
+#[tauri::command]
+fn delete_match(csgo: String, session_id: String, confirmed: bool) -> Result<()> {
+    if !confirmed { return Err(AppError::invalid("Deleting a match requires explicit confirmation")); }
+    match_system::delete(&csgo_path(&csgo)?, &session_id)
+}
+
+#[tauri::command]
+fn run_install_checks(app: AppHandle, csgo: String, selected_map: Option<String>) -> Result<InstallCheckReport> {
+    let root = csgo_path(&csgo)?;
+    let process = inspect_cs2_process(Some(&root));
+    install_checks::run(&payload_root()?, &local_state_root(&app)?, &root, process.running, selected_map.as_deref())
 }
 
 #[tauri::command]
@@ -1232,6 +1395,127 @@ fn save_knife_config(root: &Path, config: &mut KnifeCustomizerConfig) -> Result<
     write_json_atomic(&gun_path, &guns)
 }
 
+fn explicit_json_path(value: &str, operation: &str) -> Result<PathBuf> {
+    let path = PathBuf::from(value);
+    if path.extension().and_then(|value| value.to_str()).is_none_or(|value| !value.eq_ignore_ascii_case("json")) {
+        return Err(AppError::invalid(format!("{operation} path must use the .json extension")));
+    }
+    if path.file_name().is_none() {
+        return Err(AppError::invalid(format!("{operation} path has no file name")));
+    }
+    Ok(path)
+}
+
+fn backup_cosmetics_before_import(root: &Path) -> Result<Option<PathBuf>> {
+    let sources = [knife_config_path(root), gun_config_path(root)];
+    if !sources.iter().any(|path| path.is_file()) {
+        return Ok(None);
+    }
+    let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let directory = root.join(".csbip").join("cosmetics-backups").join(format!("pre-import-{stamp}"));
+    fs::create_dir_all(&directory)?;
+    for source in sources.into_iter().filter(|path| path.is_file()) {
+        let destination = directory.join(source.file_name().unwrap_or_default());
+        fs::copy(source, destination)?;
+    }
+    Ok(Some(directory))
+}
+
+fn export_cosmetics_preset_at(root: &Path, destination: &Path) -> Result<CosmeticsPresetExportResult> {
+    let parent = destination.parent().ok_or_else(|| AppError::invalid("Export path has no parent directory"))?;
+    if !parent.is_dir() {
+        return Err(AppError::invalid("Export destination directory does not exist"));
+    }
+    let mut config = read_knife_config(&root)?;
+    normalize_knife_config(&mut config)?;
+    let bundle = CosmeticsPresetBundle {
+        schema_version: COSMETICS_EXPORT_SCHEMA_VERSION,
+        kind: COSMETICS_EXPORT_KIND.into(),
+        exported_at_unix: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
+        config,
+    };
+    let bytes = serde_json::to_vec_pretty(&bundle)?;
+    atomic_fs::write_replace(&destination, &bytes)?;
+    Ok(CosmeticsPresetExportResult {
+        path: destination.to_string_lossy().into_owned(),
+        size_bytes: bytes.len() as u64,
+    })
+}
+
+fn read_cosmetics_preset(source: &Path) -> Result<KnifeCustomizerConfig> {
+    let metadata = fs::metadata(&source)?;
+    if !metadata.is_file() || metadata.len() == 0 || metadata.len() > MAX_COSMETICS_IMPORT_BYTES {
+        return Err(AppError::invalid("Cosmetics preset must be a non-empty JSON file no larger than 4 MiB"));
+    }
+    let mut bundle: CosmeticsPresetBundle = serde_json::from_slice(&fs::read(&source)?)?;
+    if bundle.schema_version != COSMETICS_EXPORT_SCHEMA_VERSION || bundle.kind != COSMETICS_EXPORT_KIND {
+        return Err(AppError::invalid("Unsupported cosmetics preset schema or file type"));
+    }
+    normalize_knife_config(&mut bundle.config)?;
+    Ok(bundle.config)
+}
+
+fn snapshot_cosmetics_files(root: &Path) -> Result<Vec<(PathBuf, Option<Vec<u8>>)>> {
+    [knife_config_path(root), gun_config_path(root)]
+        .into_iter()
+        .map(|path| {
+            let bytes = if path.is_file() { Some(fs::read(&path)?) } else { None };
+            Ok((path, bytes))
+        })
+        .collect()
+}
+
+fn restore_cosmetics_files(snapshot: &[(PathBuf, Option<Vec<u8>>)]) -> Result<()> {
+    for (path, bytes) in snapshot {
+        match bytes {
+            Some(bytes) => atomic_fs::write_replace(path, bytes).map_err(AppError::transaction_io)?,
+            None if path.exists() => fs::remove_file(path).map_err(AppError::transaction_io)?,
+            None => {}
+        }
+    }
+    Ok(())
+}
+
+fn import_cosmetics_preset_at<F>(root: &Path, source: &Path, after_write: F) -> Result<Option<PathBuf>>
+where
+    F: FnOnce() -> Result<()>,
+{
+    let mut config = read_cosmetics_preset(source)?;
+    let snapshot = snapshot_cosmetics_files(root)?;
+    let backup = backup_cosmetics_before_import(&root)?;
+    if let Err(error) = save_knife_config(root, &mut config).and_then(|_| after_write()) {
+        if let Err(rollback) = restore_cosmetics_files(&snapshot) {
+            return Err(AppError::transaction(format!(
+                "Cosmetics import failed ({}) and rollback failed ({})",
+                error.detail, rollback.detail
+            )));
+        }
+        return Err(error);
+    }
+    Ok(backup)
+}
+
+#[tauri::command]
+fn export_cosmetics_preset(csgo: String, destination: String) -> Result<CosmeticsPresetExportResult> {
+    let root = csgo_path(&csgo)?;
+    let destination = explicit_json_path(&destination, "Export")?;
+    export_cosmetics_preset_at(&root, &destination)
+}
+
+#[tauri::command]
+fn import_cosmetics_preset(csgo: String, source: String) -> Result<CosmeticsPresetImportResult> {
+    let root = csgo_path(&csgo)?;
+    let source = explicit_json_path(&source, "Import")?;
+    let backup = import_cosmetics_preset_at(&root, &source, || {
+        app_storage::mirror_cosmetics(&root)?;
+        Ok(())
+    })?;
+    Ok(CosmeticsPresetImportResult {
+        state: get_knife_customizer(csgo)?,
+        backup_path: backup.map(|path| path.to_string_lossy().into_owned()),
+    })
+}
+
 fn set_knife_customizer_enabled(root: &Path, enabled: bool) -> Result<Option<bool>> {
     let path = knife_config_path(root);
     if path.is_file() {
@@ -1411,6 +1695,7 @@ async fn install_payload(app: AppHandle, csgo: String) -> Result<InstallTransact
         let _busy = online_update::OperationGuard::acquire()?;
         let root = csgo_path(&csgo)?;
         ensure_target_not_running(&root)?;
+        ensure_steam_app_idle(&root)?;
         let state = local_state_root(&app)?;
         let config = read_config(&app)?;
         let restore_preview = config.mode.as_deref() == Some("preview");
@@ -1440,6 +1725,7 @@ async fn repair_payload(app: AppHandle, csgo: String) -> Result<InstallTransacti
         let _busy = online_update::OperationGuard::acquire()?;
         let root = csgo_path(&csgo)?;
         ensure_target_not_running(&root)?;
+        ensure_steam_app_idle(&root)?;
         let state = local_state_root(&app)?;
         let config = read_config(&app)?;
         let restore_preview = config.mode.as_deref() == Some("preview");
@@ -1483,6 +1769,7 @@ fn restore_payload_impl(app: &AppHandle, csgo: &str, pristine: bool) -> Result<R
     let _busy = online_update::OperationGuard::acquire()?;
     let root = csgo_path(csgo)?;
     ensure_target_not_running(&root)?;
+    ensure_steam_app_idle(&root)?;
     let state = local_state_root(app)?;
     mode_layout::recover(&state, &root)?;
     mode_layout::set_preview(&state, &root, false)?;
@@ -1568,6 +1855,7 @@ async fn install_plugin_update(
         let _busy = online_update::OperationGuard::acquire()?;
         let root = csgo_path(&csgo)?;
         ensure_target_not_running(&root)?;
+        ensure_steam_app_idle(&root)?;
         let state = local_state_root(&app)?;
         let config = read_config(&app)?;
         let restore_preview = config.mode.as_deref() == Some("preview");
@@ -1801,6 +2089,102 @@ mod tests {
     }
 
     #[test]
+    fn cosmetics_import_rejects_an_unsupported_bundle_before_writing() {
+        let root = test_root();
+        fs::create_dir_all(&root).unwrap();
+        let source = root.join("unsupported.json");
+        fs::write(
+            &source,
+            serde_json::to_vec(&serde_json::json!({
+                "schema_version": 99,
+                "kind": COSMETICS_EXPORT_KIND,
+                "exported_at_unix": 1,
+                "config": KnifeCustomizerConfig::default(),
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+
+        let error = read_cosmetics_preset(&source).unwrap_err();
+
+        assert_eq!(error.code, "E1002");
+        assert!(error.detail.contains("Unsupported cosmetics preset schema"));
+        assert!(!knife_config_path(&root).exists());
+        assert!(!gun_config_path(&root).exists());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn cosmetics_export_and_import_are_atomic_and_keep_a_pre_import_backup() {
+        let root = test_root();
+        let mut original = KnifeCustomizerConfig::default();
+        original.enabled = false;
+        save_knife_config(&root, &mut original).unwrap();
+        let original_knife = fs::read(knife_config_path(&root)).unwrap();
+        let original_guns = fs::read(gun_config_path(&root)).unwrap();
+
+        let export = root.join("preset.json");
+        fs::write(&export, b"stale").unwrap();
+        let result = export_cosmetics_preset_at(&root, &export).unwrap();
+        assert_eq!(result.path, export.to_string_lossy());
+        assert_eq!(result.size_bytes, fs::metadata(&export).unwrap().len());
+        let mut bundle: CosmeticsPresetBundle =
+            serde_json::from_slice(&fs::read(&export).unwrap()).unwrap();
+        bundle.config.enabled = true;
+        fs::write(&export, serde_json::to_vec_pretty(&bundle).unwrap()).unwrap();
+
+        let backup = import_cosmetics_preset_at(&root, &export, || Ok(()))
+            .unwrap()
+            .unwrap();
+
+        assert!(read_knife_config(&root).unwrap().enabled);
+        assert_eq!(
+            fs::read(backup.join("player_knife_presets.json")).unwrap(),
+            original_knife
+        );
+        assert_eq!(
+            fs::read(backup.join("player_gun_presets.json")).unwrap(),
+            original_guns
+        );
+        assert!(fs::read_dir(knife_config_path(&root).parent().unwrap())
+            .unwrap()
+            .flatten()
+            .all(|entry| !entry.file_name().to_string_lossy().contains(".cs2bi-")));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn cosmetics_import_rolls_back_when_post_write_mirroring_fails() {
+        let root = test_root();
+        let mut original = KnifeCustomizerConfig::default();
+        original.enabled = false;
+        save_knife_config(&root, &mut original).unwrap();
+        let original_knife = fs::read(knife_config_path(&root)).unwrap();
+        let original_guns = fs::read(gun_config_path(&root)).unwrap();
+
+        let source = root.join("preset.json");
+        let mut replacement = original;
+        replacement.enabled = true;
+        let bundle = CosmeticsPresetBundle {
+            schema_version: COSMETICS_EXPORT_SCHEMA_VERSION,
+            kind: COSMETICS_EXPORT_KIND.into(),
+            exported_at_unix: 1,
+            config: replacement,
+        };
+        fs::write(&source, serde_json::to_vec_pretty(&bundle).unwrap()).unwrap();
+
+        let error = import_cosmetics_preset_at(&root, &source, || {
+            Err(AppError::transaction("simulated mirror failure"))
+        })
+        .unwrap_err();
+
+        assert!(error.detail.contains("simulated mirror failure"));
+        assert_eq!(fs::read(knife_config_path(&root)).unwrap(), original_knife);
+        assert_eq!(fs::read(gun_config_path(&root)).unwrap(), original_guns);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn legacy_config_migration_restarts_the_portable_first_run_wizard() {
         let mut legacy = AppConfig::default();
         legacy.language = Some("english".into());
@@ -1824,16 +2208,16 @@ mod tests {
         let (arguments, options) = launch_request(LaunchMode::Bots);
         assert_eq!(
             arguments,
-            vec!["-applaunch", "730", "-insecure", "-console", "-condebug"]
+            vec!["-applaunch", "730", "-insecure", "-console"]
         );
-        assert_eq!(options, "-insecure -console -condebug");
+        assert_eq!(options, "-insecure -console");
 
         let (preview_arguments, preview_options) = launch_request(LaunchMode::Preview);
         assert_eq!(
             preview_arguments,
-            vec!["-applaunch", "730", "-insecure", "-console", "-condebug"]
+            vec!["-applaunch", "730", "-insecure", "-console"]
         );
-        assert_eq!(preview_options, "-insecure -console -condebug");
+        assert_eq!(preview_options, "-insecure -console");
 
         let (online_arguments, online_options) = launch_request(LaunchMode::Online);
         assert_eq!(online_arguments, vec!["-applaunch", "730"]);
@@ -2161,7 +2545,7 @@ pub fn run() {
                 let removed = logging::cleanup(&root).unwrap_or(0);
                 let archives_removed = diagnostics::cleanup_archives(&root).unwrap_or(0);
                 let update_cache_removed = online_update::cleanup_cache(None).unwrap_or(0);
-                logging::append(&root, "INFO", "panel.started", &format!("version=1.4.2.4, logs_collected={removed}, archives_collected={archives_removed}, update_cache_collected={update_cache_removed}"));
+                logging::append(&root, "INFO", "panel.started", &format!("version=1.4.2.5, logs_collected={removed}, archives_collected={archives_removed}, update_cache_collected={update_cache_removed}"));
             }
             let update_app = app.handle().clone();
             tauri::async_runtime::spawn_blocking(move || {
@@ -2179,11 +2563,14 @@ pub fn run() {
             cleanup_backups, validate_files, get_difficulty, set_difficulty, get_mode, set_mode,
             reconcile_launch_options, launch_cs2, reconcile_core_json, get_bot_items, set_bot_item,
             get_presets, set_aim, set_nades, get_drop_knives, set_drop_knives,
-            get_knife_customizer, save_knife_customizer, get_runtime_snapshot,
+            get_knife_customizer, save_knife_customizer, export_cosmetics_preset,
+            import_cosmetics_preset, get_runtime_snapshot,
             inspect_installation, get_install_plan, install_payload, repair_payload,
             restore_payload, restore_pristine_cs2, export_diagnostics, get_panel_memory, save_panel_memory,
             record_panel_error, get_update_snapshot, check_online_updates,
-            install_panel_update, install_plugin_update, cancel_update])
+            install_panel_update, install_plugin_update, cancel_update,
+            get_match_catalog, prepare_and_launch_match, get_active_match, list_match_history,
+            get_match_result, delete_match, run_install_checks])
         .run(tauri::generate_context!())
         .expect("error while running CS2BotImproverPlus");
 }

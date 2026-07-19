@@ -9,6 +9,7 @@ import { captureKeyName } from "../lib/keycapture";
 import { api, type KnifeCustomizerConfig } from "../lib/api";
 import KnifePresetModal from "./KnifePresetModal";
 import GlovePresetModal from "./GlovePresetModal";
+import CosmeticsPresetActions from "../components/CosmeticsPresetActions";
 import "./DropKnivesSection.css";
 
 export default function DropKnivesSection() {
@@ -65,6 +66,7 @@ export default function DropKnivesSection() {
 
   return (
     <Section title={t("pre.dropKnives")} status={status}>
+      <CosmeticsPresetActions csgoPath={csgoPath} onImported={setKnifeConfig} onError={reportError} />
       <div className="dk__bind">
         <span className="dk__bind-label">{t("pre.bind")}</span>
         <button

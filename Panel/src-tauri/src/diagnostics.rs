@@ -7,6 +7,28 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
 
+fn match_metadata(csgo: &Path) -> serde_json::Value {
+    let root = csgo.join(".csbip/matches");
+    let mut entries = Vec::new();
+    for directory in fs::read_dir(root).into_iter().flatten().flatten() {
+        let path = directory.path();
+        if !path.is_dir() { continue; }
+        for name in ["request.json", "result.json"] {
+            let file = path.join(name);
+            if let Ok(metadata) = fs::metadata(&file) {
+                entries.push(serde_json::json!({
+                    "session_id": directory.file_name().to_string_lossy(),
+                    "kind": name,
+                    "path": file.to_string_lossy(),
+                    "size": metadata.len(),
+                    "modified_unix": metadata.modified().ok().and_then(|time| time.duration_since(UNIX_EPOCH).ok()).map(|value| value.as_secs()),
+                }));
+            }
+        }
+    }
+    serde_json::Value::Array(entries)
+}
+
 const MAX_SOURCE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_ARCHIVE_INPUT_BYTES: usize = 32 * 1024 * 1024;
 const ARCHIVE_RETENTION: Duration = Duration::from_secs(14 * 24 * 60 * 60);
@@ -166,7 +188,7 @@ pub fn export(state_root: &Path, csgo: Option<&Path>, snapshot: &serde_json::Val
 
     collector.add_json("report/runtime-snapshot.json", snapshot)?;
     collector.add_json("report/system.json", &serde_json::json!({
-        "panel_version": "1.4.2.4",
+        "panel_version": "1.4.2.5",
         "generated_at_unix": timestamp,
         "os": std::env::consts::OS,
         "architecture": std::env::consts::ARCH,
@@ -192,6 +214,7 @@ pub fn export(state_root: &Path, csgo: Option<&Path>, snapshot: &serde_json::Val
     }
 
     if let Some(csgo) = csgo {
+        collector.add_json("matches/metadata.json", &match_metadata(csgo))?;
         for (name, path) in [
             ("logs/cs2/console.log", csgo.join("console.log")),
             ("logs/metamod/metamod-fatal.log", csgo.join("addons/metamod/metamod-fatal.log")),
@@ -200,6 +223,8 @@ pub fn export(state_root: &Path, csgo: Option<&Path>, snapshot: &serde_json::Val
         }
         add_named_files(&mut collector, "logs/counterstrikesharp",
             recent_files(&csgo.join("addons/counterstrikesharp/logs"), 12))?;
+        add_named_files(&mut collector, "logs/plus-match-coordinator",
+            recent_files(&csgo.join("addons/counterstrikesharp/logs/PlusMatchCoordinator"), 12))?;
     }
     add_named_files(&mut collector, "wer", wer_reports())?;
 

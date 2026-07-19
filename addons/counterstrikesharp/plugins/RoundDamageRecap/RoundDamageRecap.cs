@@ -2,7 +2,10 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
+using CounterStrikeSharp.API.Core.Translations;
+using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Utils;
+using Microsoft.Extensions.Logging;
 using System.Security.Cryptography;
 
 namespace RoundDamageRecap;
@@ -11,23 +14,32 @@ namespace RoundDamageRecap;
 public sealed class RoundDamageRecapPlugin : BasePlugin
 {
     public override string ModuleName => "RoundDamageRecap";
-    public override string ModuleVersion => "1.2.0";
-    public override string ModuleAuthor => "YuGeYu (modified by ed0ard)";
+    public override string ModuleVersion => "1.3.0";
+    public override string ModuleAuthor => "YuGeYu (modified by ed0ard and unicbm)";
     public override string ModuleDescription => "Shows a round-end damage recap and current difficulty in chat.";
 
-    private const string ChatColorGreen = "\u0006";
+    private const string ChatColorGreen = "\u0004";
+    private const string ChatColorLime = "\u0006";
     private const string ChatColorDefault = "\u0001";
 
     private readonly Dictionary<int, Dictionary<int, DamageEntry>> _damageByAttacker = new();
     private readonly Dictionary<int, PlayerSnapshot> _playersByKey = new();
+    private DamageRecapStyle _damageStyle = DamageRecapStyle.Auto;
     private bool _announcedDifficultyThisMap;
 
     public override void Load(bool hotReload)
     {
+        if (File.Exists(Path.Combine(Server.GameDirectory, ".csbip", "match-active.json")))
+        {
+            Logger.LogInformation("[RoundDamageRecap] Disabled for PLUS match; PlusMatchCoordinator owns match statistics.");
+            return;
+        }
+
         RegisterEventHandler<EventRoundStart>(OnRoundStart);
         RegisterEventHandler<EventPlayerHurt>(OnPlayerHurt);
         RegisterEventHandler<EventRoundEnd>(OnRoundEnd);
         RegisterEventHandler<EventPlayerDisconnect>(OnPlayerDisconnect);
+        AddCommand("css_damage_style", "Set round damage recap style: auto, classic or pw", OnDamageStyleCommand);
         RegisterListener<Listeners.OnMapStart>(_ =>
         {
             _damageByAttacker.Clear();
@@ -115,6 +127,30 @@ public sealed class RoundDamageRecapPlugin : BasePlugin
         return HookResult.Continue;
     }
 
+    private void OnDamageStyleCommand(CCSPlayerController? caller, CommandInfo command)
+    {
+        if (command.ArgCount > 1)
+        {
+            if (!TryParseDamageStyle(command.GetArg(1), out var style))
+            {
+                command.ReplyToCommand("[RoundDamageRecap] usage: css_damage_style <auto|classic|pw>");
+                return;
+            }
+
+            _damageStyle = style;
+        }
+
+        if (_damageStyle == DamageRecapStyle.Auto && caller is { IsValid: true })
+        {
+            var language = caller.GetLanguage();
+            command.ReplyToCommand(
+                $"[RoundDamageRecap] damage style = auto, effective = {GetDamageStyleName(ResolveDamageStyle(caller))}, language = {language.Name}");
+            return;
+        }
+
+        command.ReplyToCommand($"[RoundDamageRecap] damage style = {GetDamageStyleName(_damageStyle)}");
+    }
+
     private void PrintRecapForPlayer(CCSPlayerController player)
     {
         var enemyTeam = GetEnemyTeam(player.Team);
@@ -128,6 +164,7 @@ public sealed class RoundDamageRecapPlugin : BasePlugin
             .OrderByDescending(p => GetDamageBetween(player, p).TotalDamage + GetDamageBetween(p, player).TotalDamage)
             .ThenBy(p => p.PlayerName, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var damageStyle = ResolveDamageStyle(player);
 
         foreach (var enemy in enemyPlayers)
         {
@@ -135,12 +172,81 @@ public sealed class RoundDamageRecapPlugin : BasePlugin
             var fromEntry = GetDamageBetween(enemy, player);
             var remainingHp = GetDisplayedHealth(enemy, toEntry);
 
+            PrintDamageRecapLine(player, enemy.PlayerName, toEntry, fromEntry, remainingHp, damageStyle);
+        }
+    }
+
+    private void PrintDamageRecapLine(
+        CCSPlayerController player,
+        string enemyName,
+        DamageEntry dealt,
+        DamageEntry taken,
+        int remainingHp,
+        DamageRecapStyle damageStyle)
+    {
+        if (damageStyle == DamageRecapStyle.Classic)
+        {
             PrintLbtvLine(
                 player,
-                $"{enemy.PlayerName} [{(remainingHp > 0 ? $"{remainingHp} HP left" : "DEAD")}] - " +
-                $"Dealt to: [{toEntry.TotalDamage} in {toEntry.HitCount} {(toEntry.HitCount <= 1 ? "hit" : "hits")}] - " +
-                $"Taken from: [{fromEntry.TotalDamage} in {fromEntry.HitCount} {(fromEntry.HitCount <= 1 ? "hit" : "hits")}]");
+                $"{enemyName} [{(remainingHp > 0 ? $"{remainingHp} HP left" : "DEAD")}] - " +
+                $"Dealt to: [{dealt.TotalDamage} in {dealt.HitCount} {(dealt.HitCount <= 1 ? "hit" : "hits")}] - " +
+                $"Taken from: [{taken.TotalDamage} in {taken.HitCount} {(taken.HitCount <= 1 ? "hit" : "hits")}]");
+            return;
         }
+
+        player.PrintToChat(
+            $" {ChatColorDefault}命中{ChatColorGreen}{dealt.HitCount}{ChatColorDefault}次 " +
+            $"{ChatColorGreen}{dealt.TotalDamage}{ChatColorDefault}伤害 " +
+            $"被击中{ChatColorGreen}{taken.HitCount}{ChatColorDefault}次 " +
+            $"{ChatColorGreen}{taken.TotalDamage}{ChatColorDefault}伤害 " +
+            $"剩{ChatColorGreen}{Math.Max(0, remainingHp)}{ChatColorDefault}HP " +
+            $"{ChatColorLime}{enemyName}{ChatColorDefault}");
+    }
+
+    private static bool TryParseDamageStyle(string value, out DamageRecapStyle style)
+    {
+        if (value.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            style = DamageRecapStyle.Auto;
+            return true;
+        }
+
+        if (value.Equals("classic", StringComparison.OrdinalIgnoreCase))
+        {
+            style = DamageRecapStyle.Classic;
+            return true;
+        }
+
+        if (value.Equals("pw", StringComparison.OrdinalIgnoreCase))
+        {
+            style = DamageRecapStyle.PerfectWorld;
+            return true;
+        }
+
+        style = DamageRecapStyle.Auto;
+        return false;
+    }
+
+    private DamageRecapStyle ResolveDamageStyle(CCSPlayerController player)
+    {
+        if (_damageStyle != DamageRecapStyle.Auto)
+        {
+            return _damageStyle;
+        }
+
+        return player.GetLanguage().TwoLetterISOLanguageName.Equals("zh", StringComparison.OrdinalIgnoreCase)
+            ? DamageRecapStyle.PerfectWorld
+            : DamageRecapStyle.Classic;
+    }
+
+    private static string GetDamageStyleName(DamageRecapStyle style)
+    {
+        return style switch
+        {
+            DamageRecapStyle.PerfectWorld => "pw",
+            DamageRecapStyle.Classic => "classic",
+            _ => "auto"
+        };
     }
 
     private static void PrintLbtvLine(CCSPlayerController player, string text)
@@ -348,4 +454,11 @@ public sealed class RoundDamageRecapPlugin : BasePlugin
     private sealed record DifficultyProfile(string Name, string Level, string Path);
 
     private sealed record DifficultyResult(string Name, string Level);
+
+    private enum DamageRecapStyle
+    {
+        Auto,
+        Classic,
+        PerfectWorld
+    }
 }
