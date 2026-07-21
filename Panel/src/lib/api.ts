@@ -1,4 +1,8 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+
+function invoke<T>(command: string, args?: Record<string, unknown>) {
+  return tauriInvoke<T>(command, args);
+}
 
 /** Mirrors Rust `AppError` (error.rs). Codes are stable & not localized. */
 export type AppError = {
@@ -417,7 +421,7 @@ export type DemoStatus = {
   detail: string | null;
 };
 
-export type RatingPlusBreakdown = {
+export type OpenRatingBreakdown = {
   model_version: string;
   kills: number;
   damage: number;
@@ -426,7 +430,9 @@ export type RatingPlusBreakdown = {
   multi_kills: number;
   round_swing: number;
   economy_adjustment: number;
-  rating_plus: number;
+  open_rating?: number;
+  /** Legacy field emitted by matches created before the OpenRating migration. */
+  rating_plus?: number;
 };
 
 export type PlayerMatchStats = {
@@ -454,7 +460,7 @@ export type PlayerMatchStats = {
   round_swing: number;
   economy_adjustment: number;
   multi_kills: Record<string, number>;
-  rating: RatingPlusBreakdown | null;
+  rating: OpenRatingBreakdown | null;
   difference: number;
   adr: number;
   kast_percent: number;
@@ -494,6 +500,7 @@ export type InstallCheckStatus = "pass" | "warn" | "fail";
 export type InstallCheckItem = {
   code: string;
   status: InstallCheckStatus;
+  blocking: boolean;
   title: string;
   evidence: string;
   cause: string;
@@ -507,6 +514,8 @@ export type InstallCheckReport = {
   pass_count: number;
   warn_count: number;
   fail_count: number;
+  blocking_fail_count: number;
+  can_proceed: boolean;
   checks: InstallCheckItem[];
 };
 
@@ -542,6 +551,10 @@ export const api = {
     invoke<MatchResult>("get_match_result", { csgo, sessionId }),
   deleteMatch: (csgo: string, sessionId: string, confirmed: boolean) =>
     invoke<void>("delete_match", { csgo, sessionId, confirmed }),
+  playDemo: (csgo: string, demoPath: string) =>
+    invoke<void>("play_demo", { csgo, demoPath }),
+  openDemoFolder: (csgo: string, demoPath: string) =>
+    invoke<void>("open_demo_folder", { csgo, demoPath }),
   runInstallChecks: (csgo: string, selectedMap: string | null = null) =>
     invoke<InstallCheckReport>("run_install_checks", { csgo, selectedMap }),
   reconcileCoreJson: (csgo: string) => invoke<void>("reconcile_core_json", { csgo }),

@@ -61,6 +61,9 @@ impl AppError {
     pub(crate) fn transaction(detail: impl Into<String>) -> Self {
         Self::new("E1401", "installation", detail)
     }
+    fn preflight(detail: impl Into<String>) -> Self {
+        Self::new("E1402", "installation", detail)
+    }
     pub(crate) fn transaction_io(error: std::io::Error) -> Self {
         Self::transaction(error.to_string())
     }
@@ -475,14 +478,40 @@ fn ensure_steam_app_idle(root: &Path) -> Result<()> {
 fn valid_csgo(path: &Path) -> bool {
     path.join("gameinfo.gi").is_file() && path.join("cfg").is_dir()
 }
-fn csgo_path(raw: &str) -> Result<PathBuf> {
-    let path = PathBuf::from(raw);
-    if !valid_csgo(&path) {
-        return Err(AppError::directory(format!(
-            "Not a CS2 game/csgo directory: {raw}"
-        )));
+
+fn normalize_windows_canonical(path: PathBuf) -> PathBuf {
+    let raw = path.to_string_lossy();
+    if let Some(value) = raw.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{value}"));
     }
-    Ok(path)
+    if let Some(value) = raw.strip_prefix(r"\\?\") {
+        return PathBuf::from(value);
+    }
+    path
+}
+
+fn csgo_path(raw: &str) -> Result<PathBuf> {
+    let selected = PathBuf::from(raw.trim().trim_matches('"'));
+    let candidates = [
+        selected.clone(),
+        selected.join("game").join("csgo"),
+        selected.join("csgo"),
+    ];
+    for candidate in candidates {
+        if valid_csgo(&candidate) {
+            let canonical = fs::canonicalize(&candidate).map_err(|error| {
+                AppError::directory(format!(
+                    "Cannot resolve the selected CS2 directory ({}): {error}",
+                    candidate.display()
+                ))
+            })?;
+            return Ok(normalize_windows_canonical(canonical));
+        }
+    }
+    Err(AppError::directory(format!(
+        "The selected path is not a CS2 installation root, game directory, or game/csgo directory: {}",
+        selected.display()
+    )))
 }
 
 fn cfg_paths(csgo: &Path) -> [PathBuf; 2] {
@@ -542,8 +571,8 @@ fn detect_directories(app: AppHandle) -> Result<DirectoryInfo> {
     let mut config = read_config(&app)?;
     let mut candidates = Vec::new();
     if let Some(path) = &config.csgo_path {
-        if valid_csgo(Path::new(path)) {
-            candidates.push(path.clone());
+        if let Ok(resolved) = csgo_path(path) {
+            candidates.push(resolved.to_string_lossy().into_owned());
         }
     }
     for path in steam::detect_cs2_directories() {
@@ -575,9 +604,9 @@ fn detect_directories(app: AppHandle) -> Result<DirectoryInfo> {
 
 #[tauri::command]
 fn select_directory(app: AppHandle, path: String) -> Result<DirectoryInfo> {
-    csgo_path(&path)?;
+    let resolved = csgo_path(&path)?.to_string_lossy().into_owned();
     let mut config = read_config(&app)?;
-    config.csgo_path = Some(path);
+    config.csgo_path = Some(resolved);
     write_config(&app, &config)?;
     detect_directories(app)
 }
@@ -772,8 +801,10 @@ fn get_mode(app: AppHandle, csgo: String) -> Result<ModeInfo> {
 
 fn mode_at(root: &Path, config: &AppConfig, running: bool) -> ModeInfo {
     let gameinfo = root.join("gameinfo.gi");
-    let online_present = root.join("backup/Online/gameinfo.gi").is_file();
-    let bots_present = root.join("backup/WithBots/gameinfo.gi").is_file();
+    let online_present = gameinfo.is_file();
+    let bots_present = gameinfo.is_file()
+        && root.join("addons/metamod/counterstrikesharp.vdf").is_file()
+        && root.join("overrides/botprofile.vpk").is_file();
     let preview_present = root
         .join("addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.dll")
         .is_file();
@@ -904,6 +935,10 @@ fn prepare_and_launch_match(app: AppHandle, csgo: String, input: PrepareMatchInp
     let root = csgo_path(&csgo)?;
     ensure_target_not_running(&root)?;
     let state = local_state_root(&app)?;
+    let payload = payload_root()?;
+    let report = collect_install_checks(&payload, &state, &root, Some(&input.map_id))?;
+    ensure_install_checks_pass(&report)?;
+    ensure_match_components_pass(&report)?;
     mode_layout::recover(&state, &root)?;
     apply_launch_mode(&root, LaunchMode::Bots).map_err(AppError::invalid)?;
     let difficulty = match input.difficulty.as_str() {
@@ -913,9 +948,18 @@ fn prepare_and_launch_match(app: AppHandle, csgo: String, input: PrepareMatchInp
         _ => return Err(AppError::invalid("Difficulty must be low, medium, or high")),
     };
     set_difficulty_at(&root, &state, difficulty, false)?;
-    let request = match_system::prepare(&root, &payload_root()?, input)?;
-    match_system::watch(app.clone(), &root)?;
-    let steam = find_steam_executable()?;
+    let request = match_system::prepare(&root, &payload, input)?;
+    if let Err(error) = match_system::watch(app.clone(), &root) {
+        let _ = match_system::interrupt_active(&root, "WATCHER_FAILED", &error.detail, true);
+        return Err(error);
+    }
+    let steam = match find_steam_executable() {
+        Ok(steam) => steam,
+        Err(error) => {
+            let _ = match_system::interrupt_active(&root, "STEAM_NOT_FOUND", &error.detail, true);
+            return Err(error);
+        }
+    };
     let map = request.map_id.clone();
     let mut arguments = vec!["-applaunch", "730", "-insecure", "-console", "+game_type", "0", "+game_mode", "1", "+tv_enable", if request.record_demo { "1" } else { "0" }, "+map", &map];
     if let Err(error) = Command::new(steam)
@@ -980,6 +1024,206 @@ fn monitor_match_process(root: PathBuf, session_id: String) {
     });
 }
 
+fn restore_demo_layout(state: &Path, root: &Path, mode: LaunchMode) -> Result<()> {
+    mode_layout::recover(state, root)?;
+    apply_launch_mode(root, mode).map_err(AppError::launch)?;
+    mode_layout::set_preview(state, root, mode != LaunchMode::Bots)
+}
+
+fn selected_cs2_running(root: &Path) -> bool {
+    let process = inspect_cs2_process(Some(root));
+    process.matches_selected || (process.running && !process.path_accessible)
+}
+
+fn monitor_demo_process(state: PathBuf, root: PathBuf, previous_mode: LaunchMode) {
+    std::thread::spawn(move || {
+        while selected_cs2_running(&root) {
+            std::thread::sleep(Duration::from_secs(1));
+        }
+        logging::append(
+            &state,
+            "INFO",
+            "demo.play.exited",
+            &format!("target={}", root.display()),
+        );
+        match restore_demo_layout(&state, &root, previous_mode) {
+            Ok(()) => logging::append(
+                &state,
+                "INFO",
+                "demo.play.layout_restored",
+                &format!("target={}, mode={previous_mode:?}", root.display()),
+            ),
+            Err(error) => logging::append(
+                &state,
+                "ERROR",
+                "demo.play.restore_failed",
+                &format!("target={}, detail={}", root.display(), error.detail),
+            ),
+        }
+    });
+}
+
+fn managed_demo_location(root: &Path, demo_path: &str) -> Result<(PathBuf, PathBuf)> {
+    let managed = fs::canonicalize(root.join("demos/csbip"))
+        .map_err(|error| AppError::invalid(format!("Demo directory is unavailable: {error}")))?;
+    let demo = PathBuf::from(demo_path);
+    if demo.extension()
+        .and_then(|value| value.to_str())
+        .is_none_or(|value| !value.eq_ignore_ascii_case("dem"))
+    {
+        return Err(AppError::invalid("Demo path must identify a .dem file"));
+    }
+    let parent = demo
+        .parent()
+        .ok_or_else(|| AppError::invalid("Demo path has no managed parent directory"))?;
+    let canonical_parent = fs::canonicalize(parent)
+        .map_err(|error| AppError::invalid(format!("Demo directory is unavailable: {error}")))?;
+    if !canonical_parent
+        .to_string_lossy()
+        .eq_ignore_ascii_case(&managed.to_string_lossy())
+    {
+        return Err(AppError::invalid(
+            "Demo path is outside the managed CS2BotImproverPlus directory",
+        ));
+    }
+    Ok((managed, demo))
+}
+
+fn demo_playback_argument(root: &Path, demo: &Path) -> String {
+    demo.strip_prefix(root)
+        .map(|path| path.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_else(|_| demo.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+fn open_demo_folder(app: AppHandle, csgo: String, demo_path: String) -> Result<()> {
+    let root = csgo_path(&csgo)?;
+    let (directory, demo) = managed_demo_location(&root, &demo_path)?;
+    let mut command = Command::new("explorer.exe");
+    if demo.is_file() {
+        command.arg(format!("/select,{}", demo.display()));
+    } else {
+        command.arg(&directory);
+    }
+    command
+        .spawn()
+        .map_err(|error| AppError::launch(format!("Cannot open the Demo directory: {error}")))?;
+    if let Ok(state) = local_state_root(&app) {
+        logging::append(
+            &state,
+            "INFO",
+            "demo.folder.opened",
+            &format!("directory={}, demo={}", directory.display(), demo.display()),
+        );
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn play_demo(app: AppHandle, csgo: String, demo_path: String) -> Result<()> {
+    let root = csgo_path(&csgo)?;
+    ensure_target_not_running(&root)?;
+    let demo = match_system::validate_playable_demo(&root, Path::new(&demo_path))?;
+    let state = local_state_root(&app)?;
+    let config = read_config(&app)?;
+    let previous_mode = LaunchMode::parse(config.mode.as_deref()).map_err(AppError::invalid)?;
+    let steam = find_steam_executable()?;
+    // CS2's +playdemo resolves paths relative to game/csgo, so prefer the
+    // relative form with forward slashes and fall back to the absolute path.
+    let argument = demo_playback_argument(&root, &demo);
+    logging::append(
+        &state,
+        "INFO",
+        "demo.play.requested",
+        &format!(
+            "target={}, demo={}, previous_mode={previous_mode:?}",
+            root.display(),
+            demo.display()
+        ),
+    );
+    mode_layout::recover(&state, &root)?;
+    if let Err(detail) = apply_launch_mode(&root, LaunchMode::Online) {
+        let launch_error = AppError::launch(detail);
+        let restore_error = restore_demo_layout(&state, &root, previous_mode).err();
+        logging::append(
+            &state,
+            "ERROR",
+            "demo.play.failed",
+            &format!(
+                "detail={}, restore={}",
+                launch_error.detail,
+                restore_error
+                    .as_ref()
+                    .map_or("ok", |value| value.detail.as_str())
+            ),
+        );
+        return Err(restore_error.unwrap_or(launch_error));
+    }
+    if let Err(error) = mode_layout::set_preview(&state, &root, true) {
+        let _ = restore_demo_layout(&state, &root, previous_mode);
+        logging::append(&state, "ERROR", "demo.play.failed", &error.detail);
+        return Err(error);
+    }
+    if let Err(error) = Command::new(steam)
+        .args([
+            "-applaunch",
+            "730",
+            "-console",
+            "-condebug",
+            "+playdemo",
+            &argument,
+        ])
+        .spawn()
+    {
+        let launch_error = AppError::launch(format!("Steam could not launch the Demo: {error}"));
+        let restore_error = restore_demo_layout(&state, &root, previous_mode).err();
+        logging::append(
+            &state,
+            "ERROR",
+            "demo.play.failed",
+            &format!(
+                "detail={}, restore={}",
+                launch_error.detail,
+                restore_error
+                    .as_ref()
+                    .map_or("ok", |value| value.detail.as_str())
+            ),
+        );
+        return Err(restore_error.unwrap_or(launch_error));
+    }
+
+    let launch_deadline = Instant::now() + Duration::from_secs(120);
+    while !selected_cs2_running(&root) {
+        if Instant::now() >= launch_deadline {
+            let launch_error = AppError::launch("CS2 did not start Demo playback within 120 seconds");
+            let restore_error = restore_demo_layout(&state, &root, previous_mode).err();
+            logging::append(
+                &state,
+                "ERROR",
+                "demo.play.failed",
+                &format!(
+                    "detail={}, restore={}",
+                    launch_error.detail,
+                    restore_error
+                        .as_ref()
+                        .map_or("ok", |value| value.detail.as_str())
+                ),
+            );
+            return Err(restore_error.unwrap_or(launch_error));
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    }
+
+    logging::append(
+        &state,
+        "INFO",
+        "demo.play.started",
+        &format!("target={}, demo={}", root.display(), demo.display()),
+    );
+    monitor_demo_process(state, root, previous_mode);
+    Ok(())
+}
+
 #[tauri::command]
 fn get_active_match(csgo: String) -> Result<Option<MatchSession>> {
     let root = csgo_path(&csgo)?;
@@ -1014,8 +1258,85 @@ fn delete_match(csgo: String, session_id: String, confirmed: bool) -> Result<()>
 #[tauri::command]
 fn run_install_checks(app: AppHandle, csgo: String, selected_map: Option<String>) -> Result<InstallCheckReport> {
     let root = csgo_path(&csgo)?;
-    let process = inspect_cs2_process(Some(&root));
-    install_checks::run(&payload_root()?, &local_state_root(&app)?, &root, process.running, selected_map.as_deref())
+    collect_install_checks(&payload_root()?, &local_state_root(&app)?, &root, selected_map.as_deref())
+}
+
+fn collect_install_checks(payload: &Path, state: &Path, root: &Path, selected_map: Option<&str>) -> Result<InstallCheckReport> {
+    let process = inspect_cs2_process(Some(root));
+    let report = install_checks::run(payload, state, root, process.running, selected_map)?;
+    let report_path = install_checks::persist(state, &report)?;
+    logging::append(
+        state,
+        if report.can_proceed { "INFO" } else { "ERROR" },
+        "install.preflight",
+        &format!(
+            "target={}, pass={}, warn={}, fail={}, blocking_fail={}, can_proceed={}, report={}",
+            report.target,
+            report.pass_count,
+            report.warn_count,
+            report.fail_count,
+            report.blocking_fail_count,
+            report.can_proceed,
+            report_path.display()
+        ),
+    );
+    for check in report.checks.iter().filter(|check| check.status != install_checks::CheckStatus::Pass) {
+        logging::append(
+            state,
+            if check.status == install_checks::CheckStatus::Fail { "ERROR" } else { "WARN" },
+            "install.preflight.item",
+            &format!(
+                "code={}, blocking={}, title={}, evidence={}, cause={}, action={}",
+                check.code, check.blocking, check.title, check.evidence, check.cause, check.action
+            ),
+        );
+    }
+    Ok(report)
+}
+
+fn ensure_install_checks_pass(report: &InstallCheckReport) -> Result<()> {
+    if report.can_proceed {
+        return Ok(());
+    }
+    let detail = report.checks.iter()
+        .filter(|check| check.blocking && check.status == install_checks::CheckStatus::Fail)
+        .map(|check| format!("{} {}: {}", check.code, check.title, check.action))
+        .collect::<Vec<_>>()
+        .join(" | ");
+    Err(AppError::preflight(format!(
+        "Installation preflight found {} blocking error(s). {detail}",
+        report.blocking_fail_count
+    )))
+}
+
+fn ensure_match_components_pass(report: &InstallCheckReport) -> Result<()> {
+    let required_prefixes = [
+        "TARGET_METAMOD_X64",
+        "TARGET_CSS_X64",
+        "TARGET_CSS_DOTNET_X64",
+        "TARGET_RAYTRACE_X64",
+        "TARGET_BOTHIDER_X64",
+        "TARGET_MATCH_COORDINATOR_MANAGED",
+        "TARGET_MATCH_CORE_MANAGED",
+        "TARGET_BOTHIDER_API_MANAGED",
+        "TARGET_MATCH_CATALOG",
+        "TARGET_OPEN_RATING_MODEL",
+        "TARGET_BOTHIDER_IDENTITIES",
+        "TARGET_MATCH_PROFILE_",
+        "MATCH_MAP",
+    ];
+    let unavailable = report.checks.iter()
+        .filter(|check| required_prefixes.iter().any(|prefix| check.code.starts_with(prefix)))
+        .filter(|check| check.status != install_checks::CheckStatus::Pass)
+        .map(|check| format!("{}: {}", check.code, check.action))
+        .collect::<Vec<_>>();
+    if unavailable.is_empty() {
+        return Ok(());
+    }
+    Err(AppError::preflight(format!(
+        "Match runtime checks failed. {}",
+        unavailable.join(" | ")
+    )))
 }
 
 #[tauri::command]
@@ -1694,14 +2015,17 @@ async fn install_payload(app: AppHandle, csgo: String) -> Result<InstallTransact
     run_installation_task("Payload installation", move || {
         let _busy = online_update::OperationGuard::acquire()?;
         let root = csgo_path(&csgo)?;
+        let payload = payload_root()?;
+        let state = local_state_root(&app)?;
+        let report = collect_install_checks(&payload, &state, &root, None)?;
+        ensure_install_checks_pass(&report)?;
         ensure_target_not_running(&root)?;
         ensure_steam_app_idle(&root)?;
-        let state = local_state_root(&app)?;
         let config = read_config(&app)?;
         let restore_preview = config.mode.as_deref() == Some("preview");
         logging::append(&state, "INFO", "install.started", &root.to_string_lossy());
         let result = with_canonical_layout(&state, &root, restore_preview, || {
-            let result = installer::install(&payload_root()?, &state, &root, false)?;
+            let result = installer::install(&payload, &state, &root, false)?;
             write_bot_randomizer_options(&root, &config.bot_items)?;
             Ok(result)
         });
@@ -1724,14 +2048,17 @@ async fn repair_payload(app: AppHandle, csgo: String) -> Result<InstallTransacti
     run_installation_task("Payload repair", move || {
         let _busy = online_update::OperationGuard::acquire()?;
         let root = csgo_path(&csgo)?;
+        let payload = payload_root()?;
+        let state = local_state_root(&app)?;
+        let report = collect_install_checks(&payload, &state, &root, None)?;
+        ensure_install_checks_pass(&report)?;
         ensure_target_not_running(&root)?;
         ensure_steam_app_idle(&root)?;
-        let state = local_state_root(&app)?;
         let config = read_config(&app)?;
         let restore_preview = config.mode.as_deref() == Some("preview");
         logging::append(&state, "INFO", "repair.started", &root.to_string_lossy());
         let result = with_canonical_layout(&state, &root, restore_preview, || {
-            let result = installer::install(&payload_root()?, &state, &root, true)?;
+            let result = installer::install(&payload, &state, &root, true)?;
             write_bot_randomizer_options(&root, &config.bot_items)?;
             Ok(result)
         });
@@ -1988,6 +2315,52 @@ mod tests {
             .unwrap()
             .as_nanos();
         std::env::temp_dir().join(format!("cs2bi-knife-config-{suffix}"))
+    }
+
+    #[test]
+    fn csgo_path_accepts_install_root_game_directory_and_csgo_directory() {
+        let root = test_root();
+        let game = root.join("game");
+        let csgo = game.join("csgo");
+        fs::create_dir_all(csgo.join("cfg")).unwrap();
+        fs::write(csgo.join("gameinfo.gi"), b"gameinfo").unwrap();
+
+        let expected = normalize_windows_canonical(fs::canonicalize(&csgo).unwrap());
+        assert_eq!(csgo_path(root.to_str().unwrap()).unwrap(), expected);
+        assert_eq!(csgo_path(game.to_str().unwrap()).unwrap(), expected);
+        assert_eq!(csgo_path(csgo.to_str().unwrap()).unwrap(), expected);
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn managed_demo_location_accepts_missing_demo_and_rejects_escape() {
+        let root = test_root();
+        let managed = root.join("demos/csbip");
+        let outside = root.join("demos/other");
+        fs::create_dir_all(&managed).unwrap();
+        fs::create_dir_all(&outside).unwrap();
+
+        let demo = managed.join("session.dem");
+        let (resolved, selected) =
+            managed_demo_location(&root, demo.to_str().unwrap()).unwrap();
+        assert_eq!(resolved, fs::canonicalize(&managed).unwrap());
+        assert_eq!(selected, demo);
+        assert!(managed_demo_location(
+            &root,
+            outside.join("session.dem").to_str().unwrap()
+        )
+        .is_err());
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+
+    #[test]
+    fn demo_playback_uses_a_csgo_relative_forward_slash_path() {
+        let root = PathBuf::from(r"C:\Games\Counter-Strike Global Offensive\game\csgo");
+        let demo = root.join("demos").join("csbip").join("session.dem");
+        assert_eq!(demo_playback_argument(&root, &demo), "demos/csbip/session.dem");
     }
 
     #[test]
@@ -2545,7 +2918,7 @@ pub fn run() {
                 let removed = logging::cleanup(&root).unwrap_or(0);
                 let archives_removed = diagnostics::cleanup_archives(&root).unwrap_or(0);
                 let update_cache_removed = online_update::cleanup_cache(None).unwrap_or(0);
-                logging::append(&root, "INFO", "panel.started", &format!("version=1.4.2.5, logs_collected={removed}, archives_collected={archives_removed}, update_cache_collected={update_cache_removed}"));
+                logging::append(&root, "INFO", "panel.started", &format!("version=1.4.2.5-Preview.3, logs_collected={removed}, archives_collected={archives_removed}, update_cache_collected={update_cache_removed}"));
             }
             let update_app = app.handle().clone();
             tauri::async_runtime::spawn_blocking(move || {
@@ -2570,7 +2943,7 @@ pub fn run() {
             record_panel_error, get_update_snapshot, check_online_updates,
             install_panel_update, install_plugin_update, cancel_update,
             get_match_catalog, prepare_and_launch_match, get_active_match, list_match_history,
-            get_match_result, delete_match, run_install_checks])
+            get_match_result, delete_match, run_install_checks, play_demo, open_demo_folder])
         .run(tauri::generate_context!())
         .expect("error while running CS2BotImproverPlus");
 }

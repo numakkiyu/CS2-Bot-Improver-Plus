@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "cs2bi-core-tests"
-version = "1.4.2+5"
+version = "1.4.2-preview.3+5"
 dependencies = [
  "base64",
  "ed25519-dalek",

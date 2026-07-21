@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { Download, ExternalLink, PackageCheck, RefreshCw, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, Download, ExternalLink, PackageCheck, RefreshCw, X } from "lucide-react";
 import { api, toAppError, type OnlineUpdateSnapshot, type UpdateProgress } from "../../lib/api";
 import { useStore } from "../../state/store";
 import { useT } from "../../i18n";
@@ -69,10 +69,11 @@ export default function OnlineUpdatePage() {
     const installing = working === component || (snapshot?.busy && state?.status === "downloading");
     const canInstall = !!state?.update_available && state.compatible && !snapshot?.busy && !working
       && (component === "panel" || (!!csgoPath && !blocked));
+    const available = !!state?.update_available;
     return (
-      <section className="update-component" key={component}>
-        <div className="update-component__head">
-          <span className={`update-component__icon update-component__icon--${component}`}>
+      <section className="upd-card" key={component}>
+        <div className="upd-card__head">
+          <span className={`upd-card__icon upd-card__icon--${component}`}>
             {component === "panel" ? <Download size={20} /> : <PackageCheck size={20} />}
           </span>
           <div>
@@ -80,22 +81,40 @@ export default function OnlineUpdatePage() {
             <small>{component === "panel" ? t("update.panelDesc") : t("update.pluginDesc")}</small>
           </div>
           <span className={`update-status update-status--${state?.status ?? "idle"}`}>
-            {state?.update_available ? t("update.available") : t("update.current")}
+            {available ? t("update.available") : t("update.current")}
           </span>
         </div>
-        <div className="update-facts">
-          <span><small>{t("update.currentVersion")}</small><strong>{state?.current_version ?? "--"}</strong></span>
-          <span><small>{t("update.latestVersion")}</small><strong>{state?.latest_version ?? "--"}</strong></span>
-          <span><small>{t("update.size")}</small><strong>{formatBytes(state?.total_bytes ?? 0)}</strong></span>
+
+        <div className="upd-card__versions">
+          <span className="upd-ver">
+            <small>{t("update.currentVersion")}</small>
+            <strong>{state?.current_version ?? "--"}</strong>
+          </span>
+          <ArrowRight size={18} className={`upd-arrow ${available ? "is-hot" : ""}`} aria-hidden="true" />
+          <span className="upd-ver">
+            <small>{t("update.latestVersion")}</small>
+            <strong className={available ? "is-new" : ""}>{state?.latest_version ?? "--"}</strong>
+          </span>
+          <span className="upd-ver upd-ver--size">
+            <small>{t("update.size")}</small>
+            <strong>{formatBytes(state?.total_bytes ?? 0)}</strong>
+          </span>
         </div>
+
         {(installing || !!state?.downloaded_bytes) && (
           <div className="update-progress">
             <div><span style={{ width: `${progress}%` }} /></div>
             <small>{state?.status === "extracting" ? t("update.extracting") : t("update.downloading", { n: progress })}</small>
           </div>
         )}
-        {component === "plugin" && blocked && <p className="update-note">{t("update.closeCs2")}</p>}
-        {state && !state.compatible && <p className="update-note">{t("update.panelRequired")}</p>}
+
+        {component === "plugin" && blocked && (
+          <p className="upd-note"><AlertTriangle size={14} aria-hidden="true" />{t("update.closeCs2")}</p>
+        )}
+        {state && !state.compatible && (
+          <p className="upd-note"><AlertTriangle size={14} aria-hidden="true" />{t("update.panelRequired")}</p>
+        )}
+
         <div className="update-actions">
           <button className="is-primary" disabled={!canInstall} onClick={() => install(component)}>
             <Download size={16} />{t(component === "panel" ? "update.installPanel" : "update.installPlugin")}
@@ -122,8 +141,10 @@ export default function OnlineUpdatePage() {
         </div>
       </div>
       {(localError || snapshot?.error) && <div className="update-error">{localError ?? snapshot?.error}</div>}
-      {componentSection("panel")}
-      {componentSection("plugin")}
+      <div className="upd-grid">
+        {componentSection("panel")}
+        {componentSection("plugin")}
+      </div>
     </div>
   );
 }

@@ -3,11 +3,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+#[cfg(not(test))]
+use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub const STATE_DIRECTORY: &str = ".csbip";
+#[cfg(not(test))]
 static HIDDEN_INITIALIZED: OnceLock<()> = OnceLock::new();
+#[cfg(not(test))]
+static RESOLVED_ROOT: Mutex<Option<PathBuf>> = Mutex::new(None);
 #[cfg(test)]
 pub(crate) static TEST_STATE_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -40,19 +44,98 @@ fn hide_directory(path: &Path) {
 #[cfg(not(windows))]
 fn hide_directory(_path: &Path) {}
 
+fn ensure_writable(path: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(path)?;
+    let probe = path.join(format!(
+        ".state-write-probe-{}-{}",
+        std::process::id(),
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos()
+    ));
+    atomic_fs::write_replace(&probe, b"state-write-probe")?;
+    let result = fs::read(&probe).and_then(|bytes| {
+        if bytes == b"state-write-probe" {
+            Ok(())
+        } else {
+            Err(std::io::Error::other("state write probe returned unexpected data"))
+        }
+    });
+    let cleanup = fs::remove_file(&probe);
+    result.and(cleanup)
+}
+
+fn fallback_root() -> Option<PathBuf> {
+    std::env::var_os("LOCALAPPDATA")
+        .or_else(|| {
+            std::env::var_os("USERPROFILE")
+                .map(|home| PathBuf::from(home).join("AppData").join("Local").into_os_string())
+        })
+        .map(PathBuf::from)
+        .map(|root| root.join("CS2BotImproverPlus").join(STATE_DIRECTORY))
+}
+
+fn resolve_writable_root(portable: PathBuf, fallback: Option<PathBuf>) -> Result<PathBuf> {
+    if ensure_writable(&portable).is_ok() {
+        return Ok(portable);
+    }
+
+    let fallback = fallback.ok_or_else(|| {
+        AppError::transaction(format!(
+            "The portable state directory is not writable ({}) and no per-user Local AppData directory is available",
+            portable.display()
+        ))
+    })?;
+    ensure_writable(&fallback).map_err(|error| {
+        AppError::transaction(format!(
+            "Neither the portable state directory ({}) nor the per-user state directory ({}) is writable: {error}",
+            portable.display(),
+            fallback.display()
+        ))
+    })?;
+    Ok(fallback)
+}
+
+fn resolve_root() -> Result<PathBuf> {
+    if let Some(override_path) = std::env::var_os("CS2BI_STATE_ROOT") {
+        let path = PathBuf::from(override_path);
+        ensure_writable(&path).map_err(|error| {
+            AppError::transaction(format!(
+                "CS2BI_STATE_ROOT is not writable ({}): {error}",
+                path.display()
+            ))
+        })?;
+        return Ok(path);
+    }
+
+    let executable = std::env::current_exe()
+        .map_err(|error| AppError::transaction(format!("Cannot locate Panel executable: {error}")))?;
+    let portable = executable.parent()
+        .ok_or_else(|| AppError::transaction("Panel executable has no parent directory"))?
+        .join(STATE_DIRECTORY);
+    resolve_writable_root(portable, fallback_root())
+}
+
 pub fn root() -> Result<PathBuf> {
-    let path = if let Some(override_path) = std::env::var_os("CS2BI_STATE_ROOT") {
-        PathBuf::from(override_path)
-    } else {
-        let executable = std::env::current_exe()
-            .map_err(|error| AppError::transaction(format!("Cannot locate Panel executable: {error}")))?;
-        executable.parent()
-            .ok_or_else(|| AppError::transaction("Panel executable has no parent directory"))?
-            .join(STATE_DIRECTORY)
-    };
-    fs::create_dir_all(&path).map_err(AppError::transaction_io)?;
-    HIDDEN_INITIALIZED.get_or_init(|| hide_directory(&path));
-    Ok(path)
+    #[cfg(test)]
+    {
+        let path = resolve_root()?;
+        hide_directory(&path);
+        Ok(path)
+    }
+    #[cfg(not(test))]
+    {
+        let path = {
+            let mut resolved = RESOLVED_ROOT.lock().unwrap_or_else(|error| error.into_inner());
+            if let Some(path) = resolved.as_ref() {
+                path.clone()
+            } else {
+                let path = resolve_root()?;
+                *resolved = Some(path.clone());
+                path
+            }
+        };
+        HIDDEN_INITIALIZED.get_or_init(|| hide_directory(&path));
+        Ok(path)
+    }
 }
 
 pub fn panel_config_path() -> Result<PathBuf> {
@@ -109,6 +192,21 @@ pub fn mirror_cosmetics(csgo: &Path) -> Result<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn read_only_portable_location_uses_per_user_fallback() {
+        let base = std::env::temp_dir().join(format!("cs2bi-storage-fallback-{}", unix_time()));
+        let portable = base.join("portable-state");
+        let fallback = base.join("local-app-data-state");
+        fs::create_dir_all(&base).unwrap();
+        fs::write(&portable, b"occupied by a file").unwrap();
+
+        let resolved = resolve_writable_root(portable, Some(fallback.clone())).unwrap();
+        assert_eq!(resolved, fallback);
+        assert!(resolved.is_dir());
+
+        fs::remove_dir_all(base).unwrap();
+    }
 
     #[test]
     fn ui_memory_and_cosmetics_are_stored_under_portable_root() {

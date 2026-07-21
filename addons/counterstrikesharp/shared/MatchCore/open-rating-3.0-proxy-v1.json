@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "model_version": "open-rating-3.0-proxy-v1",
+  "status": "calibrated_small_sample_entertainment",
+  "source_model": "Entertainment proxy based on publicly described HLTV Rating 3.0 mechanisms",
+  "dataset_id": "openrating-small-sample-2026-v1",
+  "dataset_sha256": "c69d99230b002a7dd7d5569c814709abe80f62170ac7c6e4de9210554a20edb8",
+  "calibration": {
+    "matches": 2,
+    "maps": 6,
+    "player_maps": 60,
+    "training_match": "Spirit vs Falcons, IEM Cologne Major 2026",
+    "holdout_match": "FURIA vs Falcons, IEM Cologne Major 2026",
+    "holdout_mae": 0.10100978811114224,
+    "holdout_spearman": 0.9628230108053989,
+    "kills_exact": "60/60",
+    "deaths_exact": "60/60",
+    "adr_mae": 0.6541269841269839,
+    "kast_mae_pp": 1.6213492063492048
+  },
+  "weights": {
+    "kills": 0.3347209816908208,
+    "damage": 0.47510339992828865,
+    "survival": 0.3785772969943543,
+    "kast": 0.2239626370653013,
+    "multi_kills": 0.136410832801464,
+    "round_swing": 0.3956972806498023,
+    "economy": 0.14666847859595622,
+    "intercept": -0.7309958084287365
+  },
+  "map_side_priors": {
+    "de_mirage": 0.05,
+    "de_inferno": 0.00,
+    "de_dust2": -0.05,
+    "de_nuke": 0.25,
+    "de_ancient": 0.18,
+    "de_anubis": -0.10,
+    "de_train": 0.25,
+    "de_overpass": 0.20,
+    "de_vertigo": 0.10,
+    "de_cache": 0.05
+  },
+  "release_gate": {
+    "profile": "small_sample_entertainment",
+    "minimum_matches": 2,
+    "minimum_maps": 6,
+    "minimum_player_maps": 60,
+    "target_holdout_fraction": 0.2,
+    "actual_holdout_fraction": 0.5,
+    "maximum_mae": 0.15,
+    "minimum_spearman": 0.75,
+    "passed": true
+  },
+  "reference_50_map_gate": {
+    "minimum_maps": 50,
+    "minimum_player_maps": 500,
+    "maximum_mae": 0.10,
+    "minimum_spearman": 0.85,
+    "passed": false
+  }
+}

@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown } from "./icons";
 import "./Dropdown.css";
 
-export type DropdownOption = { value: string; label: string };
+export type DropdownOption = { value: string; label: ReactNode };
 
 type Props = {
   value: string | null;
@@ -10,6 +10,8 @@ type Props = {
   placeholder?: string;
   disabled?: boolean;
   ariaLabel?: string;
+  /** Render the menu in normal flow under the button instead of a floating layer. */
+  inline?: boolean;
   onChange: (value: string) => void;
 };
 
@@ -19,6 +21,7 @@ export default function Dropdown({
   placeholder = "Select…",
   disabled,
   ariaLabel,
+  inline,
   onChange,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -41,7 +44,7 @@ export default function Dropdown({
   const selected = options.find((o) => o.value === value);
 
   return (
-    <div className="dropdown" ref={ref}>
+    <div className={`dropdown${inline ? " dropdown--inline" : ""}`} ref={ref}>
       <button
         type="button"
         className={`dropdown__btn ${selected ? "has-value" : ""}`}

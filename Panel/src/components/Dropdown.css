@@ -53,6 +53,17 @@
   box-shadow: var(--sh-pop);
   animation: dd-in 160ms var(--ease);
 }
+/* Opaque fill: translucent glass lets underlying text bleed through the menu. */
+.dropdown .dropdown__menu {
+  background: rgba(252, 252, 253, 0.98);
+}
+/* Inline mode: the menu flows directly under the button inside its parent,
+   so it can never detach from its anchor or be clipped by card overflow. */
+.dropdown--inline .dropdown__menu {
+  position: static;
+  margin: 7px 0 0;
+  max-height: none;
+}
 @keyframes dd-in {
   from {
     opacity: 0;

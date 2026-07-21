@@ -18,7 +18,7 @@ const MANAGED_FILES: &[&str] = &[
     "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.dll",
     "addons/counterstrikesharp/plugins/PlusMatchCoordinator/PlusMatchCoordinator.dll",
     "addons/counterstrikesharp/plugins/PlusMatchCoordinator/match_catalog.json",
-    "addons/counterstrikesharp/plugins/PlusMatchCoordinator/rating-plus-3.0-proxy-v1.json",
+    "addons/counterstrikesharp/plugins/PlusMatchCoordinator/open-rating-3.0-proxy-v1.json",
     "addons/metamod/BotController.vdf",
     "addons/metamod/BotHider.vdf",
     "addons/metamod/RayTrace.vdf",

@@ -7,12 +7,19 @@ param(
     [string]$LlvmBin,
     [string]$XwinCache,
     [string]$OutputDirectory,
+    [string]$ReleaseVersion = "1.4.2.5-Preview.3",
     [switch]$SkipBuild,
     [switch]$SkipNpmInstall
 )
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
+$displayVersion = $ReleaseVersion.Trim().TrimStart('v', 'V')
+if ($displayVersion -notmatch '^\d+\.\d+\.\d+\.\d+(?:-Preview\.\d+)?$') {
+    throw "ReleaseVersion must use four numeric parts with an optional -Preview.N suffix."
+}
+$isPreview = $displayVersion -match '-Preview\.\d+$'
+$releaseTag = "v$displayVersion"
 $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot "dependencies.json") -Raw | ConvertFrom-Json
 . (Join-Path $PSScriptRoot "VpkTools.ps1")
 $cache = Join-Path $repo ".cache\package"
@@ -115,7 +122,7 @@ $upstreamPayload = $payloadCandidates |
     Select-Object -First 1
 if (-not $upstreamPayload) { throw "Could not locate the upstream game/csgo payload." }
 
-$releaseRoot = Join-Path $stage "CS2BotImproverPlus-v1.4.2.5-windows"
+$releaseRoot = Join-Path $stage "CS2BotImproverPlus-$releaseTag-windows"
 $payload = $releaseRoot
 Copy-Tree $upstreamPayload.FullName $releaseRoot
 Get-ChildItem -LiteralPath $releaseRoot -Filter "Panel*.exe" -File | Remove-Item -Force
@@ -214,7 +221,42 @@ Copy-Item -LiteralPath (Join-Path $repo "addons\counterstrikesharp\plugins\BotRa
 Copy-Tree $pluginBuild (Join-Path $payload "addons\counterstrikesharp\plugins\PlayerKnifeCustomizer")
 Copy-Tree $botImplBuild (Join-Path $payload "addons\counterstrikesharp\plugins\BotHiderImpl")
 Copy-Tree $botApiBuild (Join-Path $payload "addons\counterstrikesharp\shared\BotHiderApi")
-Copy-Item -LiteralPath (Join-Path $repo "addons\counterstrikesharp\shared\MatchCore\rating-plus-3.0-proxy-v1.json") -Destination (Join-Path $payload "addons\counterstrikesharp\plugins\PlusMatchCoordinator\rating-plus-3.0-proxy-v1.json") -Force
+$openRatingModelPath = Join-Path $repo "addons\counterstrikesharp\shared\MatchCore\open-rating-3.0-proxy-v1.json"
+$openRatingModel = Get-Content -LiteralPath $openRatingModelPath -Raw | ConvertFrom-Json
+if (-not $openRatingModel.release_gate.passed) {
+    throw "OpenRating calibration release gate has not passed; packaging an uncalibrated model is prohibited."
+}
+$openRatingCalibration = $openRatingModel.calibration
+$openRatingGate = $openRatingModel.release_gate
+if ([string]::IsNullOrWhiteSpace([string]$openRatingModel.dataset_sha256) -or
+    [string]$openRatingModel.dataset_sha256 -notmatch '^[0-9a-f]{64}$') {
+    throw "OpenRating calibration dataset fingerprint is missing or invalid."
+}
+if ([int]$openRatingCalibration.matches -lt [int]$openRatingGate.minimum_matches -or
+    [int]$openRatingCalibration.maps -lt [int]$openRatingGate.minimum_maps -or
+    [int]$openRatingCalibration.player_maps -lt [int]$openRatingGate.minimum_player_maps) {
+    throw "OpenRating calibration sample does not satisfy its declared release gate."
+}
+if ([double]$openRatingCalibration.holdout_mae -gt [double]$openRatingGate.maximum_mae -or
+    [double]$openRatingCalibration.holdout_spearman -lt [double]$openRatingGate.minimum_spearman -or
+    [double]$openRatingGate.actual_holdout_fraction -lt [double]$openRatingGate.target_holdout_fraction) {
+    throw "OpenRating holdout metrics do not satisfy the declared release gate."
+}
+$openRatingWeightNames = @('kills', 'damage', 'survival', 'kast', 'multi_kills', 'round_swing', 'economy')
+foreach ($weightName in $openRatingWeightNames) {
+    $weight = [double]$openRatingModel.weights.$weightName
+    if (-not [double]::IsFinite($weight) -or $weight -lt 0) {
+        throw "OpenRating weight '$weightName' must be finite and non-negative."
+    }
+}
+if (-not [double]::IsFinite([double]$openRatingModel.weights.intercept)) {
+    throw "OpenRating intercept must be finite."
+}
+Copy-Item -LiteralPath $openRatingModelPath -Destination (Join-Path $payload "addons\counterstrikesharp\plugins\PlusMatchCoordinator\open-rating-3.0-proxy-v1.json") -Force
+$legacyRatingModel = Join-Path $payload "addons\counterstrikesharp\plugins\PlusMatchCoordinator\rating-plus-3.0-proxy-v1.json"
+if (Test-Path -LiteralPath $legacyRatingModel) {
+    Remove-Item -LiteralPath $legacyRatingModel -Force
+}
 
 # BotHiderImpl resolves Harmony from CounterStrikeSharp's shared library directory.
 # The build target stages it below the plugin output so packaging can remain
@@ -247,6 +289,25 @@ if (Test-Path -LiteralPath $webViewLoader) {
 Copy-Item -LiteralPath (Join-Path $repo "README.md") -Destination (Join-Path $releaseRoot "README.md") -Force
 Copy-Item -LiteralPath (Join-Path $repo "README.zh-CN.md") -Destination (Join-Path $releaseRoot "README.zh-CN.md") -Force
 Copy-Item -LiteralPath (Join-Path $repo "LICENSE") -Destination (Join-Path $releaseRoot "LICENSE") -Force
+if ($isPreview) {
+    $packageReadme = Join-Path $releaseRoot "README.md"
+    $packageReadmeZh = Join-Path $releaseRoot "README.zh-CN.md"
+    (Get-Content -LiteralPath $packageReadme -Raw).Replace(
+        "The current ``main`` branch targets **1.4.2.5**",
+        "This local test package is **$displayVersion** (preview; may contain bugs; please report problems)"
+    ) | Set-Content -LiteralPath $packageReadme -Encoding utf8
+    (Get-Content -LiteralPath $packageReadmeZh -Raw).Replace(
+        "当前 ``main`` 分支源码版本为 **1.4.2.5**",
+        "当前本地测试包版本为 **$displayVersion**（预览版本，可能包含 Bug，请反馈）"
+    ) | Set-Content -LiteralPath $packageReadmeZh -Encoding utf8
+    @"
+CS2BotImproverPlus $releaseTag
+
+PREVIEW VERSION - MAY CONTAIN BUGS
+This local test package is not an official GitHub release.
+Please report problems together with an exported diagnostics ZIP.
+"@ | Set-Content -LiteralPath (Join-Path $releaseRoot "PREVIEW-NOTICE.txt") -Encoding utf8
+}
 
 # The Panel uses this manifest as the installation ownership boundary. Only the
 # game payload is managed; the executable and documentation stay portable.
@@ -287,12 +348,12 @@ $manifestEntries = foreach ($topLevel in @("addons", "cfg", "overrides")) {
 }
 $payloadManifest = [ordered]@{
     schema_version = 1
-    package_version = "1.4.2.5"
+    package_version = $displayVersion
     entries = @($manifestEntries | Sort-Object path)
 }
 $payloadManifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $payload "plus-payload-manifest.json") -Encoding utf8
 
-& (Join-Path $PSScriptRoot "verify-workspace.ps1") -PackageRoot $releaseRoot
+& (Join-Path $PSScriptRoot "verify-workspace.ps1") -PackageRoot $releaseRoot -ExpectedPackageVersion $displayVersion
 if ($LASTEXITCODE -ne 0) { throw "Package verification failed." }
 
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
@@ -300,7 +361,7 @@ Get-ChildItem -LiteralPath $OutputDirectory -File -ErrorAction SilentlyContinue 
     Where-Object { $_.Name -match '^CS2BotImproverPlus-.*\.zip$|^latest\.json(\.sig)?$|^SHA256SUMS\.txt$' } |
     Remove-Item -Force
 
-$fullZip = Join-Path $OutputDirectory "CS2BotImproverPlus-v1.4.2.5-windows.zip"
+$fullZip = Join-Path $OutputDirectory "CS2BotImproverPlus-$releaseTag-windows.zip"
 Compress-Archive -Path $releaseRoot -DestinationPath $fullZip -CompressionLevel Optimal
 
 $panelStage = Join-Path $stage "panel-update"
@@ -309,13 +370,13 @@ Copy-Item -LiteralPath (Join-Path $releaseRoot "CS2BotImproverPlus.exe") -Destin
 @{
     schema_version = 1
     component = "panel-online-update"
-    version = "1.4.2.5"
+    version = $displayVersion
     first_install_supported = $false
 } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $panelStage "csbip-panel-update.json") -Encoding utf8
 if (Test-Path -LiteralPath (Join-Path $releaseRoot "WebView2Loader.dll")) {
     Copy-Item -LiteralPath (Join-Path $releaseRoot "WebView2Loader.dll") -Destination $panelStage -Force
 }
-$panelZip = Join-Path $OutputDirectory "CS2BotImproverPlus-panel-v1.4.2.5-windows.zip"
+$panelZip = Join-Path $OutputDirectory "CS2BotImproverPlus-panel-$releaseTag-windows.zip"
 Compress-Archive -Path (Join-Path $panelStage "*") -DestinationPath $panelZip -CompressionLevel Optimal
 
 $pluginStage = Join-Path $stage "plugin-update"
@@ -324,29 +385,29 @@ foreach ($name in @("addons", "cfg", "overrides", "plus-payload-manifest.json"))
     $source = Join-Path $releaseRoot $name
     if (Test-Path -LiteralPath $source) { Copy-Item -LiteralPath $source -Destination $pluginStage -Recurse -Force }
 }
-$pluginZip = Join-Path $OutputDirectory "CS2BotImproverPlus-plugin-v1.4.2.5-windows.zip"
+$pluginZip = Join-Path $OutputDirectory "CS2BotImproverPlus-plugin-$releaseTag-windows.zip"
 Compress-Archive -Path (Join-Path $pluginStage "*") -DestinationPath $pluginZip -CompressionLevel Optimal
 
-$releaseBase = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/download/v1.4.2.5"
+$releaseBase = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/download/$releaseTag"
 $latest = [ordered]@{
     schema_version = 1
-    release_version = "1.4.2.5"
+    release_version = $displayVersion
     published_at = [DateTimeOffset]::UtcNow.ToString("o")
-    release_notes_url = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/tag/v1.4.2.5"
+    release_notes_url = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/tag/$releaseTag"
     components = [ordered]@{
         panel = [ordered]@{
-            version = "1.4.2.5"
+            version = $displayVersion
             url = "$releaseBase/$([IO.Path]::GetFileName($panelZip))"
             size = (Get-Item -LiteralPath $panelZip).Length
             sha256 = (Get-FileHash -LiteralPath $panelZip -Algorithm SHA256).Hash.ToLowerInvariant()
-            min_panel_version = "1.4.2.5"
+            min_panel_version = $displayVersion
         }
         plugin = [ordered]@{
-            version = "1.4.2.5"
+            version = $displayVersion
             url = "$releaseBase/$([IO.Path]::GetFileName($pluginZip))"
             size = (Get-Item -LiteralPath $pluginZip).Length
             sha256 = (Get-FileHash -LiteralPath $pluginZip -Algorithm SHA256).Hash.ToLowerInvariant()
-            min_panel_version = "1.4.2.5"
+            min_panel_version = $displayVersion
         }
     }
 }

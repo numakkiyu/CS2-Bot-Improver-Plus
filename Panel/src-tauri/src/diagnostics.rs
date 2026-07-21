@@ -1,8 +1,11 @@
-use crate::{AppError, Result, atomic_fs};
+use crate::{AppError, Result, atomic_fs, mode_files, steam};
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+#[cfg(all(windows, not(test)))]
+use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, ZipWriter};
@@ -29,10 +32,45 @@ fn match_metadata(csgo: &Path) -> serde_json::Value {
     serde_json::Value::Array(entries)
 }
 
+fn runtime_mount_metadata(csgo: &Path) -> serde_json::Value {
+    let gameinfo = csgo.join("gameinfo.gi");
+    let gameinfo_bytes = fs::read(&gameinfo).ok();
+    let vpks = [
+        ("active", csgo.join("overrides/botprofile.vpk")),
+        ("low", csgo.join("overrides/Low/botprofile.vpk")),
+        ("medium", csgo.join("overrides/Medium/botprofile.vpk")),
+        ("high", csgo.join("overrides/High/botprofile.vpk")),
+    ]
+    .into_iter()
+    .map(|(name, path)| {
+        let metadata = fs::metadata(&path).ok();
+        let sha256 = fs::read(&path)
+            .ok()
+            .map(|bytes| format!("{:x}", Sha256::digest(bytes)));
+        serde_json::json!({
+            "name": name,
+            "path": path.to_string_lossy(),
+            "present": metadata.is_some(),
+            "size": metadata.map(|value| value.len()),
+            "sha256": sha256,
+        })
+    })
+    .collect::<Vec<_>>();
+    serde_json::json!({
+        "gameinfo_path": gameinfo.to_string_lossy(),
+        "gameinfo_present": gameinfo_bytes.is_some(),
+        "metamod_search_path": gameinfo_bytes.as_deref().is_some_and(mode_files::contains_metamod_search_path),
+        "botprofile_search_path": gameinfo_bytes.as_deref().is_some_and(mode_files::contains_botprofile_search_path),
+        "botprofile_vpks": vpks,
+    })
+}
+
 const MAX_SOURCE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_ARCHIVE_INPUT_BYTES: usize = 32 * 1024 * 1024;
 const ARCHIVE_RETENTION: Duration = Duration::from_secs(14 * 24 * 60 * 60);
 const MAX_ARCHIVES: usize = 10;
+const EVENT_LOG_WINDOW_MS: u64 = 7 * 24 * 60 * 60 * 1000;
+const EVENT_LOG_LIMIT: u32 = 250;
 
 #[derive(Debug, Serialize)]
 pub struct DiagnosticArchive {
@@ -69,6 +107,10 @@ impl Collector {
         self.add_bytes(name, &bytes)
     }
 
+    fn add_bytes_head(&mut self, name: &str, bytes: &[u8]) -> Result<bool> {
+        self.add_bytes(name, &bytes[..bytes.len().min(MAX_SOURCE_BYTES)])
+    }
+
     fn add_file(&mut self, name: &str, path: &Path) -> Result<bool> {
         let mut file = match File::open(path) {
             Ok(file) => file,
@@ -100,11 +142,73 @@ fn recent_files(directory: &Path, limit: usize) -> Vec<PathBuf> {
     files.into_iter().rev().take(limit).map(|(_, path)| path).collect()
 }
 
+fn recent_files_recursive(directory: &Path, limit: usize, max_depth: usize) -> Vec<PathBuf> {
+    let mut pending = vec![(directory.to_path_buf(), 0usize)];
+    let mut files = Vec::new();
+    while let Some((current, depth)) = pending.pop() {
+        for entry in fs::read_dir(current).into_iter().flatten().flatten() {
+            let Ok(file_type) = entry.file_type() else { continue; };
+            if file_type.is_file() {
+                let modified = entry.metadata().and_then(|metadata| metadata.modified()).unwrap_or(UNIX_EPOCH);
+                files.push((modified, entry.path()));
+            } else if file_type.is_dir() && depth < max_depth {
+                pending.push((entry.path(), depth + 1));
+            }
+        }
+    }
+    files.sort_by_key(|(modified, _)| *modified);
+    files.into_iter().rev().take(limit).map(|(_, path)| path).collect()
+}
+
 fn add_named_files(collector: &mut Collector, prefix: &str, paths: impl IntoIterator<Item = PathBuf>) -> Result<()> {
     for (index, path) in paths.into_iter().enumerate() {
         let Some(name) = path.file_name().and_then(|name| name.to_str()) else { continue; };
         let _ = collector.add_file(&format!("{prefix}/{index:02}-{name}"), &path)?;
     }
+    Ok(())
+}
+
+fn recent_match_records(csgo: &Path) -> Vec<PathBuf> {
+    recent_files_recursive(&csgo.join(".csbip/matches"), 12, 2)
+        .into_iter()
+        .filter(|path| matches!(path.file_name().and_then(|name| name.to_str()), Some("request.json" | "result.json")))
+        .collect()
+}
+
+fn steam_log_files(_csgo: &Path) -> Vec<PathBuf> {
+    steam::client_log_files(&[
+        "content_log.txt",
+        "shader_log.txt",
+        "bootstrap_log.txt",
+        "connection_log.txt",
+    ])
+}
+
+fn add_windows_event_logs(collector: &mut Collector) -> Result<()> {
+    let mut statuses = Vec::new();
+    for channel in ["System", "Application"] {
+        match query_windows_event_log(channel) {
+            Ok(bytes) => {
+                let added = collector.add_bytes_head(
+                    &format!("windows-event-logs/{channel}.xml"),
+                    &bytes,
+                )?;
+                statuses.push(WindowsEventLogStatus {
+                    channel: channel.into(),
+                    collected: added,
+                    bytes: bytes.len(),
+                    error: (!added).then(|| "Diagnostic archive input limit was reached".into()),
+                });
+            }
+            Err(error) => statuses.push(WindowsEventLogStatus {
+                channel: channel.into(),
+                collected: false,
+                bytes: 0,
+                error: Some(error),
+            }),
+        }
+    }
+    let _ = collector.add_json("report/windows-event-logs.json", &statuses)?;
     Ok(())
 }
 
@@ -141,16 +245,68 @@ fn crash_dump_metadata() -> serde_json::Value {
 
 fn wer_reports() -> Vec<PathBuf> {
     let mut reports = Vec::new();
-    let Some(program_data) = std::env::var_os("PROGRAMDATA") else { return reports; };
-    let root = PathBuf::from(program_data).join("Microsoft/Windows/WER/ReportArchive");
-    for directory in fs::read_dir(root).into_iter().flatten().flatten() {
-        let name = directory.file_name().to_string_lossy().to_ascii_lowercase();
-        if !name.contains("cs2") && !name.contains("cs2botimprover") { continue; }
-        let report = directory.path().join("Report.wer");
-        if report.is_file() { reports.push(report); }
+    let mut roots = Vec::new();
+    if let Some(program_data) = std::env::var_os("PROGRAMDATA") {
+        let root = PathBuf::from(program_data).join("Microsoft/Windows/WER");
+        roots.push(root.join("ReportArchive"));
+        roots.push(root.join("ReportQueue"));
+    }
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        let root = PathBuf::from(local).join("Microsoft/Windows/WER");
+        roots.push(root.join("ReportArchive"));
+        roots.push(root.join("ReportQueue"));
+    }
+    for root in roots {
+        for directory in fs::read_dir(root).into_iter().flatten().flatten() {
+            let name = directory.file_name().to_string_lossy().to_ascii_lowercase();
+            if !name.contains("cs2") && !name.contains("cs2botimprover") { continue; }
+            let report = directory.path().join("Report.wer");
+            if report.is_file() { reports.push(report); }
+        }
     }
     reports.sort_by_key(|path| fs::metadata(path).and_then(|metadata| metadata.modified()).unwrap_or(UNIX_EPOCH));
     reports.into_iter().rev().take(5).collect()
+}
+
+#[derive(Serialize)]
+struct WindowsEventLogStatus {
+    channel: String,
+    collected: bool,
+    bytes: usize,
+    error: Option<String>,
+}
+
+#[cfg(all(windows, not(test)))]
+fn query_windows_event_log(channel: &str) -> std::result::Result<Vec<u8>, String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let query = format!("/q:*[System[TimeCreated[timediff(@SystemTime) <= {EVENT_LOG_WINDOW_MS}]]]");
+    let count = format!("/c:{EVENT_LOG_LIMIT}");
+    let output = Command::new("wevtutil.exe")
+        .args([
+            "qe",
+            channel,
+            &query,
+            "/rd:true",
+            "/f:xml",
+            &count,
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .map_err(|error| format!("Cannot start wevtutil for {channel}: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "wevtutil {channel} exited with {}: {}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    Ok(output.stdout)
+}
+
+#[cfg(any(not(windows), test))]
+fn query_windows_event_log(channel: &str) -> std::result::Result<Vec<u8>, String> {
+    Err(format!("Windows event channel {channel} is unavailable on this operating system"))
 }
 
 pub fn cleanup_archives(state_root: &Path) -> std::io::Result<usize> {
@@ -188,7 +344,7 @@ pub fn export(state_root: &Path, csgo: Option<&Path>, snapshot: &serde_json::Val
 
     collector.add_json("report/runtime-snapshot.json", snapshot)?;
     collector.add_json("report/system.json", &serde_json::json!({
-        "panel_version": "1.4.2.5",
+        "panel_version": "1.4.2.5-Preview.3",
         "generated_at_unix": timestamp,
         "os": std::env::consts::OS,
         "architecture": std::env::consts::ARCH,
@@ -196,12 +352,14 @@ pub fn export(state_root: &Path, csgo: Option<&Path>, snapshot: &serde_json::Val
         "csgo": csgo.map(|path| path.to_string_lossy()),
     }))?;
     collector.add_json("report/crash-dumps.json", &crash_dump_metadata())?;
+    add_windows_event_logs(&mut collector)?;
 
     for (name, path) in [
         ("config/panel.json", state_root.join("config/panel.json")),
         ("config/ui-state.json", state_root.join("memory/ui-state.json")),
         ("config/cosmetics-knife.json", state_root.join("presets/current/player_knife_presets.json")),
         ("config/cosmetics-guns.json", state_root.join("presets/current/player_gun_presets.json")),
+        ("installation/install-check-latest.json", state_root.join("reports/install-check-latest.json")),
     ] {
         let _ = collector.add_file(name, &path)?;
     }
@@ -214,17 +372,21 @@ pub fn export(state_root: &Path, csgo: Option<&Path>, snapshot: &serde_json::Val
     }
 
     if let Some(csgo) = csgo {
+        collector.add_json("report/runtime-mounts.json", &runtime_mount_metadata(csgo))?;
         collector.add_json("matches/metadata.json", &match_metadata(csgo))?;
+        add_named_files(&mut collector, "matches/recent", recent_match_records(csgo))?;
         for (name, path) in [
             ("logs/cs2/console.log", csgo.join("console.log")),
+            ("logs/cs2/console-history.txt", csgo.join("console_history.txt")),
             ("logs/metamod/metamod-fatal.log", csgo.join("addons/metamod/metamod-fatal.log")),
         ] {
             let _ = collector.add_file(name, &path)?;
         }
+        add_named_files(&mut collector, "logs/cs2/recent",
+            recent_files_recursive(&csgo.join("logs"), 20, 2))?;
         add_named_files(&mut collector, "logs/counterstrikesharp",
-            recent_files(&csgo.join("addons/counterstrikesharp/logs"), 12))?;
-        add_named_files(&mut collector, "logs/plus-match-coordinator",
-            recent_files(&csgo.join("addons/counterstrikesharp/logs/PlusMatchCoordinator"), 12))?;
+            recent_files_recursive(&csgo.join("addons/counterstrikesharp/logs"), 30, 4))?;
+        add_named_files(&mut collector, "logs/steam", steam_log_files(csgo))?;
     }
     add_named_files(&mut collector, "wer", wer_reports())?;
 
@@ -247,13 +409,31 @@ mod tests {
     #[test]
     fn diagnostic_export_is_a_readable_zip() {
         let root = std::env::temp_dir().join(format!("cs2bi-diagnostics-{}", unix_time()));
+        let csgo = root.join("game/csgo");
         fs::create_dir_all(root.join("logs/panel")).unwrap();
+        fs::create_dir_all(csgo.join("logs")).unwrap();
+        fs::create_dir_all(csgo.join(".csbip/matches/session-1")).unwrap();
+        fs::create_dir_all(csgo.join("overrides/Medium")).unwrap();
         fs::write(root.join("logs/panel/panel-current.jsonl"), b"test").unwrap();
-        let archive = export(&root, None, &serde_json::json!({"ok": true})).unwrap();
+        fs::write(csgo.join("logs/console.log"), b"cs2 test log").unwrap();
+        fs::write(
+            csgo.join("gameinfo.gi"),
+            b"SearchPaths\n{\nGame csgo/addons/metamod\nGame csgo/overrides/botprofile.vpk\nGame csgo\n}\n",
+        ).unwrap();
+        fs::write(csgo.join("overrides/Medium/botprofile.vpk"), b"vpk").unwrap();
+        fs::write(
+            csgo.join(".csbip/matches/session-1/request.json"),
+            br#"{"schema_version":1,"session_id":"session-1"}"#,
+        ).unwrap();
+        let archive = export(&root, Some(&csgo), &serde_json::json!({"ok": true})).unwrap();
         let file = File::open(&archive.path).unwrap();
         let mut zip = zip::ZipArchive::new(file).unwrap();
         assert!(zip.by_name("report/runtime-snapshot.json").is_ok());
+        assert!(zip.by_name("report/windows-event-logs.json").is_ok());
+        assert!(zip.by_name("report/runtime-mounts.json").is_ok());
         assert!(zip.by_name("logs/panel/00-panel-current.jsonl").is_ok());
+        assert!(zip.by_name("logs/cs2/recent/00-console.log").is_ok());
+        assert!(zip.by_name("matches/recent/00-request.json").is_ok());
         fs::remove_dir_all(root).unwrap();
     }
 }

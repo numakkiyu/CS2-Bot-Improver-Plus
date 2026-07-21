@@ -9,13 +9,13 @@ public sealed class MatchStatistics
 
     public void Register(MatchPlayer player, TeamSide team)
     {
-        _players[player.Id] = new PlayerMatchStats
+        _players.TryAdd(player.Id, new PlayerMatchStats
         {
             PlayerId = player.Id,
             Name = player.Name,
             Kind = player.Kind,
             Team = team
-        };
+        });
     }
 
     public void StartRound()
@@ -61,22 +61,22 @@ public sealed class MatchStatistics
         if (_round.TryGetValue(victimId, out var flags)) flags.Traded = true;
     }
 
-    public void EndRound(TeamSide winner)
+    public void EndRound(TeamSide _winner)
     {
         foreach (var (id, player) in _players)
         {
             var flags = _round.TryGetValue(id, out var value) ? value : new RoundFlags();
             player.RoundsPlayed++;
             if (flags.Survived) player.RoundsSurvived++;
-            if (flags.Survived || flags.Contributed || flags.Traded || player.Team == winner) player.KastRounds++;
+            if (flags.Survived || flags.Contributed || flags.Traded) player.KastRounds++;
             if (flags.Kills >= 2) player.MultiKills[flags.Kills] = player.MultiKills.GetValueOrDefault(flags.Kills) + 1;
         }
     }
 
-    public IReadOnlyList<PlayerMatchStats> FinalizeRatings(RatingPlusWeights? weights = null)
+    public IReadOnlyList<PlayerMatchStats> FinalizeRatings(OpenRatingWeights? weights = null)
     {
-        foreach (var player in _players.Values) player.Rating = RatingPlusCalculator.Calculate(player, weights);
-        return _players.Values.OrderByDescending(player => player.Rating?.RatingPlus ?? 0).ToArray();
+        foreach (var player in _players.Values) player.Rating = OpenRatingCalculator.Calculate(player, weights);
+        return _players.Values.OrderByDescending(player => player.Rating?.OpenRating ?? 0).ToArray();
     }
 
     private sealed class RoundFlags

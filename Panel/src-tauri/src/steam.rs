@@ -223,6 +223,23 @@ fn registry_steam_roots() -> Vec<PathBuf> {
     roots
 }
 
+pub(crate) fn client_log_files(names: &[&str]) -> Vec<PathBuf> {
+    for root in registry_steam_roots() {
+        let logs = root.join("logs");
+        if !logs.is_dir() {
+            continue;
+        }
+        let files = names.iter()
+            .map(|name| logs.join(name))
+            .filter(|path| path.is_file())
+            .collect::<Vec<_>>();
+        if !files.is_empty() {
+            return files;
+        }
+    }
+    Vec::new()
+}
+
 #[cfg(not(windows))]
 fn registry_steam_roots() -> Vec<PathBuf> { Vec::new() }
 

@@ -14,10 +14,13 @@
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
     <ProjectReference Include="..\..\shared\MatchCore\MatchCore.csproj" />
+    <ProjectReference Include="..\..\shared\BotHiderApi\BotHiderApi.csproj">
+      <Private>false</Private>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="match_catalog.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\shared\MatchCore\rating-plus-3.0-proxy-v1.json" Link="rating-plus-3.0-proxy-v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\shared\MatchCore\open-rating-3.0-proxy-v1.json" Link="open-rating-3.0-proxy-v1.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\..\..\overrides\Low\botprofile.db" Link="profiles\Low\botprofile.db" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\..\..\overrides\Medium\botprofile.db" Link="profiles\Medium\botprofile.db" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\..\..\overrides\High\botprofile.db" Link="profiles\High\botprofile.db" CopyToOutputDirectory="PreserveNewest" />

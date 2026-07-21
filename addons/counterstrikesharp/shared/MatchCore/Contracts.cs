@@ -78,7 +78,7 @@ public sealed record DemoStatus(
     string? ErrorCode,
     string? Detail);
 
-public sealed record RatingPlusBreakdown(
+public sealed record OpenRatingBreakdown(
     string ModelVersion,
     double Kills,
     double Damage,
@@ -87,7 +87,7 @@ public sealed record RatingPlusBreakdown(
     double MultiKills,
     double RoundSwing,
     double EconomyAdjustment,
-    double RatingPlus);
+    double OpenRating);
 
 public sealed class PlayerMatchStats
 {
@@ -115,7 +115,7 @@ public sealed class PlayerMatchStats
     public double RoundSwing { get; set; }
     public double EconomyAdjustment { get; set; }
     public Dictionary<int, int> MultiKills { get; init; } = [];
-    public RatingPlusBreakdown? Rating { get; set; }
+    public OpenRatingBreakdown? Rating { get; set; }
 
     public int Difference => Kills - Deaths;
     public double Adr => RoundsPlayed == 0 ? 0 : Damage / (double)RoundsPlayed;

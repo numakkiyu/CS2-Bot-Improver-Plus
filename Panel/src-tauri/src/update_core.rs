@@ -13,12 +13,34 @@ pub const MAX_EXTRACTED_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 pub const MAX_ARCHIVE_ENTRIES: usize = 50_000;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DisplayVersion([u32; 4]);
+pub struct DisplayVersion {
+    parts: [u32; 4],
+    preview: Option<u32>,
+}
 
 impl DisplayVersion {
     pub fn parse(value: &str) -> std::result::Result<Self, String> {
         let value = value.trim().trim_start_matches(['v', 'V']);
-        let parts = value.split('.').collect::<Vec<_>>();
+        let (numeric, preview) = match value.split_once('-') {
+            Some((numeric, suffix)) => {
+                let Some(number) = suffix
+                    .to_ascii_lowercase()
+                    .strip_prefix("preview.")
+                    .map(str::to_owned)
+                else {
+                    return Err(format!("Unsupported version suffix: {suffix}"));
+                };
+                if number.is_empty() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
+                    return Err(format!("Invalid preview version: {suffix}"));
+                }
+                let number = number
+                    .parse::<u32>()
+                    .map_err(|_| format!("Preview version is too large: {suffix}"))?;
+                (numeric, Some(number))
+            }
+            None => (value, None),
+        };
+        let parts = numeric.split('.').collect::<Vec<_>>();
         if parts.len() != 4 {
             return Err(format!("Version must contain four numeric parts: {value}"));
         }
@@ -31,13 +53,21 @@ impl DisplayVersion {
                 .parse::<u32>()
                 .map_err(|_| format!("Version component is too large: {part}"))?;
         }
-        Ok(Self(parsed))
+        Ok(Self {
+            parts: parsed,
+            preview,
+        })
     }
 }
 
 impl Ord for DisplayVersion {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.0.cmp(&other.0)
+        self.parts.cmp(&other.parts).then_with(|| match (self.preview, other.preview) {
+            (Some(left), Some(right)) => left.cmp(&right),
+            (Some(_), None) => Ordering::Less,
+            (None, Some(_)) => Ordering::Greater,
+            (None, None) => Ordering::Equal,
+        })
     }
 }
 
@@ -317,6 +347,16 @@ mod tests {
         );
         assert!(DisplayVersion::parse("1.4.2").is_err());
         assert!(DisplayVersion::parse("1.4.2.fix").is_err());
+        assert!(DisplayVersion::parse("1.4.2.5-Preview.2").is_ok());
+        assert!(
+            DisplayVersion::parse("1.4.2.5-Preview.2").unwrap()
+                > DisplayVersion::parse("1.4.2.5-Preview.1").unwrap()
+        );
+        assert!(
+            DisplayVersion::parse("1.4.2.5").unwrap()
+                > DisplayVersion::parse("1.4.2.5-Preview.2").unwrap()
+        );
+        assert!(DisplayVersion::parse("1.4.2.5-beta.2").is_err());
     }
 
     #[test]

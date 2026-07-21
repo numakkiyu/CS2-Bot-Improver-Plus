@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$PackageRoot
+    [string]$PackageRoot,
+    [string]$ExpectedPackageVersion = "1.4.2.5-Preview.3"
 )
 
 $ErrorActionPreference = "Stop"
@@ -72,7 +73,6 @@ else {
         "addons/counterstrikesharp/plugins/BotState",
         "addons/counterstrikesharp/plugins/NadeSystem",
         "addons/counterstrikesharp/plugins/RoundDamageRecap",
-        "addons/counterstrikesharp/plugins/PlusMatchCoordinator",
         "overrides"
     )
     $changed = @(
@@ -89,6 +89,7 @@ else {
     $allowedUpstreamChanges = @(
         "addons/counterstrikesharp/plugins/BotAimImprover/BotAimImprover.cs",
         "addons/counterstrikesharp/plugins/BotAimImprover/BotAimImprover.csproj",
+        "addons/counterstrikesharp/plugins/BotBuy/BotBuy.cs",
         "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.cs",
         "addons/counterstrikesharp/plugins/BotRandomizer/bot_randomizer_options.json",
         "addons/counterstrikesharp/plugins/BotControllerImpl/BotControllerImpl.csproj",
@@ -123,6 +124,13 @@ if ($botAimImprover -notmatch 'if \(win\)\s*\{' -or
     $botAimImprover -notmatch 'Windows native aim hook disabled by PLUS P0 safety policy' -or
     $botAimImprover -notmatch 'Logger\.LogCritical\([^\r\n]+\);\s*return;') {
     Add-Failure "BotAimImprover no longer disables its unsafe Windows native hook."
+}
+
+$botBuy = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/BotBuy/BotBuy.cs") -Raw
+if ($botBuy -notmatch 'PLUS P0 safety: delayed callbacks must revalidate captured controllers before schema access' -or
+    ([regex]::Matches($botBuy, 'if \(!p\.IsValid\) continue;').Count -lt 6) -or
+    ([regex]::Matches($botBuy, 'if \(!bot\.IsValid\) continue;').Count -lt 2)) {
+    Add-Failure "BotBuy no longer guards delayed callbacks against invalid CounterStrikeSharp controllers."
 }
 
 $roundDamageRecap = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.cs") -Raw
@@ -209,6 +217,30 @@ if ((Get-FileHash -LiteralPath $catalogA -Algorithm SHA256).Hash -ne
     Add-Failure "Panel and plugin weapon catalogs are not identical."
 }
 
+$matchCatalog = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/PlusMatchCoordinator/match_catalog.json") -Raw | ConvertFrom-Json
+$featuredPlayers = @($matchCatalog.teams | ForEach-Object { $_.players } | Sort-Object -Unique)
+
+function Assert-BotProfileContent([string]$Profile, [string]$Label) {
+    foreach ($player in $featuredPlayers) {
+        if ($Profile -notmatch ('"' + [regex]::Escape($player) + '"')) {
+            Add-Failure "$Label is missing featured player $player."
+        }
+    }
+    foreach ($match in [regex]::Matches($Profile, '(?m)^\s*LookAngleMaxAccel(?:Normal|Attacking)\s*=\s*(\S+)')) {
+        $token = $match.Groups[1].Value
+        $value = 0.0
+        $valid = [double]::TryParse(
+            $token,
+            [Globalization.NumberStyles]::Float,
+            [Globalization.CultureInfo]::InvariantCulture,
+            [ref]$value
+        )
+        if (-not $valid -or [double]::IsNaN($value) -or [double]::IsInfinity($value) -or $value -lt 0 -or $value -gt 20000) {
+            Add-Failure "$Label has invalid LookAngleMaxAccel value '$token'."
+        }
+    }
+}
+
 $botHiderImpl = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/BotHiderImpl/BotHiderImplPlugin.cs") -Raw
 if ($botHiderImpl -notmatch "foreach \(int slot in managedSlots\)" -or
     $botHiderImpl -notmatch "player\.PlayerName = name" -or
@@ -224,11 +256,7 @@ if ($botHiderGameData -notmatch '"CServerSideClient::SetName"' -or
 foreach ($difficulty in @("Low", "Medium", "High")) {
     $profilePath = Join-Path $repo "overrides/$difficulty/botprofile.db"
     $profile = Get-Content -LiteralPath $profilePath -Raw
-    foreach ($player in @("b1t", "MATYS")) {
-        if ($profile -notmatch ('"' + [regex]::Escape($player) + '"')) {
-            Add-Failure "$difficulty botprofile.db is missing featured player $player."
-        }
-    }
+    Assert-BotProfileContent $profile "$difficulty botprofile.db"
 }
 
 $trackedGenerated = @(& git -C $repo ls-files | Where-Object {
@@ -261,7 +289,7 @@ if ($PackageRoot) {
         "addons/counterstrikesharp/plugins/PlusMatchCoordinator/PlusMatchCoordinator.dll",
         "addons/counterstrikesharp/plugins/PlusMatchCoordinator/MatchCore.dll",
         "addons/counterstrikesharp/plugins/PlusMatchCoordinator/match_catalog.json",
-        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/rating-plus-3.0-proxy-v1.json",
+        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/open-rating-3.0-proxy-v1.json",
         "addons/counterstrikesharp/plugins/PlusMatchCoordinator/profiles/Low/botprofile.db",
         "addons/counterstrikesharp/plugins/PlusMatchCoordinator/profiles/Medium/botprofile.db",
         "addons/counterstrikesharp/plugins/PlusMatchCoordinator/profiles/High/botprofile.db",
@@ -276,6 +304,13 @@ if ($PackageRoot) {
     )
     foreach ($relative in $requiredPackageFiles) {
         Assert-File (Join-Path $package $relative) "package file $relative"
+    }
+    $previewNotice = Join-Path $package "PREVIEW-NOTICE.txt"
+    if ($ExpectedPackageVersion -match '-Preview\.\d+$') {
+        Assert-File $previewNotice "package preview notice"
+    }
+    elseif (Test-Path -LiteralPath $previewNotice) {
+        Add-Failure "Official package must not contain PREVIEW-NOTICE.txt."
     }
     $packagedPanel = Join-Path $package "CS2BotImproverPlus.exe"
     $builtPanel = Join-Path $repo "Panel/src-tauri/target/release/cs2-bot-improver-plus-panel.exe"
@@ -301,7 +336,7 @@ if ($PackageRoot) {
     if (Test-Path -LiteralPath $payloadManifestPath) {
         try {
             $payloadManifest = Get-Content -LiteralPath $payloadManifestPath -Raw | ConvertFrom-Json
-            if ($payloadManifest.schema_version -ne 1 -or $payloadManifest.package_version -ne "1.4.2.5") {
+            if ($payloadManifest.schema_version -ne 1 -or $payloadManifest.package_version -ne $ExpectedPackageVersion) {
                 Add-Failure "Package payload manifest has an unexpected schema or version."
             }
             $manifestPaths = @{}
@@ -384,6 +419,11 @@ if ($PackageRoot) {
                 $entries = @(Get-VpkEntryPaths $vpk)
                 if ($entries.Count -ne 1 -or $entries[0] -ne "botprofile.db") {
                     Add-Failure "Package $relative must contain only botprofile.db; found: $($entries -join ', ')"
+                }
+                else {
+                    $embedded = Read-VpkEmbeddedEntry $vpk "botprofile.db"
+                    $profile = [Text.Encoding]::UTF8.GetString($embedded.Bytes)
+                    Assert-BotProfileContent $profile "Package $relative"
                 }
             }
             catch {

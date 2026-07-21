@@ -15,7 +15,7 @@ public sealed class TradeTracker
         TeamSide victimSide,
         DateTimeOffset occurredAt)
     {
-        _kills.RemoveAll(kill => !RatingPlusCalculator.IsTrade(kill.OccurredAt, occurredAt));
+        _kills.RemoveAll(kill => !OpenRatingCalculator.IsTrade(kill.OccurredAt, occurredAt));
         var traded = _kills.LastOrDefault(kill =>
             kill.KillerId.Equals(victimId, StringComparison.OrdinalIgnoreCase) &&
             kill.KillerSide == victimSide &&

@@ -51,7 +51,7 @@ jobs:
         run: |
           $llvm = Join-Path $env:ProgramFiles "LLVM/bin"
           if (-not (Test-Path (Join-Path $llvm "lld-link.exe"))) { throw "LLVM linker is unavailable: $llvm" }
-          ./scripts/package.ps1 -LlvmBin $llvm -XwinCache (Join-Path $PWD ".cache/xwin") -OutputDirectory (Join-Path $PWD "artifacts")
+          ./scripts/package.ps1 -ReleaseVersion 1.4.2.5 -LlvmBin $llvm -XwinCache (Join-Path $PWD ".cache/xwin") -OutputDirectory (Join-Path $PWD "artifacts")
 
       - name: Verify signed update assets
         shell: pwsh

@@ -1,0 +1,50 @@
+.wear-gauge { display: grid; gap: 7px; }
+.wear-gauge__track {
+  position: relative;
+  height: 10px;
+  border-radius: 6px;
+  background: linear-gradient(90deg,
+    #43a047 0%, #43a047 7%,
+    #9ccc65 7%, #9ccc65 15%,
+    #ffd54f 15%, #ffd54f 38%,
+    #ffb74d 38%, #ffb74d 45%,
+    #ef5350 45%, #ef5350 100%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+.wear-gauge__range {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  border-radius: 7px;
+  box-shadow: 0 0 0 1px rgba(18, 24, 28, 0.22);
+  pointer-events: none;
+}
+.wear-gauge__dot {
+  position: absolute;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--c-blue);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+.wear-gauge__meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.wear-gauge__meta span {
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 760;
+}
+.wear-gauge__meta small {
+  color: var(--text-tertiary);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 10px;
+}

@@ -12,6 +12,13 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 pub const MANIFEST_FILE: &str = "plus-payload-manifest.json";
 pub const PANEL_UPDATE_MARKER: &str = "csbip-panel-update.json";
 
+const SUPERSEDED_PAYLOAD_PATHS: &[(&str, &str)] = &[
+    (
+        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/rating-plus-3.0-proxy-v1.json",
+        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/open-rating-3.0-proxy-v1.json",
+    ),
+];
+
 const PLUS_MARKERS: &[&str] = &[
     "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.dll",
     "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/player_knife_presets.json",
@@ -56,8 +63,6 @@ const SUITE_OWNED_ROOTS: &[&str] = &[
     "addons/counterstrikesharp/plugins/disabled/CS2_ExecAfter",
     "addons/metamod/bin",
     "overrides",
-    "backup/Online",
-    "backup/WithBots",
 ];
 
 const SUITE_OWNED_FILES: &[&str] = &[
@@ -512,7 +517,7 @@ fn read_manifest_document(payload_root: &Path) -> Result<PayloadManifest> {
     let bytes = fs::read(&path).map_err(|_| {
         if payload_root.join(PANEL_UPDATE_MARKER).is_file() {
             AppError::payload(
-                "This is the Panel-only online-update component, not the complete installer. Download and extract CS2BotImproverPlus-v1.4.2.5-windows.zip for a first installation."
+                "This is the Panel-only online-update component, not the complete installer. Download and extract CS2BotImproverPlus-v1.4.2.5-Preview.3-windows.zip for a first installation."
             )
         } else {
             AppError::payload(format!(
@@ -541,14 +546,39 @@ fn read_manifest_document(payload_root: &Path) -> Result<PayloadManifest> {
 
 fn read_manifest(payload_root: &Path) -> Result<PayloadManifest> {
     let manifest = read_manifest_document(payload_root)?;
+    verify_manifest_files(payload_root, &manifest, false)?;
+    Ok(manifest)
+}
+
+fn same_canonical_directory(left: &Path, right: &Path) -> bool {
+    let (Ok(left), Ok(right)) = (fs::canonicalize(left), fs::canonicalize(right)) else {
+        return false;
+    };
+    left.to_string_lossy()
+        .eq_ignore_ascii_case(&right.to_string_lossy())
+}
+
+fn verify_manifest_files(
+    payload_root: &Path,
+    manifest: &PayloadManifest,
+    allow_modified_preserve_config: bool,
+) -> Result<()> {
     for entry in &manifest.entries {
         let relative = safe_relative(&entry.path)?;
         let source = payload_root.join(&relative);
-        if !source.is_file()
-            || fs::metadata(&source)
-                .map_err(AppError::transaction_io)?
-                .len()
-                != entry.size
+        if !source.is_file() {
+            return Err(AppError::payload(format!(
+                "Payload verification failed: {}",
+                entry.path
+            )));
+        }
+        if allow_modified_preserve_config && entry.restore_policy == "preserve-config" {
+            continue;
+        }
+        if fs::metadata(&source)
+            .map_err(AppError::transaction_io)?
+            .len()
+            != entry.size
             || !sha256(&source)?.eq_ignore_ascii_case(&entry.sha256)
         {
             return Err(AppError::payload(format!(
@@ -557,11 +587,28 @@ fn read_manifest(payload_root: &Path) -> Result<PayloadManifest> {
             )));
         }
     }
+    Ok(())
+}
+
+fn read_manifest_for_target(payload_root: &Path, target: &Path) -> Result<PayloadManifest> {
+    let manifest = read_manifest_document(payload_root)?;
+    verify_manifest_files(
+        payload_root,
+        &manifest,
+        same_canonical_directory(payload_root, target),
+    )?;
     Ok(manifest)
 }
 
 pub fn verify_payload(payload_root: &Path) -> Result<PayloadManifest> {
     read_manifest(payload_root)
+}
+
+pub fn verify_payload_for_target(
+    payload_root: &Path,
+    target: &Path,
+) -> Result<PayloadManifest> {
+    read_manifest_for_target(payload_root, target)
 }
 
 fn read_record(directory: &Path) -> Option<InstallRecord> {
@@ -594,7 +641,7 @@ fn inspect_impl(
     let record = read_record(&directory);
     let detection = detect_source(state_root, target);
     let manifest = if verify_hashes {
-        read_manifest(payload_root).ok()
+        read_manifest_for_target(payload_root, target).ok()
     } else {
         read_manifest_document(payload_root).ok()
     };
@@ -688,7 +735,15 @@ struct Preflight {
     available_backup_bytes: u64,
 }
 
-fn preflight(manifest: &PayloadManifest, state_root: &Path, target: &Path) -> Result<Preflight> {
+#[derive(Clone, Debug)]
+pub struct InstallSpaceRequirements {
+    pub required_target_bytes: u64,
+    pub available_target_bytes: u64,
+    pub required_backup_bytes: u64,
+    pub available_backup_bytes: u64,
+}
+
+fn inspect_space(manifest: &PayloadManifest, state_root: &Path, target: &Path) -> Result<Preflight> {
     if !target.is_dir() {
         return Err(AppError::transaction(format!(
             "Installation target is not a directory: {}",
@@ -749,16 +804,6 @@ fn preflight(manifest: &PayloadManifest, state_root: &Path, target: &Path) -> Re
     let available_target_bytes = fs2::available_space(target).map_err(AppError::transaction_io)?;
     let available_backup_bytes =
         fs2::available_space(state_root).map_err(AppError::transaction_io)?;
-    if available_target_bytes < required_target_bytes {
-        return Err(AppError::transaction(format!(
-            "Insufficient space in CS2 directory: need {required_target_bytes} bytes, available {available_target_bytes}"
-        )));
-    }
-    if available_backup_bytes < required_backup_bytes {
-        return Err(AppError::transaction(format!(
-            "Insufficient space for backups: need {required_backup_bytes} bytes, available {available_backup_bytes}"
-        )));
-    }
     Ok(Preflight {
         required_target_bytes,
         available_target_bytes,
@@ -767,8 +812,40 @@ fn preflight(manifest: &PayloadManifest, state_root: &Path, target: &Path) -> Re
     })
 }
 
+pub fn inspect_space_requirements(
+    payload_root: &Path,
+    state_root: &Path,
+    target: &Path,
+) -> Result<InstallSpaceRequirements> {
+    let manifest = read_manifest_for_target(payload_root, target)?;
+    let preflight = inspect_space(&manifest, state_root, target)?;
+    Ok(InstallSpaceRequirements {
+        required_target_bytes: preflight.required_target_bytes,
+        available_target_bytes: preflight.available_target_bytes,
+        required_backup_bytes: preflight.required_backup_bytes,
+        available_backup_bytes: preflight.available_backup_bytes,
+    })
+}
+
+fn preflight(manifest: &PayloadManifest, state_root: &Path, target: &Path) -> Result<Preflight> {
+    let preflight = inspect_space(manifest, state_root, target)?;
+    if preflight.available_target_bytes < preflight.required_target_bytes {
+        return Err(AppError::transaction(format!(
+            "Insufficient space in CS2 directory: need {} bytes, available {}",
+            preflight.required_target_bytes, preflight.available_target_bytes
+        )));
+    }
+    if preflight.available_backup_bytes < preflight.required_backup_bytes {
+        return Err(AppError::transaction(format!(
+            "Insufficient space for backups: need {} bytes, available {}",
+            preflight.required_backup_bytes, preflight.available_backup_bytes
+        )));
+    }
+    Ok(preflight)
+}
+
 pub fn plan(payload_root: &Path, state_root: &Path, target: &Path) -> Result<InstallPlan> {
-    let manifest = read_manifest(payload_root)?;
+    let manifest = read_manifest_for_target(payload_root, target)?;
     let detection = detect_source(state_root, target);
     let preflight = preflight(&manifest, state_root, target)?;
     let mut new_files = 0;
@@ -865,7 +942,7 @@ pub fn install(
 ) -> Result<InstallTransactionResult> {
     let _transaction_lock = acquire_transaction_lock(target)?;
     recover_incomplete_locked(state_root, target)?;
-    let manifest = read_manifest(payload_root)?;
+    let manifest = read_manifest_for_target(payload_root, target)?;
     let detection = detect_source(state_root, target);
     if !detection.can_install {
         return Err(AppError::transaction(
@@ -1037,6 +1114,56 @@ pub fn install(
             );
             installed_files += 1;
         }
+
+        for (superseded_path, replacement_path) in SUPERSEDED_PAYLOAD_PATHS {
+            if !manifest.entries.iter().any(|entry| entry.path == *replacement_path) {
+                continue;
+            }
+            let Some(previous) = old_entries.get(*superseded_path) else {
+                continue;
+            };
+            let relative = safe_relative(superseded_path)?;
+            let destination = target.join(&relative);
+            if !destination.is_file() {
+                record_entries.remove(*superseded_path);
+                continue;
+            }
+            if !sha256(&destination)?.eq_ignore_ascii_case(&previous.installed_sha256) {
+                continue;
+            }
+
+            let transaction_backup = transaction_root.join(&relative);
+            copy_file_for(
+                "superseded payload rollback backup",
+                &destination,
+                &transaction_backup,
+            )?;
+            journal.changes.push(TransactionChange {
+                path: (*superseded_path).to_string(),
+                existed: true,
+                backup: Some(format!(
+                    "{transaction_name}/{}",
+                    superseded_path.replace('\\', "/")
+                )),
+            });
+            write_json_atomic(&journal_path, &journal)?;
+
+            if previous.original_existed {
+                let original = previous.original_backup.as_ref().ok_or_else(|| {
+                    AppError::transaction(format!(
+                        "Original backup is missing for superseded payload: {superseded_path}"
+                    ))
+                })?;
+                copy_file_for(
+                    "superseded payload original restore",
+                    &directory.join(original),
+                    &destination,
+                )?;
+            } else {
+                fs::remove_file(&destination).map_err(AppError::transaction_io)?;
+            }
+            record_entries.remove(*superseded_path);
+        }
         Ok(())
     })();
 
@@ -1164,7 +1291,7 @@ pub fn restore(payload_root: &Path, state_root: &Path, target: &Path) -> Result<
             }
             fs::remove_file(directory.join("record.json")).map_err(AppError::transaction_io)?;
         } else {
-            let manifest = read_manifest(payload_root)?;
+            let manifest = read_manifest_for_target(payload_root, target)?;
             for entry in manifest
                 .entries
                 .iter()
@@ -1485,6 +1612,53 @@ mod tests {
         write_json_atomic(&payload.join(MANIFEST_FILE), &manifest).unwrap();
     }
 
+    #[test]
+    fn same_root_allows_modified_preserve_config_but_rejects_other_payload_changes() {
+        let base = root("same-payload-target");
+        let target = base.join("game/csgo");
+        let state = base.join("state");
+        cosmetics_fixture(&target, &target);
+        let mut manifest = read_manifest_document(&target).unwrap();
+        let cfg = manifest
+            .entries
+            .iter_mut()
+            .find(|entry| entry.path == "cfg/test.cfg")
+            .unwrap();
+        cfg.size = fs::metadata(target.join("cfg/test.cfg")).unwrap().len();
+        cfg.sha256 = sha256(&target.join("cfg/test.cfg")).unwrap();
+        write_json_atomic(&target.join(MANIFEST_FILE), &manifest).unwrap();
+        let gun_presets = target.join(
+            "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/player_gun_presets.json",
+        );
+        fs::write(&gun_presets, b"player-modified-guns").unwrap();
+
+        assert!(verify_payload(&target).is_err());
+        verify_payload_for_target(&target, &target).unwrap();
+        assert!(plan(&target, &state, &target).is_ok());
+        assert!(install(&target, &state, &target, false).is_ok());
+        assert_eq!(fs::read(&gun_presets).unwrap(), b"player-modified-guns");
+
+        fs::write(target.join("cfg/test.cfg"), b"damaged").unwrap();
+        assert!(verify_payload_for_target(&target, &target).is_err());
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    fn add_payload_file(payload: &Path, raw: &str, bytes: &[u8]) {
+        let path = payload.join(raw.replace('/', "\\"));
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, bytes).unwrap();
+        let mut manifest = read_manifest_document(payload).unwrap();
+        manifest.entries.push(PayloadEntry {
+            path: raw.to_string(),
+            size: bytes.len() as u64,
+            sha256: sha256(&path).unwrap(),
+            component: "match-rating".to_string(),
+            ownership: "plus".to_string(),
+            restore_policy: "restore".to_string(),
+        });
+        write_json_atomic(&payload.join(MANIFEST_FILE), &manifest).unwrap();
+    }
+
     fn marker(target: &Path, raw: &str) {
         let path = target.join(raw.replace('/', "\\"));
         fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -1538,6 +1712,97 @@ mod tests {
         let managed = inspect(&payload, &state, &clean).unwrap();
         assert_eq!(managed.source, InstallationSource::ManagedPlus);
         assert_eq!(managed.source_version.as_deref(), Some("1.4.2.4"));
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn managed_upgrade_replaces_the_unchanged_rating_plus_model_with_open_rating() {
+        let base = root("open-rating-upgrade");
+        let old_payload = base.join("old-payload");
+        let new_payload = base.join("new-payload");
+        let target = base.join("target");
+        let state = base.join("state");
+        fixture(&old_payload, &target);
+        add_payload_file(&old_payload, SUPERSEDED_PAYLOAD_PATHS[0].0, b"old-model");
+        install(&old_payload, &state, &target, false).unwrap();
+
+        fixture(&new_payload, &base.join("new-fixture-target"));
+        add_payload_file(&new_payload, SUPERSEDED_PAYLOAD_PATHS[0].1, b"open-model");
+        install(&new_payload, &state, &target, false).unwrap();
+
+        assert!(!target.join(SUPERSEDED_PAYLOAD_PATHS[0].0.replace('/', "\\")).exists());
+        assert_eq!(
+            fs::read(target.join(SUPERSEDED_PAYLOAD_PATHS[0].1.replace('/', "\\"))).unwrap(),
+            b"open-model"
+        );
+        let record = read_record(&installation_dir(&state, &target)).unwrap();
+        assert!(!record.entries.iter().any(|entry| entry.path == SUPERSEDED_PAYLOAD_PATHS[0].0));
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn managed_upgrade_restores_a_pre_plus_file_at_the_superseded_model_path() {
+        let base = root("open-rating-original-restore");
+        let old_payload = base.join("old-payload");
+        let new_payload = base.join("new-payload");
+        let target = base.join("target");
+        let state = base.join("state");
+        fixture(&old_payload, &target);
+        let old_model = target.join(SUPERSEDED_PAYLOAD_PATHS[0].0.replace('/', "\\"));
+        fs::create_dir_all(old_model.parent().unwrap()).unwrap();
+        fs::write(&old_model, b"pre-plus-model").unwrap();
+        add_payload_file(&old_payload, SUPERSEDED_PAYLOAD_PATHS[0].0, b"old-model");
+        install(&old_payload, &state, &target, false).unwrap();
+
+        fixture(&new_payload, &base.join("new-fixture-target"));
+        add_payload_file(&new_payload, SUPERSEDED_PAYLOAD_PATHS[0].1, b"open-model");
+        install(&new_payload, &state, &target, false).unwrap();
+
+        assert_eq!(fs::read(&old_model).unwrap(), b"pre-plus-model");
+        assert!(target.join(SUPERSEDED_PAYLOAD_PATHS[0].1.replace('/', "\\")).is_file());
+        let record = read_record(&installation_dir(&state, &target)).unwrap();
+        assert!(!record.entries.iter().any(|entry| entry.path == SUPERSEDED_PAYLOAD_PATHS[0].0));
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn open_rating_install_preserves_an_untracked_legacy_model() {
+        let base = root("open-rating-untracked-file");
+        let payload = base.join("payload");
+        let target = base.join("target");
+        let state = base.join("state");
+        fixture(&payload, &target);
+        let old_model = target.join(SUPERSEDED_PAYLOAD_PATHS[0].0.replace('/', "\\"));
+        fs::create_dir_all(old_model.parent().unwrap()).unwrap();
+        fs::write(&old_model, b"untracked-model").unwrap();
+        add_payload_file(&payload, SUPERSEDED_PAYLOAD_PATHS[0].1, b"open-model");
+
+        install(&payload, &state, &target, false).unwrap();
+
+        assert_eq!(fs::read(old_model).unwrap(), b"untracked-model");
+        assert!(target.join(SUPERSEDED_PAYLOAD_PATHS[0].1.replace('/', "\\")).is_file());
+        fs::remove_dir_all(base).unwrap();
+    }
+
+    #[test]
+    fn managed_upgrade_preserves_a_modified_legacy_rating_model() {
+        let base = root("open-rating-user-file");
+        let old_payload = base.join("old-payload");
+        let new_payload = base.join("new-payload");
+        let target = base.join("target");
+        let state = base.join("state");
+        fixture(&old_payload, &target);
+        add_payload_file(&old_payload, SUPERSEDED_PAYLOAD_PATHS[0].0, b"old-model");
+        install(&old_payload, &state, &target, false).unwrap();
+        let old_model = target.join(SUPERSEDED_PAYLOAD_PATHS[0].0.replace('/', "\\"));
+        fs::write(&old_model, b"user-modified-model").unwrap();
+
+        fixture(&new_payload, &base.join("new-fixture-target"));
+        add_payload_file(&new_payload, SUPERSEDED_PAYLOAD_PATHS[0].1, b"open-model");
+        install(&new_payload, &state, &target, false).unwrap();
+
+        assert_eq!(fs::read(old_model).unwrap(), b"user-modified-model");
+        assert!(target.join(SUPERSEDED_PAYLOAD_PATHS[0].1.replace('/', "\\")).is_file());
         fs::remove_dir_all(base).unwrap();
     }
 
@@ -1820,7 +2085,7 @@ mod tests {
         assert!(
             error
                 .detail
-                .contains("CS2BotImproverPlus-v1.4.2.5-windows.zip")
+                .contains("CS2BotImproverPlus-v1.4.2.5-Preview.3-windows.zip")
         );
         fs::remove_dir_all(base).unwrap();
     }

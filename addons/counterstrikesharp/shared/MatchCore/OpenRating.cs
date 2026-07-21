@@ -1,6 +1,9 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace MatchCore;
 
-public sealed record RatingPlusWeights(
+public sealed record OpenRatingWeights(
     string ModelVersion,
     double Kills,
     double Damage,
@@ -9,20 +12,81 @@ public sealed record RatingPlusWeights(
     double MultiKills,
     double RoundSwing,
     double Economy,
-    double Intercept)
+    double Intercept,
+    IReadOnlyDictionary<string, double> MapSidePriors)
 {
-    public static readonly RatingPlusWeights ProxyV1 = new(
-        "rating-plus-3.0-proxy-v1", 0.24, 0.20, 0.14, 0.14, 0.12, 0.12, 0.04, 0.0);
+    public static readonly OpenRatingWeights ProxyV1 = new(
+        "open-rating-3.0-proxy-v1",
+        0.3347209816908208,
+        0.47510339992828865,
+        0.3785772969943543,
+        0.2239626370653013,
+        0.136410832801464,
+        0.3956972806498023,
+        0.14666847859595622,
+        -0.7309958084287365,
+        new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase));
+
+    public double MapSidePrior(string mapId) => MapSidePriors.GetValueOrDefault(mapId, 0);
+
+    public static OpenRatingWeights Load(string path)
+    {
+        var document = JsonSerializer.Deserialize<OpenRatingModelDocument>(File.ReadAllText(path))
+            ?? throw new InvalidDataException("OpenRating model is empty");
+        if (document.SchemaVersion != 1 || string.IsNullOrWhiteSpace(document.ModelVersion))
+            throw new InvalidDataException("Unsupported OpenRating model schema");
+        var values = new[]
+        {
+            document.Weights.Kills, document.Weights.Damage, document.Weights.Survival,
+            document.Weights.Kast, document.Weights.MultiKills, document.Weights.RoundSwing,
+            document.Weights.Economy, document.Weights.Intercept
+        };
+        if (values.Any(value => !double.IsFinite(value)) || values.Take(7).Any(value => value < 0))
+            throw new InvalidDataException("OpenRating weights must be finite and non-negative");
+        if (document.MapSidePriors.Any(entry => !double.IsFinite(entry.Value) || Math.Abs(entry.Value) > 2))
+            throw new InvalidDataException("OpenRating map side priors are invalid");
+        return new OpenRatingWeights(
+            document.ModelVersion,
+            document.Weights.Kills,
+            document.Weights.Damage,
+            document.Weights.Survival,
+            document.Weights.Kast,
+            document.Weights.MultiKills,
+            document.Weights.RoundSwing,
+            document.Weights.Economy,
+            document.Weights.Intercept,
+            new Dictionary<string, double>(document.MapSidePriors, StringComparer.OrdinalIgnoreCase));
+    }
 }
 
-public static class RatingPlusCalculator
+internal sealed class OpenRatingModelDocument
+{
+    [JsonPropertyName("schema_version")] public int SchemaVersion { get; init; }
+    [JsonPropertyName("model_version")] public string ModelVersion { get; init; } = "";
+    [JsonPropertyName("weights")] public OpenRatingWeightDocument Weights { get; init; } = new();
+    [JsonPropertyName("map_side_priors")] public Dictionary<string, double> MapSidePriors { get; init; } = [];
+}
+
+internal sealed class OpenRatingWeightDocument
+{
+    [JsonPropertyName("kills")] public double Kills { get; init; }
+    [JsonPropertyName("damage")] public double Damage { get; init; }
+    [JsonPropertyName("survival")] public double Survival { get; init; }
+    [JsonPropertyName("kast")] public double Kast { get; init; }
+    [JsonPropertyName("multi_kills")] public double MultiKills { get; init; }
+    [JsonPropertyName("round_swing")] public double RoundSwing { get; init; }
+    [JsonPropertyName("economy")] public double Economy { get; init; }
+    [JsonPropertyName("intercept")] public double Intercept { get; init; }
+}
+
+public static class OpenRatingCalculator
 {
     public const int AssistDamageThreshold = 40;
     public static readonly TimeSpan TradeWindow = TimeSpan.FromSeconds(5);
 
-    public static RatingPlusBreakdown Calculate(PlayerMatchStats stats, RatingPlusWeights? weights = null)
+    public static OpenRatingBreakdown Calculate(PlayerMatchStats stats, OpenRatingWeights? weights = null)
     {
-        weights ??= RatingPlusWeights.ProxyV1;
+        weights ??= OpenRatingWeights.ProxyV1;
         var rounds = Math.Max(1, stats.RoundsPlayed);
         var killRate = stats.Kills / (double)rounds;
         var damageRate = stats.Damage / (double)rounds;
@@ -46,7 +110,7 @@ public static class RatingPlusCalculator
             + weights.RoundSwing * swing
             + weights.Economy * (1.0 + economy);
 
-        return new RatingPlusBreakdown(
+        return new OpenRatingBreakdown(
             weights.ModelVersion,
             Round(kills), Round(damage), Round(survival), Round(kast), Round(multis), Round(swing),
             Round(economy), Round(Math.Clamp(rating, 0, 3)));
@@ -79,6 +143,17 @@ public static class RatingPlusCalculator
         };
         return Round((armorFactor * 0.35 + weaponFactor * 0.65) - 0.5);
     }
+
+    public static int EquipmentValue(WeaponClass weapon) => weapon switch
+    {
+        WeaponClass.Awp => 4750,
+        WeaponClass.TierOneRifle => 3000,
+        WeaponClass.TierTwoRifle => 1900,
+        WeaponClass.SmgShotgun => 1250,
+        WeaponClass.UpgradedPistol => 500,
+        WeaponClass.StarterPistol => 200,
+        _ => 0
+    };
 
     public static bool IsTrade(DateTimeOffset death, DateTimeOffset response) =>
         response >= death && response - death <= TradeWindow;
