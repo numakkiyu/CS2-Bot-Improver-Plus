@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "catalog_version": "2026-07-19-v1",
+  "freeze_date": "2026-07-19",
+  "source": "HLTV Top 20 frozen for 1.4.2.5-Preview.3 plus TYLOO and Lynn Vision",
+  "maps": [
+    { "id": "de_mirage", "display_name": "Mirage", "workshop_name": "de_mirage", "thumbnail": "maps/mirage.webp", "required_vpk": "de_mirage.vpk" },
+    { "id": "de_inferno", "display_name": "Inferno", "workshop_name": "de_inferno", "thumbnail": "maps/inferno.webp", "required_vpk": "de_inferno.vpk" },
+    { "id": "de_dust2", "display_name": "Dust II", "workshop_name": "de_dust2", "thumbnail": "maps/dust2.webp", "required_vpk": "de_dust2.vpk" },
+    { "id": "de_nuke", "display_name": "Nuke", "workshop_name": "de_nuke", "thumbnail": "maps/nuke.webp", "required_vpk": "de_nuke.vpk" },
+    { "id": "de_ancient", "display_name": "Ancient", "workshop_name": "de_ancient", "thumbnail": "maps/ancient.webp", "required_vpk": "de_ancient.vpk" },
+    { "id": "de_anubis", "display_name": "Anubis", "workshop_name": "de_anubis", "thumbnail": "maps/anubis.webp", "required_vpk": "de_anubis.vpk" },
+    { "id": "de_train", "display_name": "Train", "workshop_name": "de_train", "thumbnail": "maps/train.webp", "required_vpk": "de_train.vpk" },
+    { "id": "de_overpass", "display_name": "Overpass", "workshop_name": "de_overpass", "thumbnail": "maps/overpass.webp", "required_vpk": "de_overpass.vpk" },
+    { "id": "de_vertigo", "display_name": "Vertigo", "workshop_name": "de_vertigo", "thumbnail": "maps/vertigo.webp", "required_vpk": "de_vertigo.vpk" },
+    { "id": "de_cache", "display_name": "Cache", "workshop_name": "de_cache", "thumbnail": "maps/cache.webp", "required_vpk": "de_cache.vpk" }
+  ],
+  "teams": [
+    { "id": "vitality", "name": "Team Vitality", "badge": "VIT", "ranking": 1, "players": ["apEX", "ZywOo", "ropz", "mezii", "flameZ"] },
+    { "id": "furia", "name": "FURIA", "badge": "FUR", "ranking": 2, "players": ["yuurih", "FalleN", "KSCERATO", "YEKINDAR", "molodoy"] },
+    { "id": "falcons", "name": "Falcons", "badge": "FLC", "ranking": 3, "players": ["NiKo", "TeSeS", "m0NESY", "karrigan", "kyousuke"] },
+    { "id": "mouz", "name": "MOUZ", "badge": "MOU", "ranking": 4, "players": ["jL", "torzsi", "Spinx", "xelex", "xertioN"] },
+    { "id": "faze", "name": "FaZe Clan", "badge": "FAZ", "ranking": 5, "players": ["enkay J", "frozen", "Twistzz", "broky", "jcobbb"] },
+    { "id": "mongolz", "name": "The MongolZ", "badge": "MGL", "ranking": 6, "players": ["bLitz", "Techno4K", "mzinho", "910", "cobrazera"] },
+    { "id": "navi", "name": "Natus Vincere", "badge": "NAVI", "ranking": 7, "players": ["Aleksib", "iM", "b1t", "w0nderful", "makazze"] },
+    { "id": "spirit", "name": "Spirit", "badge": "TS", "ranking": 8, "players": ["sh1ro", "magixx", "tN1R", "zont1x", "donk"] },
+    { "id": "g2", "name": "G2", "badge": "G2", "ranking": 9, "players": ["huNter-", "NertZ", "SunPayus", "HeavyGod", "MATYS"] },
+    { "id": "aurora", "name": "Aurora", "badge": "AUR", "ranking": 10, "players": ["MAJ3R", "XANTARES", "woxic", "soulfly", "Wicadia"] },
+    { "id": "b8", "name": "B8", "badge": "B8", "ranking": 11, "players": ["s1zzi", "alex666", "npl", "kensizor", "esenthial"] },
+    { "id": "3dmax", "name": "3DMAX", "badge": "3D", "ranking": 12, "players": ["misutaaa", "Maka", "Lucky", "Ex3rcice", "Graviti"] },
+    { "id": "pain", "name": "paiN", "badge": "PNG", "ranking": 13, "players": ["vsm", "biguzera", "piriajr", "saffee", "snow"] },
+    { "id": "astralis", "name": "Astralis", "badge": "AST", "ranking": 14, "players": ["HooXi", "phzy", "jabbi", "Staehr", "ryu"] },
+    { "id": "liquid", "name": "Team Liquid", "badge": "TL", "ranking": 15, "players": ["NAF", "EliGE", "malbsMd", "siuhy", "ultimate"] },
+    { "id": "passion-ua", "name": "Passion UA", "badge": "PUA", "ranking": 16, "players": ["JT", "try", "sdy", "Kvem", "nicx"] },
+    { "id": "legacy", "name": "Legacy", "badge": "LGC", "ranking": 17, "players": ["dumau", "latto", "n1ssim", "arT", "saadzin"] },
+    { "id": "imperial", "name": "Imperial", "badge": "IMP", "ranking": 18, "players": ["chelo", "VINI", "decenty", "levi", "noway"] },
+    { "id": "parivision", "name": "PARIVISION", "badge": "PARI", "ranking": 19, "players": ["Jame", "BELCHONOKK", "xiELO", "nota", "zweih"] },
+    { "id": "m80", "name": "M80", "badge": "M80", "ranking": 20, "players": ["slaxz-", "Swisher", "s1n", "JBa", "Lake"] },
+    { "id": "lynn-vision", "name": "Lynn Vision", "badge": "LVG", "ranking": null, "players": ["Westmelon", "z4KR", "Starry", "EmiliaQAQ", "C4LLM3SU3"] },
+    { "id": "tyloo", "name": "TYLOO", "badge": "TYL", "ranking": null, "players": ["JamYoung", "Jee", "Mercury", "Moseyuh", "Zero"] }
+  ],
+  "difficulties": ["low", "medium", "high"]
+}

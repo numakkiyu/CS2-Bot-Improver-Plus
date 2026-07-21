@@ -24,6 +24,14 @@
     },
     "comment": "handles player team join requests"
   },
+  "MpHumanTeam_ApplyRestriction": {
+    "signatures": {
+      "library": "server",
+      "windows": "40 55 48 8D 6C 24 ? 48 81 EC ? ? ? ? BA",
+      "linux": ""
+    },
+    "comment": "applies the human team restriction"
+  },
   "CNetworkGameServer::PackEntities": {
     "signatures": {
       "library": "engine2",

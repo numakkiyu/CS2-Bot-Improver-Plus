@@ -63,6 +63,12 @@ public sealed class BotBuyPatch : BasePlugin
     [GameEventHandler]
     public HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
     {
+        // PLUS P0 safety: delayed callbacks must revalidate captured controllers before schema access.
+        // The coordinator owns economy setup during a PLUS match. Skipping this
+        // delayed rewrite pipeline also prevents callbacks from touching bot
+        // controllers that the coordinator replaced during roster setup.
+        if (File.Exists(Path.Combine(Server.GameDirectory, ".csbip", "match-active.json")))
+            return HookResult.Continue;
         // Don't Buy on Aim_Rush
         if (Server.MapName == "aim_rush") return HookResult.Continue;
 
@@ -122,6 +128,7 @@ public sealed class BotBuyPatch : BasePlugin
                 float roll = Random.Shared.NextSingle();
                 foreach (var bot in ctBots)
                 {
+                    if (!bot.IsValid) continue;
                     if (roll < 0.10f)
                     {
                         Swap(bot, "weapon_usp_silencer", "weapon_fiveseven");
@@ -139,6 +146,7 @@ public sealed class BotBuyPatch : BasePlugin
                 float roll = Random.Shared.NextSingle();
                 foreach (var bot in tBots)
                 {
+                    if (!bot.IsValid) continue;
                     if (roll < 0.10f)
                     {
                         Swap(bot, "weapon_glock", "weapon_tec9");
@@ -210,6 +218,7 @@ public sealed class BotBuyPatch : BasePlugin
         {
             foreach (var p in allPlayers)
             {
+                if (!p.IsValid) continue;
                 var pawn = p.PlayerPawn.Value;
                 if (pawn == null || !pawn.IsValid || pawn.WeaponServices == null) continue;
 
@@ -228,6 +237,7 @@ public sealed class BotBuyPatch : BasePlugin
         {
             foreach (var p in allPlayers)
             {
+                if (!p.IsValid) continue;
                 var pawn = p.PlayerPawn.Value;
                 if (pawn == null || !pawn.IsValid || pawn.WeaponServices == null) continue;
 
@@ -255,6 +265,7 @@ public sealed class BotBuyPatch : BasePlugin
             if (ConVar.Find("sv_gravity")?.GetPrimitiveValue<float>() == 230f) return;
             foreach (var p in allPlayers)
             {
+                if (!p.IsValid) continue;
                 var pawn = p.PlayerPawn.Value;
                 if (pawn == null || !pawn.IsValid || pawn.WeaponServices == null) continue;
 
@@ -292,6 +303,7 @@ public sealed class BotBuyPatch : BasePlugin
             {
                 foreach (var p in allPlayers)
                 {
+                    if (!p.IsValid) continue;
                     if (p.InGameMoneyServices == null || p.InGameMoneyServices.Account < 5200)
                         continue;
 
@@ -359,9 +371,9 @@ public sealed class BotBuyPatch : BasePlugin
             {
                 foreach (var p in allPlayers)
                 {
-                    if (!p.IsValid || p.PlayerPawn.Value == null) continue;
-
+                    if (!p.IsValid) continue;
                     var pawn = p.PlayerPawn.Value;
+                    if (pawn == null || !pawn.IsValid) continue;
                     var (_, _, prevArmor) = PreviousInventory(p);
 
                     if (pawn.ItemServices == null || pawn.ItemServices.Handle == nint.Zero)

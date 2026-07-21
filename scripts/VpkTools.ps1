@@ -30,6 +30,44 @@ function Get-Md5Bytes {
     }
 }
 
+function Get-Crc32Value {
+    param([Parameter(Mandatory)][AllowEmptyCollection()][byte[]]$Bytes)
+
+    if (-not ('Csbip.VpkCrc32' -as [type])) {
+        Add-Type -TypeDefinition @'
+namespace Csbip
+{
+    public static class VpkCrc32
+    {
+        private static readonly uint[] Table = BuildTable();
+
+        private static uint[] BuildTable()
+        {
+            var table = new uint[256];
+            for (uint index = 0; index < table.Length; index++)
+            {
+                var value = index;
+                for (var bit = 0; bit < 8; bit++)
+                    value = (value & 1) != 0 ? (value >> 1) ^ 0xEDB88320u : value >> 1;
+                table[index] = value;
+            }
+            return table;
+        }
+
+        public static uint Compute(byte[] bytes)
+        {
+            var crc = uint.MaxValue;
+            foreach (var value in bytes)
+                crc = (crc >> 8) ^ Table[(crc ^ value) & 0xff];
+            return crc ^ uint.MaxValue;
+        }
+    }
+}
+'@
+    }
+    return [Csbip.VpkCrc32]::Compute($Bytes)
+}
+
 function Read-VpkDirectory {
     param([Parameter(Mandatory)][string]$Path)
 
@@ -162,12 +200,33 @@ function Read-VpkEmbeddedEntry {
 function ConvertTo-BotProfileOnlyVpk {
     param([Parameter(Mandatory)][string]$Path)
 
-    $entryPaths = @(Get-VpkEntryPaths $Path)
-    if ($entryPaths.Count -eq 1 -and $entryPaths[0] -eq "botprofile.db") {
-        return
-    }
-
     $botProfile = Read-VpkEmbeddedEntry $Path "botprofile.db"
+    $profileText = [Text.Encoding]::UTF8.GetString($botProfile.Bytes)
+    $normalization = [pscustomobject]@{ Count = 0 }
+    $profileText = [regex]::Replace(
+        $profileText,
+        '(?m)^(\s*LookAngleMaxAccel(?:Normal|Attacking)\s*=\s*)(\S+)',
+        {
+            param($match)
+            $value = 0.0
+            $valid = [double]::TryParse(
+                $match.Groups[2].Value,
+                [Globalization.NumberStyles]::Float,
+                [Globalization.CultureInfo]::InvariantCulture,
+                [ref]$value
+            )
+            if ($valid -and [double]::IsFinite($value) -and $value -ge 0 -and $value -le 20000) {
+                return $match.Value
+            }
+            $normalization.Count++
+            return "$($match.Groups[1].Value)20000.0"
+        }
+    )
+    [byte[]]$botProfileBytes = [Text.UTF8Encoding]::new($false).GetBytes($profileText)
+    [uint32]$botProfileCrc = Get-Crc32Value $botProfileBytes
+    if ($normalization.Count -gt 0) {
+        Write-Host "Normalized $($normalization.Count) invalid bot acceleration values in $Path"
+    }
 
     $treeStream = [IO.MemoryStream]::new()
     $treeWriter = [IO.BinaryWriter]::new($treeStream)
@@ -175,11 +234,11 @@ function ConvertTo-BotProfileOnlyVpk {
         Write-VpkCString $treeWriter "db"
         Write-VpkCString $treeWriter " "
         Write-VpkCString $treeWriter "botprofile"
-        $treeWriter.Write([uint32]$botProfile.Crc)
+        $treeWriter.Write($botProfileCrc)
         $treeWriter.Write([uint16]0)
         $treeWriter.Write([uint16]0x7FFF)
         $treeWriter.Write([uint32]0)
-        $treeWriter.Write([uint32]$botProfile.Bytes.Length)
+        $treeWriter.Write([uint32]$botProfileBytes.Length)
         $treeWriter.Write([uint16]0xFFFF)
         $treeWriter.Write([byte]0) # end file names
         $treeWriter.Write([byte]0) # end directories
@@ -198,12 +257,12 @@ function ConvertTo-BotProfileOnlyVpk {
         $writer.Write([uint32]0x55AA1234)
         $writer.Write([uint32]2)
         $writer.Write([uint32]$treeBytes.Length)
-        $writer.Write([uint32]$botProfile.Bytes.Length)
+        $writer.Write([uint32]$botProfileBytes.Length)
         $writer.Write([uint32]0)  # archive MD5 section
         $writer.Write([uint32]48) # tree, archive and whole-file MD5 values
         $writer.Write([uint32]0)  # signature section
         $writer.Write($treeBytes)
-        $writer.Write($botProfile.Bytes)
+        $writer.Write($botProfileBytes)
 
         [byte[]]$treeHash = Get-Md5Bytes $treeBytes
         [byte[]]$archiveHash = Get-Md5Bytes ([byte[]]::new(0))

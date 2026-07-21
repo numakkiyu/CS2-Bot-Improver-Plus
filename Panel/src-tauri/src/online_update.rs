@@ -9,7 +9,7 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 
-pub const CURRENT_VERSION: &str = "1.4.2.4";
+pub const CURRENT_VERSION: &str = "1.4.2.5-Preview.3";
 pub const MANIFEST_URL: &str =
     "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/latest/download/latest.json";
 const SIGNATURE_URL: &str =

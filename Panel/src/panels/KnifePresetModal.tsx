@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Modal from "../components/Modal";
 import Toggle from "../components/Toggle";
+import WearGauge from "../components/WearGauge";
 import { api, type KnifeCustomizerConfig, type KnifePreset } from "../lib/api";
 import type { KnifeIcon } from "../data/knifeIcons";
 import imageRows from "../data/skinImages.json";
@@ -9,6 +10,7 @@ import { finishName, itemName, localizedSkinName } from "../data/skinLocalizatio
 import { useT, type I18nKey } from "../i18n";
 import { useStore } from "../state/store";
 import CosmeticsTeamSwitch, { useCosmeticsTeam } from "../components/CosmeticsTeamSwitch";
+import { useSelectedPickerScroll } from "../lib/useSelectedPickerScroll";
 import "./KnifePresetModal.css";
 
 type SkinImage = {
@@ -61,6 +63,7 @@ export default function KnifePresetModal({ knife, csgoPath, config, onSaved, onE
   const [saving, setSaving] = useState(false);
   const [useAsDefault, setUseAsDefault] = useState(false);
   const [team, setTeam] = useCosmeticsTeam();
+  const skinListRef = useSelectedPickerScroll(!!knife, `${team}:${draft.paint}`);
 
   useEffect(() => {
     if (!knife || !config) return;
@@ -132,21 +135,38 @@ export default function KnifePresetModal({ knife, csgoPath, config, onSaved, onE
 
   const knifeName = knife ? itemName(localizedSkinName(language, knife.id, 0, `Knife ${knife.id}`)) : "";
 
-  return <Modal open={!!knife} title={knife ? `${knifeName} · ${t("cosmetics.knifeTitle")}` : t("cosmetics.knifeTitle")} onClose={onClose} width={440} footer={
-    <button className="kp__save" disabled={saving || draft.paint <= 0} onClick={() => void save()}>
+  return <Modal open={!!knife} title={knife ? `${knifeName} · ${t("cosmetics.knifeTitle")}` : t("cosmetics.knifeTitle")} onClose={onClose} width={880} scrimClassName="picker-modal" footer={
+    <div className="kp__footer-actions"><button className="kp__save" disabled={saving || draft.paint <= 0} onClick={() => void save()}>
       {saving ? t("cosmetics.saving") : t("cosmetics.save")}
-    </button>
+    </button></div>
   }>
-    <div className="kp">
-      <div className="kp__team-row"><span>{t("cosmetics.teamLoadout")}</span><CosmeticsTeamSwitch value={team} onChange={setTeam} ariaLabel={t("cosmetics.teamLoadout")} compact /></div>
-      <div className="kp__preview"><img src={selectedSkin?.image || knife?.url} alt="" /><div><strong>{selectedSkin ? label(selectedSkin) : t("cosmetics.chooseSkin")}</strong><span>{t("cosmetics.paintKit")} {draft.paint || "-"}</span></div></div>
-      <label className="kp__field"><span>{t("weapons.paint")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("cosmetics.searchSkin")} /></label>
-      <div className="kp__skins">{skins.map((skin) => <button key={skin.paint} className={skin.paint === draft.paint ? "is-selected" : ""} onClick={() => choose(skin)}><img src={skin.image} alt="" loading="lazy" /><span>{label(skin)}</span></button>)}</div>
-      <div className="kp__columns"><label className="kp__field"><span>{t("live.wear")}</span><input type="number" min={selectedCatalog?.min_wear ?? 0} max={selectedCatalog?.max_wear ?? 1} step="0.000001" value={draft.wear} onChange={(event) => setDraft((value) => ({ ...value, wear: Math.min(selectedCatalog?.max_wear ?? 1, Math.max(selectedCatalog?.min_wear ?? 0, Number(event.target.value))) }))} /></label><label className="kp__field"><span>{t("live.seed")}</span><input type="number" min="0" max="1000" step="1" value={draft.seed} onChange={(event) => setDraft((value) => ({ ...value, seed: Math.min(1000, Math.max(0, Number(event.target.value))) }))} /></label></div>
-      <label className="kp__field"><span>{t("live.nameTag")}</span><input maxLength={20} value={draft.name_tag} onChange={(event) => setDraft((value) => ({ ...value, name_tag: event.target.value }))} placeholder={t("cosmetics.namePlaceholder")} /></label>
-      <div className="kp__toggle-row"><span>{team === "ct" ? t("cosmetics.defaultKnifeCt") : t("cosmetics.defaultKnifeT")}</span><Toggle checked={useAsDefault} onChange={setUseAsDefault} /></div>
-      <div className="kp__toggle-row"><span>{t("live.stattrak")}</span><Toggle checked={draft.stattrak_enabled} disabled={!selectedCatalog?.stattrak} onChange={(enabled) => setDraft((value) => ({ ...value, stattrak_enabled: enabled }))} /></div>
-      {draft.stattrak_enabled && <label className="kp__field"><span>{t("cosmetics.initialCount")}</span><input type="number" min="0" step="1" value={draft.stattrak_count} onChange={(event) => setDraft((value) => ({ ...value, stattrak_count: Math.max(0, Number(event.target.value)) }))} /></label>}
+    <div className="kp kp--split">
+      <div className="kp__side">
+        <div className="kp__preview">
+          <span className="kp__team-fab"><CosmeticsTeamSwitch value={team} onChange={setTeam} ariaLabel={t("cosmetics.teamLoadout")} compact /></span>
+          <img src={selectedSkin?.image || knife?.url} alt="" />
+          <div><strong>{selectedSkin ? label(selectedSkin) : t("cosmetics.chooseSkin")}</strong><span>{t("cosmetics.paintKit")} {draft.paint || "-"}</span></div>
+        </div>
+        <div className="kp__columns"><label className="kp__field"><span>{t("live.wear")}</span><input type="number" min={selectedCatalog?.min_wear ?? 0} max={selectedCatalog?.max_wear ?? 1} step="0.000001" value={draft.wear} onChange={(event) => setDraft((value) => ({ ...value, wear: Math.min(selectedCatalog?.max_wear ?? 1, Math.max(selectedCatalog?.min_wear ?? 0, Number(event.target.value))) }))} /></label><label className="kp__field"><span>{t("live.seed")}</span><input type="number" min="0" max="1000" step="1" value={draft.seed} placeholder={t("live.seedPlaceholder")} onChange={(event) => setDraft((value) => ({ ...value, seed: Math.min(1000, Math.max(0, Number(event.target.value))) }))} /></label></div>
+        <WearGauge min={selectedCatalog?.min_wear ?? 0} max={selectedCatalog?.max_wear ?? 1} value={draft.wear} />
+        <label className="kp__field"><span>{t("live.nameTag")}</span><input maxLength={20} value={draft.name_tag} onChange={(event) => setDraft((value) => ({ ...value, name_tag: event.target.value }))} placeholder={t("cosmetics.namePlaceholder")} /></label>
+        <div className="kp__toggle-row"><span>{team === "ct" ? t("cosmetics.defaultKnifeCt") : t("cosmetics.defaultKnifeT")}</span><Toggle checked={useAsDefault} onChange={setUseAsDefault} /></div>
+        <div className="kp__toggle-row"><span>{t("live.stattrak")}</span><Toggle checked={draft.stattrak_enabled} disabled={!selectedCatalog?.stattrak} onChange={(enabled) => setDraft((value) => ({ ...value, stattrak_enabled: enabled }))} /></div>
+        {draft.stattrak_enabled && <label className="kp__field"><span>{t("cosmetics.initialCount")}</span><input type="number" min="0" step="1" value={draft.stattrak_count} onChange={(event) => setDraft((value) => ({ ...value, stattrak_count: Math.max(0, Number(event.target.value)) }))} /></label>}
+      </div>
+      <div className="kp__main">
+        <label className="kp__field"><span>{t("weapons.paint")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("cosmetics.searchSkin")} /></label>
+        {skins.length ? <div className="kp__skins" ref={skinListRef}>{skins.map((skin) => {
+          const details = catalog.get(`${skin.weapon_defindex}:${skin.paint}`);
+          return (
+            <button key={skin.paint} className={skin.paint === draft.paint ? "is-selected" : ""} onClick={() => choose(skin)}>
+              {details?.stattrak && <span className="kp__badges" aria-hidden="true"><i className="is-st">ST</i></span>}
+              <img src={skin.image} alt="" loading="lazy" />
+              <span>{label(skin)}</span>
+            </button>
+          );
+        })}</div> : <div className="wp-modal__empty">{t("weapons.noSkins")}</div>}
+      </div>
     </div>
   </Modal>;
 }

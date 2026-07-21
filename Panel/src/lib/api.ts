@@ -1,4 +1,8 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+
+function invoke<T>(command: string, args?: Record<string, unknown>) {
+  return tauriInvoke<T>(command, args);
+}
 
 /** Mirrors Rust `AppError` (error.rs). Codes are stable & not localized. */
 export type AppError = {
@@ -252,6 +256,9 @@ export type KnifeCustomizerState = {
   config: KnifeCustomizerConfig;
 };
 
+export type CosmeticsPresetExportResult = { path: string; size_bytes: number };
+export type CosmeticsPresetImportResult = { state: KnifeCustomizerState; backup_path: string | null };
+
 export type GameMode = "online" | "preview" | "bots";
 
 export type ModeInfo = {
@@ -346,6 +353,172 @@ export type RuntimeSnapshot = {
   installation: InstallationInspection | null;
 };
 
+export type MatchMap = {
+  id: string;
+  display_name: string;
+  workshop_name: string;
+  thumbnail: string;
+  required_vpk: string;
+};
+
+export type MatchTeam = {
+  id: string;
+  name: string;
+  badge: string;
+  ranking: number | null;
+  players: string[];
+};
+
+export type MatchCatalog = {
+  schema_version: number;
+  catalog_version: string;
+  freeze_date: string;
+  source: string;
+  maps: MatchMap[];
+  teams: MatchTeam[];
+  difficulties: string[];
+};
+
+export type MatchPlayer = {
+  id: string;
+  name: string;
+  kind: "human" | "bot";
+  is_local_player: boolean;
+};
+
+export type MatchRequest = {
+  schema_version: number;
+  session_id: string;
+  created_at_unix: number;
+  map_id: string;
+  player_side: "ct" | "t";
+  difficulty: "low" | "medium" | "high";
+  opponent_kind: "featured_team" | "random";
+  opponent_team_id: string | null;
+  opponent_name: string;
+  record_demo: boolean;
+  player_team: MatchPlayer[];
+  opponent_team: MatchPlayer[];
+  result_path: string;
+  demo_path: string;
+};
+
+export type PrepareMatchInput = {
+  schema_version: 1;
+  map_id: string;
+  player_side: "random" | "ct" | "t";
+  difficulty: "low" | "medium" | "high";
+  opponent_kind: "featured_team" | "random";
+  opponent_team_id: string | null;
+  record_demo: boolean;
+};
+
+export type DemoStatus = {
+  state: "disabled" | "pending" | "recording" | "validating" | "ready" | "failed" | "interrupted";
+  path: string | null;
+  size_bytes: number;
+  error_code: string | null;
+  detail: string | null;
+};
+
+export type OpenRatingBreakdown = {
+  model_version: string;
+  kills: number;
+  damage: number;
+  survival: number;
+  kast: number;
+  multi_kills: number;
+  round_swing: number;
+  economy_adjustment: number;
+  open_rating?: number;
+  /** Legacy field emitted by matches created before the OpenRating migration. */
+  rating_plus?: number;
+};
+
+export type PlayerMatchStats = {
+  player_id: string;
+  name: string;
+  kind: "human" | "bot";
+  team: "ct" | "t";
+  kills: number;
+  deaths: number;
+  assists: number;
+  headshots: number;
+  damage: number;
+  rounds_played: number;
+  rounds_survived: number;
+  kast_rounds: number;
+  first_kills: number;
+  first_deaths: number;
+  mvps: number;
+  clutches: number;
+  trade_kills: number;
+  trade_denials: number;
+  failed_trades: number;
+  ct_kills: number;
+  t_kills: number;
+  round_swing: number;
+  economy_adjustment: number;
+  multi_kills: Record<string, number>;
+  rating: OpenRatingBreakdown | null;
+  difference: number;
+  adr: number;
+  kast_percent: number;
+  headshot_percent: number;
+};
+
+export type MatchResult = {
+  schema_version: number;
+  session_id: string;
+  state: "prepared" | "launching" | "loading" | "warmup" | "live" | "finished" | "interrupted";
+  map_id: string;
+  started_at_unix: number;
+  finished_at_unix: number;
+  player_score: number;
+  opponent_score: number;
+  opponent_name: string;
+  rating_model_version: string;
+  demo: DemoStatus;
+  players: PlayerMatchStats[];
+  interruption_reason: string | null;
+};
+
+export type MatchSession = {
+  schema_version: number;
+  session_id: string;
+  state: MatchResult["state"];
+  map_id: string;
+  opponent_name: string;
+  created_at_unix: number;
+  player_score: number;
+  opponent_score: number;
+  demo: DemoStatus;
+  result_path: string | null;
+};
+
+export type InstallCheckStatus = "pass" | "warn" | "fail";
+export type InstallCheckItem = {
+  code: string;
+  status: InstallCheckStatus;
+  blocking: boolean;
+  title: string;
+  evidence: string;
+  cause: string;
+  action: string;
+};
+export type InstallCheckReport = {
+  schema_version: number;
+  generated_at_unix: number;
+  target: string;
+  overall: InstallCheckStatus;
+  pass_count: number;
+  warn_count: number;
+  fail_count: number;
+  blocking_fail_count: number;
+  can_proceed: boolean;
+  checks: InstallCheckItem[];
+};
+
 // ---- Command wrappers ----
 export const api = {
   getConfig: () => invoke<AppConfig>("get_config"),
@@ -369,6 +542,21 @@ export const api = {
     invoke<ModeInfo>("set_mode", { csgo, mode }),
   reconcileLaunchOptions: () => invoke<number>("reconcile_launch_options"),
   launchCs2: () => invoke<LaunchResult>("launch_cs2"),
+  getMatchCatalog: (csgo: string | null) => invoke<MatchCatalog>("get_match_catalog", { csgo }),
+  prepareAndLaunchMatch: (csgo: string, input: PrepareMatchInput) =>
+    invoke<MatchRequest>("prepare_and_launch_match", { csgo, input }),
+  getActiveMatch: (csgo: string) => invoke<MatchSession | null>("get_active_match", { csgo }),
+  listMatchHistory: (csgo: string) => invoke<MatchSession[]>("list_match_history", { csgo }),
+  getMatchResult: (csgo: string, sessionId: string) =>
+    invoke<MatchResult>("get_match_result", { csgo, sessionId }),
+  deleteMatch: (csgo: string, sessionId: string, confirmed: boolean) =>
+    invoke<void>("delete_match", { csgo, sessionId, confirmed }),
+  playDemo: (csgo: string, demoPath: string) =>
+    invoke<void>("play_demo", { csgo, demoPath }),
+  openDemoFolder: (csgo: string, demoPath: string) =>
+    invoke<void>("open_demo_folder", { csgo, demoPath }),
+  runInstallChecks: (csgo: string, selectedMap: string | null = null) =>
+    invoke<InstallCheckReport>("run_install_checks", { csgo, selectedMap }),
   reconcileCoreJson: (csgo: string) => invoke<void>("reconcile_core_json", { csgo }),
   getBotItems: (csgo: string) => invoke<BotItemsState>("get_bot_items", { csgo }),
   setBotItem: (csgo: string, item: BotItemKey, on: boolean) =>
@@ -386,6 +574,10 @@ export const api = {
     invoke<KnifeCustomizerState>("get_knife_customizer", { csgo }),
   saveKnifeCustomizer: (csgo: string, config: KnifeCustomizerConfig) =>
     invoke<KnifeCustomizerState>("save_knife_customizer", { csgo, config }),
+  exportCosmeticsPreset: (csgo: string, destination: string) =>
+    invoke<CosmeticsPresetExportResult>("export_cosmetics_preset", { csgo, destination }),
+  importCosmeticsPreset: (csgo: string, source: string) =>
+    invoke<CosmeticsPresetImportResult>("import_cosmetics_preset", { csgo, source }),
   inspectInstallation: (csgo: string) =>
     invoke<InstallationInspection>("inspect_installation", { csgo }),
   getInstallPlan: (csgo: string) => invoke<InstallPlan>("get_install_plan", { csgo }),

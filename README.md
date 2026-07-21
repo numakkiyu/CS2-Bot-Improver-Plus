@@ -21,13 +21,17 @@
 > [!IMPORTANT]
 > CS2BotImproverPlus is a Windows distribution based on [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
 >
+> This repository is independently maintained. It is not affiliated with, endorsed by, or maintained by the upstream project or its maintainers. It pulls and adapts upstream code while developing and distributing the Plus edition separately
+>
+> For issues involving Plus builds, the Panel, installation, matching, cosmetics, diagnostics, or other Plus-specific behavior, please [open an issue in this repository](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/issues) and do not submit the report upstream. An issue should be reported upstream only when it can also be reproduced with an unmodified upstream installation
+>
 > The Plus branch retains and synchronizes all upstream enhanced-bot features, then adds player cosmetic presets, a redesigned Panel, managed installation, recovery, diagnostics, and online updates
 >
 > Upstream remains the source of the core bot systems and receives full credit for that work
 
 <div align="center">
 
-The current `main` branch targets **1.4.2.4**
+The current `main` branch targets **1.4.2.5**
 
 **Guide:** [First installation](#four-step-first-installation) · [Existing installation](#updating-an-existing-installation) · [Launch modes](#choose-the-correct-mode) · [Cosmetics](#player-cosmetic-presets) · [Recovery](#installation-updates-and-recovery) · [Troubleshooting](#troubleshooting)
 

@@ -42,6 +42,21 @@ body {
   user-select: none;
 }
 
+/* Scrollable pages are flex columns. Their children must never shrink below
+   the content height: a shrunk card with overflow:hidden clips its content,
+   and the page then believes nothing overflows, so no scrollbar appears. */
+.dashboard > *,
+.guide-view > *,
+.match-page > *,
+.subpage__body > * {
+  flex: 0 0 auto;
+}
+/* The commands list intentionally fills the leftover height and scrolls
+   inside itself instead of growing the page. */
+.subpage__body > .cmd__content {
+  flex: 1 1 auto;
+}
+
 button {
   font-family: inherit;
   cursor: pointer;

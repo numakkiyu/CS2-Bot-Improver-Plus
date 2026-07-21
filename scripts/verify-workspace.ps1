@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$PackageRoot
+    [string]$PackageRoot,
+    [string]$ExpectedPackageVersion = "1.4.2.5-Preview.3"
 )
 
 $ErrorActionPreference = "Stop"
@@ -45,7 +46,18 @@ function Get-JsonCount([string]$RelativePath) {
     }
 }
 
-$base = $manifest.upstream.baseCommit
+$base = if ($manifest.upstream.sourceCommit) { $manifest.upstream.sourceCommit } else { $manifest.upstream.baseCommit }
+
+$localBuildConfig = Join-Path $repo ".local-build.ps1"
+if ($env:GITHUB_ACTIONS -ne "true" -and -not (Test-Path -LiteralPath $localBuildConfig -PathType Leaf)) {
+    Add-Failure "Local build configuration is missing; run the workspace setup before building."
+}
+$buildScript = Get-Content -LiteralPath (Join-Path $repo "scripts/build.ps1") -Raw
+$privateToolLabel = "portable" + "-toolchain"
+if ($buildScript.Contains($privateToolLabel, [StringComparison]::OrdinalIgnoreCase)) {
+    Add-Failure "Build scripts must not expose the local tool directory name."
+}
+
 & git -C $repo cat-file -e "$base^{commit}" 2>$null
 if ($LASTEXITCODE -ne 0) {
     Add-Failure "Pinned upstream commit is unavailable: $base"
@@ -53,9 +65,13 @@ if ($LASTEXITCODE -ne 0) {
 else {
     $upstreamModules = @(
         "addons/counterstrikesharp/plugins/BotAI",
+        "addons/counterstrikesharp/plugins/BotAimImprover",
         "addons/counterstrikesharp/plugins/BotBuy",
+        "addons/counterstrikesharp/plugins/BotControllerImpl",
+        "addons/counterstrikesharp/plugins/BotHiderImpl",
         "addons/counterstrikesharp/plugins/BotRandomizer",
         "addons/counterstrikesharp/plugins/BotState",
+        "addons/counterstrikesharp/plugins/NadeSystem",
         "addons/counterstrikesharp/plugins/RoundDamageRecap",
         "overrides"
     )
@@ -71,8 +87,26 @@ else {
         }
     )
     $allowedUpstreamChanges = @(
+        "addons/counterstrikesharp/plugins/BotAimImprover/BotAimImprover.cs",
+        "addons/counterstrikesharp/plugins/BotAimImprover/BotAimImprover.csproj",
+        "addons/counterstrikesharp/plugins/BotBuy/BotBuy.cs",
         "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.cs",
-        "addons/counterstrikesharp/plugins/BotRandomizer/bot_randomizer_options.json"
+        "addons/counterstrikesharp/plugins/BotRandomizer/bot_randomizer_options.json",
+        "addons/counterstrikesharp/plugins/BotControllerImpl/BotControllerImpl.csproj",
+        "addons/counterstrikesharp/plugins/BotControllerImpl/BotController.NativeApi.cs",
+        "addons/counterstrikesharp/plugins/BotControllerImpl/BotControllerApiImpl.cs",
+        "addons/counterstrikesharp/plugins/BotControllerImpl/BotControllerCapability.cs",
+        "addons/counterstrikesharp/plugins/BotControllerImpl/BotControllerImplPlugin.cs",
+        "addons/counterstrikesharp/plugins/BotControllerImpl/MotionRecording.cs",
+        "addons/counterstrikesharp/plugins/BotControllerImpl/ReplayDriver.cs",
+        "addons/counterstrikesharp/plugins/BotHiderImpl/BotHiderImpl.csproj",
+        "addons/counterstrikesharp/plugins/BotHiderImpl/BotHiderImplPlugin.cs",
+        "addons/counterstrikesharp/plugins/NadeSystem/NadeSystem.csproj",
+        "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.cs",
+        "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.csproj",
+        "overrides/Low/botprofile.db",
+        "overrides/Medium/botprofile.db",
+        "overrides/High/botprofile.db"
     )
     $unexpectedChanges = @($changed | Where-Object { $_ -notin $allowedUpstreamChanges })
     if ($unexpectedChanges.Count -gt 0) {
@@ -85,6 +119,32 @@ if ($botAiProject -match 'Tmp\\ArchiveV02\\Common') {
     Add-Failure "BotAI still references the machine-specific Common.dll path."
 }
 
+$botAimImprover = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/BotAimImprover/BotAimImprover.cs") -Raw
+if ($botAimImprover -notmatch 'if \(win\)\s*\{' -or
+    $botAimImprover -notmatch 'Windows native aim hook disabled by PLUS P0 safety policy' -or
+    $botAimImprover -notmatch 'Logger\.LogCritical\([^\r\n]+\);\s*return;') {
+    Add-Failure "BotAimImprover no longer disables its unsafe Windows native hook."
+}
+
+$botBuy = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/BotBuy/BotBuy.cs") -Raw
+if ($botBuy -notmatch 'PLUS P0 safety: delayed callbacks must revalidate captured controllers before schema access' -or
+    ([regex]::Matches($botBuy, 'if \(!p\.IsValid\) continue;').Count -lt 6) -or
+    ([regex]::Matches($botBuy, 'if \(!bot\.IsValid\) continue;').Count -lt 2)) {
+    Add-Failure "BotBuy no longer guards delayed callbacks against invalid CounterStrikeSharp controllers."
+}
+
+$roundDamageRecap = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.cs") -Raw
+if ($roundDamageRecap -notmatch 'match-active\.json' -or
+    $roundDamageRecap -notmatch 'PlusMatchCoordinator owns match statistics') {
+    Add-Failure "RoundDamageRecap no longer yields PLUS match statistics ownership."
+}
+
+$matchPanel = Get-Content -LiteralPath (Join-Path $repo "Panel/src/panels/MatchPanel.tsx") -Raw
+if ($matchPanel -notmatch 'localStorage\.getItem\("cs2bi\.matchDemoV2"\) === "1"' -or
+    $matchPanel -notmatch 'match\.demoWarning') {
+    Add-Failure "Match Panel no longer keeps GOTV opt-in with a performance warning."
+}
+
 $requiredSources = @(
     "Panel/src-tauri/src/lib.rs",
     "Panel/src/panels/KnifePresetModal.tsx",
@@ -92,6 +152,7 @@ $requiredSources = @(
     "Panel/src/panels/WeaponPresetModal.tsx",
     "Panel/src/panels/MusicKitPresetModal.tsx",
     "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.cs",
+    "addons/counterstrikesharp/plugins/BotControllerImpl/BotControllerImplPlugin.cs",
     "addons/counterstrikesharp/plugins/BotRandomizer/bot_randomizer_options.json",
     "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.cs",
     "addons/counterstrikesharp/plugins/BotHiderImpl/BotHiderImplPlugin.cs"
@@ -156,17 +217,46 @@ if ((Get-FileHash -LiteralPath $catalogA -Algorithm SHA256).Hash -ne
     Add-Failure "Panel and plugin weapon catalogs are not identical."
 }
 
+$matchCatalog = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/PlusMatchCoordinator/match_catalog.json") -Raw | ConvertFrom-Json
+$featuredPlayers = @($matchCatalog.teams | ForEach-Object { $_.players } | Sort-Object -Unique)
+
+function Assert-BotProfileContent([string]$Profile, [string]$Label) {
+    foreach ($player in $featuredPlayers) {
+        if ($Profile -notmatch ('"' + [regex]::Escape($player) + '"')) {
+            Add-Failure "$Label is missing featured player $player."
+        }
+    }
+    foreach ($match in [regex]::Matches($Profile, '(?m)^\s*LookAngleMaxAccel(?:Normal|Attacking)\s*=\s*(\S+)')) {
+        $token = $match.Groups[1].Value
+        $value = 0.0
+        $valid = [double]::TryParse(
+            $token,
+            [Globalization.NumberStyles]::Float,
+            [Globalization.CultureInfo]::InvariantCulture,
+            [ref]$value
+        )
+        if (-not $valid -or [double]::IsNaN($value) -or [double]::IsInfinity($value) -or $value -lt 0 -or $value -gt 20000) {
+            Add-Failure "$Label has invalid LookAngleMaxAccel value '$token'."
+        }
+    }
+}
+
 $botHiderImpl = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/BotHiderImpl/BotHiderImplPlugin.cs") -Raw
 if ($botHiderImpl -notmatch "foreach \(int slot in managedSlots\)" -or
     $botHiderImpl -notmatch "player\.PlayerName = name" -or
-    $botHiderImpl -notmatch 'ModuleVersion => "0\.3\.0"' -or
+    $botHiderImpl -notmatch 'ModuleVersion => "0\.3\.3"' -or
     $botHiderImpl -notmatch "EnsureBotInfoNameSource\(\)") {
-    Add-Failure "BotHiderImpl no longer preserves the v0.3.1 managed-name integration."
+    Add-Failure "BotHiderImpl no longer preserves the v0.3.3 managed-name integration."
 }
 $botHiderGameData = Get-Content -LiteralPath (Join-Path $repo "addons/BotHider/gamedata.json") -Raw
 if ($botHiderGameData -notmatch '"CServerSideClient::SetName"' -or
     $botHiderGameData -notmatch '"CNetworkGameServer::PackEntities"') {
-    Add-Failure "BotHider gamedata no longer contains the v0.3.1 name and identity targets."
+    Add-Failure "BotHider gamedata no longer contains the v0.3.3 name and identity targets."
+}
+foreach ($difficulty in @("Low", "Medium", "High")) {
+    $profilePath = Join-Path $repo "overrides/$difficulty/botprofile.db"
+    $profile = Get-Content -LiteralPath $profilePath -Raw
+    Assert-BotProfileContent $profile "$difficulty botprofile.db"
 }
 
 $trackedGenerated = @(& git -C $repo ls-files | Where-Object {
@@ -180,6 +270,8 @@ if ($PackageRoot) {
     $package = [IO.Path]::GetFullPath($PackageRoot)
     $requiredPackageFiles = @(
         "addons/BotHider/bin/win64/BotHider.dll",
+        "addons/BotController/bin/win64/BotController.dll",
+        "addons/metamod/BotController.vdf",
         "addons/metamod/bin/win64/server.dll",
         "addons/counterstrikesharp/bin/win64/counterstrikesharp.dll",
         "addons/RayTrace/bin/win64/RayTrace.dll",
@@ -187,14 +279,23 @@ if ($PackageRoot) {
         "addons/counterstrikesharp/plugins/BotAI/BotAI.dll",
         "addons/counterstrikesharp/plugins/BotAimImprover/BotAimImprover.dll",
         "addons/counterstrikesharp/plugins/BotBuy/BotBuy.dll",
+        "addons/counterstrikesharp/plugins/BotControllerImpl/BotControllerImpl.dll",
         "addons/counterstrikesharp/plugins/BotHiderImpl/BotHiderImpl.dll",
         "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.dll",
         "addons/counterstrikesharp/plugins/BotState/BotState.dll",
         "addons/counterstrikesharp/plugins/NadeSystem/NadeSystem.dll",
         "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.dll",
         "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.dll",
+        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/PlusMatchCoordinator.dll",
+        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/MatchCore.dll",
+        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/match_catalog.json",
+        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/open-rating-3.0-proxy-v1.json",
+        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/profiles/Low/botprofile.db",
+        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/profiles/Medium/botprofile.db",
+        "addons/counterstrikesharp/plugins/PlusMatchCoordinator/profiles/High/botprofile.db",
         "addons/counterstrikesharp/shared/0Harmony/0Harmony.dll",
         "addons/counterstrikesharp/shared/BotHiderApi/BotHiderApi.dll",
+        "addons/counterstrikesharp/shared/BotControllerApi/BotControllerApi.dll",
         "plus-payload-manifest.json",
         "CS2BotImproverPlus.exe",
         "README.md",
@@ -203,6 +304,13 @@ if ($PackageRoot) {
     )
     foreach ($relative in $requiredPackageFiles) {
         Assert-File (Join-Path $package $relative) "package file $relative"
+    }
+    $previewNotice = Join-Path $package "PREVIEW-NOTICE.txt"
+    if ($ExpectedPackageVersion -match '-Preview\.\d+$') {
+        Assert-File $previewNotice "package preview notice"
+    }
+    elseif (Test-Path -LiteralPath $previewNotice) {
+        Add-Failure "Official package must not contain PREVIEW-NOTICE.txt."
     }
     $packagedPanel = Join-Path $package "CS2BotImproverPlus.exe"
     $builtPanel = Join-Path $repo "Panel/src-tauri/target/release/cs2-bot-improver-plus-panel.exe"
@@ -228,11 +336,12 @@ if ($PackageRoot) {
     if (Test-Path -LiteralPath $payloadManifestPath) {
         try {
             $payloadManifest = Get-Content -LiteralPath $payloadManifestPath -Raw | ConvertFrom-Json
-            if ($payloadManifest.schema_version -ne 1 -or $payloadManifest.package_version -ne "1.4.2.4") {
+            if ($payloadManifest.schema_version -ne 1 -or $payloadManifest.package_version -ne $ExpectedPackageVersion) {
                 Add-Failure "Package payload manifest has an unexpected schema or version."
             }
             $manifestPaths = @{}
             $manifestPolicies = @{}
+            $manifestOwnership = @{}
             foreach ($entry in $payloadManifest.entries) {
                 $relative = [string]$entry.path
                 if ($manifestPaths.ContainsKey($relative)) {
@@ -241,6 +350,7 @@ if ($PackageRoot) {
                 }
                 $manifestPaths[$relative] = $true
                 $manifestPolicies[$relative] = [string]$entry.restore_policy
+                $manifestOwnership[$relative] = [string]$entry.ownership
                 if ($relative -notmatch '^(addons|cfg|overrides)/' -or $relative -match '(^|/)\.\.(/|$)') {
                     Add-Failure "Package payload manifest contains an unsafe path: $relative"
                     continue
@@ -282,6 +392,13 @@ if ($PackageRoot) {
                     Add-Failure "Mutable player configuration is not protected by preserve-config: $relative"
                 }
             }
+            foreach ($relative in $manifestPaths.Keys | Where-Object {
+                $_ -like "addons/counterstrikesharp/plugins/PlusMatchCoordinator/*"
+            }) {
+                if ($manifestOwnership[$relative] -ne "plus") {
+                    Add-Failure "PlusMatchCoordinator payload is not Plus-owned: $relative"
+                }
+            }
         }
         catch {
             Add-Failure "Package payload manifest is invalid: $($_.Exception.Message)"
@@ -303,6 +420,11 @@ if ($PackageRoot) {
                 if ($entries.Count -ne 1 -or $entries[0] -ne "botprofile.db") {
                     Add-Failure "Package $relative must contain only botprofile.db; found: $($entries -join ', ')"
                 }
+                else {
+                    $embedded = Read-VpkEmbeddedEntry $vpk "botprofile.db"
+                    $profile = [Text.Encoding]::UTF8.GetString($embedded.Bytes)
+                    Assert-BotProfileContent $profile "Package $relative"
+                }
             }
             catch {
                 Add-Failure "Invalid package VPK $relative`: $($_.Exception.Message)"
@@ -314,7 +436,7 @@ if ($PackageRoot) {
     if (Test-Path -LiteralPath $native) {
         $nativeHash = (Get-FileHash -LiteralPath $native -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($nativeHash -ne $manifest.botHider.windowsDllSha256.ToLowerInvariant()) {
-            Add-Failure "Package BotHider.dll is not the verified v0.3.1 build: $nativeHash"
+            Add-Failure "Package BotHider.dll is not the verified v0.3.3 build: $nativeHash"
         }
     }
 
@@ -338,9 +460,11 @@ if ($PackageRoot) {
         @{ Name = "BotAI"; Framework = "net10.0" },
         @{ Name = "BotAimImprover"; Framework = "net10.0" },
         @{ Name = "BotBuy"; Framework = "net8.0" },
+        @{ Name = "BotControllerImpl"; Framework = "net10.0" },
         @{ Name = "BotRandomizer"; Framework = "net10.0" },
         @{ Name = "NadeSystem"; Framework = "net10.0" },
-        @{ Name = "RoundDamageRecap"; Framework = "net8.0" }
+        @{ Name = "RoundDamageRecap"; Framework = "net10.0" }
+        @{ Name = "PlusMatchCoordinator"; Framework = "net8.0" }
     )
     foreach ($plugin in $builtPlugins) {
         $packageDll = Join-Path $package "addons/counterstrikesharp/plugins/$($plugin.Name)/$($plugin.Name).dll"

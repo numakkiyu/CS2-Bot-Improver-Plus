@@ -24,7 +24,7 @@ export default function Modal({ open, title, onClose, children, footer, width = 
   return (
     <div className={`modal__scrim${scrimClassName ? ` ${scrimClassName}` : ""}`} onMouseDown={onClose}>
       <div
-        className="modal glass glass-strong"
+        className="modal glass glass-strong modal--solid"
         style={{ maxWidth: width }}
         onMouseDown={(e) => e.stopPropagation()}
         role="dialog"

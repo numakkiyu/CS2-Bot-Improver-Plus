@@ -41,7 +41,16 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px;
+  max-width: 120px;
+}
+
+.statusbar__item.is-clickable {
+  cursor: pointer;
+  border-radius: var(--r-md);
+  transition: background var(--dur) var(--ease);
+}
+.statusbar__item.is-clickable:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .missing-note {

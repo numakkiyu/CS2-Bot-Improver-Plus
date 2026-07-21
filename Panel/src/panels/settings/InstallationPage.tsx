@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { openPath, openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
-import { ArchiveRestore, FileCheck2, FolderOpen, RefreshCw, Stethoscope, Trash2, Wrench } from "lucide-react";
+import { openPath, openUrl } from "@tauri-apps/plugin-opener";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
+import { ArchiveRestore, CheckCircle2, CircleAlert, CircleX, ClipboardCheck, Copy, FileCheck2, FolderOpen, RefreshCw, Stethoscope, Trash2, Wrench } from "lucide-react";
 import { useStore } from "../../state/store";
 import { useT, type I18nKey } from "../../i18n";
 import { useToast } from "../../components/Toast";
-import type { InstallationSource, MigrationKind } from "../../lib/api";
+import { api, type InstallCheckReport, type InstallationSource, type MigrationKind } from "../../lib/api";
+import { localizeInstallCheck } from "../../lib/installCheckLocalization";
+import Modal from "../../components/Modal";
 
 const SOURCE_KEYS: Record<InstallationSource, I18nKey> = {
   clean: "install.source.clean",
@@ -30,6 +33,8 @@ const ACTION_KEYS: Record<MigrationKind, I18nKey> = {
   blocked: "install.action.blocked",
 };
 
+type HeroTone = "blue" | "green" | "yellow" | "red";
+
 export default function InstallationPage() {
   const {
     csgoPath, installation, process, verifyInstallation, installPayload, repairPayload,
@@ -40,8 +45,21 @@ export default function InstallationPage() {
   const [working, setWorking] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
   const [diagnosticPath, setDiagnosticPath] = useState<string | null>(null);
+  const [checks, setChecks] = useState<InstallCheckReport | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"restore" | "pristine" | null>(null);
   const damaged = (installation?.missing.length ?? 0) + (installation?.corrupt.length ?? 0);
   const blocked = !!process?.running && (process.matches_selected || !process.path_accessible);
+
+  const source = installation?.source ?? "clean";
+  const tone: HeroTone = !installation?.installed
+    ? "blue"
+    : source === "managed_plus"
+      ? (damaged ? "yellow" : "green")
+      : source === "mixed_unknown"
+        ? "red"
+        : source === "legacy_plus" || source === "upstream"
+          ? "yellow"
+          : "blue";
 
   const run = async (name: string, action: () => Promise<unknown>) => {
     setWorking(name);
@@ -50,7 +68,7 @@ export default function InstallationPage() {
   };
 
   const restore = async () => {
-    if (!window.confirm(t("install.confirmRestore"))) return;
+    setConfirmAction(null);
     await run("restore", async () => {
       const result = await restorePayload();
       if (result) {
@@ -61,7 +79,7 @@ export default function InstallationPage() {
   };
 
   const pristine = async () => {
-    if (!window.confirm(t("install.confirmPristine"))) return;
+    setConfirmAction(null);
     await run("pristine", async () => {
       const result = await restorePristineCs2();
       if (result) {
@@ -74,13 +92,48 @@ export default function InstallationPage() {
   const diagnostics = async () => {
     await run("diagnostics", async () => {
       const result = await exportDiagnostics();
-      if (!result) return;
-      toast.show(t("install.exported", { path: result.path }), "green");
+      if (!result) {
+        toast.show(t("err.exportFailed"), "red");
+        return;
+      }
+      setDiagnosticPath(result.path);
+    });
+  };
+
+  const copyDiagnosticPath = async () => {
+    if (!diagnosticPath) return;
+    try {
+      await writeText(diagnosticPath);
+      toast.show(t("common.copied"), "green");
+    } catch {
+      toast.show(t("common.copyFailed"), "red");
+    }
+  };
+
+  const runChecks = async () => {
+    if (!csgoPath) return;
+    await run("checks", async () => {
+      try { setChecks(await api.runInstallChecks(csgoPath)); }
+      catch (error) { reportError(error); }
+    });
+  };
+
+  const preflightAndRun = async (
+    name: "install" | "repair",
+    action: () => Promise<unknown>
+  ) => {
+    if (!csgoPath) return;
+    await run(name, async () => {
       try {
-        await revealItemInDir(result.path);
-        setDiagnosticPath(null);
-      } catch {
-        setDiagnosticPath(result.path);
+        const report = await api.runInstallChecks(csgoPath);
+        setChecks(report);
+        if (!report.can_proceed) {
+          toast.show(t("install.action.blocked"), "red");
+          return;
+        }
+        await action();
+      } catch (error) {
+        reportError(error);
       }
     });
   };
@@ -91,66 +144,133 @@ export default function InstallationPage() {
 
   return (
     <div className="installation-page">
-      <section className="installation-status">
-        <div className="installation-status__head">
-          <FileCheck2 size={19} />
-          <span><strong>{t("install.status")}</strong><small>{csgoPath ?? t("set.noCsgo")}</small></span>
+      <section className={`inst-hero inst-hero--${tone}`}>
+        <span className="inst-hero__icon" aria-hidden="true"><FileCheck2 size={22} /></span>
+        <div className="inst-hero__main">
+          <small>{t("install.status")}</small>
+          <strong>{installation?.installed ? t(SOURCE_KEYS[source]) : t("install.notInstalled")}</strong>
+          <span className="inst-hero__path">{csgoPath ?? t("set.noCsgo")}</span>
+          {installation && <p>{t(SOURCE_DESC_KEYS[source])}</p>}
         </div>
-        {!installation?.installed ? (
-          <p>{t("install.notInstalled")}</p>
-        ) : (
-          <div className="installation-facts">
-            <span>{t("install.version")} <strong>{installation.package_version}</strong></span>
-            <span className={damaged ? "is-warning" : "is-healthy"}>
-              {damaged ? t("install.damaged", { n: damaged }) : t("install.healthy", { n: installation.total })}
-            </span>
-          </div>
-        )}
-        {installation && (
-          <div className={`install-source install-source--${installation.source}`}>
-            <span><small>{t("install.source")}</small><strong>{t(SOURCE_KEYS[installation.source])}</strong></span>
-            <p>{t(SOURCE_DESC_KEYS[installation.source])}</p>
-          </div>
-        )}
-        {installation?.backup_path && (
-          <button className="installation-path" onClick={() => open(installation.backup_path!)}>
-            <FolderOpen size={16} /><span><small>{t("install.backup")}</small>{installation.backup_path}</span>
-          </button>
-        )}
+        <div className="inst-hero__side">
+          {installation?.installed && (
+            <>
+              <span className="inst-hero__fact">
+                <small>{t("install.version")}</small>
+                <strong>{installation.package_version}</strong>
+              </span>
+              <span className={`inst-hero__fact ${damaged ? "is-warning" : "is-healthy"}`}>
+                <small>{t("st.files")}</small>
+                <strong>{damaged ? t("install.damaged", { n: damaged }) : t("install.healthy", { n: installation.total })}</strong>
+              </span>
+            </>
+          )}
+          {installation?.backup_path && (
+            <button className="inst-hero__backup" onClick={() => open(installation.backup_path!)} title={installation.backup_path}>
+              <FolderOpen size={14} />
+              <span><small>{t("install.backup")}</small>{installation.backup_path}</span>
+            </button>
+          )}
+        </div>
       </section>
 
-      <div className="installation-actions">
-        <button disabled={!csgoPath || !!working} onClick={() => run("verify", verifyInstallation)}>
-          <RefreshCw size={17} />{working === "verify" ? t("install.working") : t("install.verify")}
-        </button>
-        {!installation?.installed && installation?.can_install && (
-          <button className="is-primary" disabled={!csgoPath || blocked || !!working}
-            onClick={() => run("install", installPayload)}>
-            <FileCheck2 size={17} />{working === "install" ? t("install.working") : t(ACTION_KEYS[installation.migration_kind])}
-          </button>
-        )}
-        {installation?.installed && (
-          <button disabled={blocked || !!working} onClick={() => run("repair", repairPayload)}>
-            <Wrench size={17} />{working === "repair" ? t("install.working") : t("install.repair")}
-          </button>
-        )}
-        <button disabled={!installation?.restore_available || blocked || !!working} onClick={restore}>
-          <ArchiveRestore size={17} />{working === "restore" ? t("install.working") :
-            t(installation?.restore_baseline === "pre_migration" ? "install.restorePrevious" : "install.restore")}
-        </button>
-        <button className="is-danger"
-          disabled={!csgoPath || installation?.source === "clean" || blocked || !!working} onClick={pristine}>
-          <Trash2 size={17} />{working === "pristine" ? t("install.working") : t("install.pristine")}
-        </button>
-        <button disabled={!!working} onClick={diagnostics}>
-          <Stethoscope size={17} />{working === "diagnostics" ? t("install.working") : t("install.diagnostics")}
-        </button>
+      <div className="inst-groups">
+        <section className="inst-group">
+          <header className="inst-group__head">
+            <ClipboardCheck size={17} aria-hidden="true" />
+            <span><strong>{t("install.groupChecks")}</strong><small>{t("install.groupChecksDesc")}</small></span>
+          </header>
+          <div className="installation-actions">
+            <button className="is-primary" disabled={!csgoPath || !!working} onClick={runChecks}>
+              <ClipboardCheck size={17} />{working === "checks" ? t("install.working") : t("install.runChecks")}
+            </button>
+            <button disabled={!csgoPath || !!working} onClick={() => run("verify", verifyInstallation)}>
+              <RefreshCw size={17} />{working === "verify" ? t("install.working") : t("install.verify")}
+            </button>
+          </div>
+        </section>
+
+        <section className="inst-group">
+          <header className="inst-group__head">
+            <Wrench size={17} aria-hidden="true" />
+            <span><strong>{t("install.groupRepair")}</strong><small>{t("install.groupRepairDesc")}</small></span>
+          </header>
+          <div className="installation-actions">
+            {!installation?.installed && installation?.can_install && (
+              <button className="is-primary" disabled={!csgoPath || blocked || !!working}
+                onClick={() => preflightAndRun("install", installPayload)}>
+                <FileCheck2 size={17} />{working === "install" ? t("install.working") : t(ACTION_KEYS[installation.migration_kind])}
+              </button>
+            )}
+            {installation?.installed && (
+              <button disabled={blocked || !!working} onClick={() => preflightAndRun("repair", repairPayload)}>
+                <Wrench size={17} />{working === "repair" ? t("install.working") : t("install.repair")}
+              </button>
+            )}
+            {!installation?.installed && !installation?.can_install && (
+              <p className="inst-group__empty">{t("install.action.blocked")}</p>
+            )}
+          </div>
+        </section>
+
+        <section className="inst-group inst-group--danger">
+          <header className="inst-group__head">
+            <ArchiveRestore size={17} aria-hidden="true" />
+            <span><strong>{t("install.groupRestore")}</strong><small>{t("install.groupRestoreDesc")}</small></span>
+          </header>
+          <div className="installation-actions">
+            <button disabled={!installation?.restore_available || blocked || !!working} onClick={() => setConfirmAction("restore")}>
+              <ArchiveRestore size={17} />{working === "restore" ? t("install.working") :
+                t(installation?.restore_baseline === "pre_migration" ? "install.restorePrevious" : "install.restore")}
+            </button>
+            <button className="is-danger"
+              disabled={!csgoPath || installation?.source === "clean" || blocked || !!working} onClick={() => setConfirmAction("pristine")}>
+              <Trash2 size={17} />{working === "pristine" ? t("install.working") : t("install.pristine")}
+            </button>
+            <button disabled={!!working} onClick={diagnostics}>
+              <Stethoscope size={17} />{working === "diagnostics" ? t("install.working") : t("install.diagnostics")}
+            </button>
+          </div>
+          <p className="inst-diagnostics-scope">{t("install.diagnosticsContents")}</p>
+        </section>
       </div>
 
+      {checks && (
+        <section className={`install-check-report report-${checks.overall}`}>
+          <div className="install-check-summary">
+            <span><ClipboardCheck size={18} /><strong>{t("install.checkReport")}</strong></span>
+            <span className="install-check-counts"><b className="check-pass">{checks.pass_count} {t("install.pass")}</b><b className="check-warn">{checks.warn_count} {t("install.warn")}</b><b className="check-fail">{checks.fail_count} {t("install.fail")}</b>{checks.blocking_fail_count > 0 && <b className="check-blocking">{checks.blocking_fail_count} {t("install.action.blocked")}</b>}</span>
+          </div>
+          <div className="install-check-list">
+            {checks.checks.map((check) => {
+              const Icon = check.status === "pass" ? CheckCircle2 : check.status === "warn" ? CircleAlert : CircleX;
+              const copy = localizeInstallCheck(check, t);
+              return <details className={`install-check check-${check.status} ${check.blocking ? "is-blocking" : ""}`} key={check.code} open={check.status === "fail"}>
+                <summary><Icon size={16} /><span><strong>{copy.title}</strong><small>{check.code}{check.blocking ? ` · ${t("install.action.blocked")}` : ""}</small></span></summary>
+                <div><p><b>{t("install.evidence")}</b>{check.evidence}</p>{check.status !== "pass" && <><p><b>{t("install.cause")}</b>{copy.cause}</p><p><b>{t("install.solution")}</b>{copy.action}</p></>}</div>
+              </details>;
+            })}
+          </div>
+        </section>
+      )}
+
       {diagnosticPath && (
-        <button className="installation-path" onClick={() => open(diagnosticPath.replace(/[\\/][^\\/]+$/, ""))}>
-          <FolderOpen size={16} /><span><small>{t("install.openDiagnosticFolder")}</small>{diagnosticPath}</span>
-        </button>
+        <div className="inst-exported">
+          <span className="inst-exported__head">
+            <CheckCircle2 size={16} aria-hidden="true" />
+            <strong>{t("err.exportReady")}</strong>
+          </span>
+          <code className="inst-exported__path" title={diagnosticPath}>{diagnosticPath}</code>
+          <span className="inst-exported__actions">
+            <button onClick={() => open(diagnosticPath.replace(/[\\/][^\\/]+$/, ""))}>
+              <FolderOpen size={14} /> {t("install.openDiagnosticFolder")}
+            </button>
+            <button onClick={copyDiagnosticPath}>
+              <Copy size={14} /> {t("err.copyPath")}
+            </button>
+            <button onClick={() => setDiagnosticPath(null)}>{t("common.ok")}</button>
+          </span>
+        </div>
       )}
 
       {restored && (
@@ -158,6 +278,9 @@ export default function InstallationPage() {
           {t("install.openSteamVerify")}
         </button>
       )}
+      <Modal open={!!confirmAction} title={confirmAction === "pristine" ? t("install.pristine") : t("install.restore")} onClose={() => setConfirmAction(null)} footer={<><button className="install-confirm-cancel" onClick={() => setConfirmAction(null)}>{t("common.cancel")}</button><button className="install-confirm-accept" onClick={() => void (confirmAction === "pristine" ? pristine() : restore())}>{confirmAction === "pristine" ? t("install.pristine") : t("install.restore")}</button></>}>
+        <p className="install-confirm-copy">{confirmAction === "pristine" ? t("install.confirmPristine") : t("install.confirmRestore")}</p>
+      </Modal>
     </div>
   );
 }

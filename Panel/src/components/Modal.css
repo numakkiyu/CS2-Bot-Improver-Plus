@@ -24,6 +24,16 @@
   box-shadow: var(--sh-pop);
   animation: modal-in var(--dur) var(--ease);
 }
+/* Opaque surface: translucent glass lets the page behind ghost through, which
+   reads especially badly in image pickers. Keep the border/shadow, drop the see-through. */
+.modal.modal--solid {
+  background: rgba(251, 251, 253, 0.98);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.modal.modal--solid::before {
+  opacity: 0.4;
+}
 @keyframes modal-in {
   from {
     opacity: 0;

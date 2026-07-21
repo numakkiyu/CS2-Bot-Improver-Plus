@@ -11,6 +11,8 @@ import { ToastProvider } from "./components/Toast";
 import { AppStateProvider } from "./state/store";
 import { applyGlassSupport } from "./lib/glass";
 import { api } from "./lib/api";
+import { isPanelTauriRuntime } from "./lib/runtime";
+import { translate } from "./i18n";
 import "./styles/global.css";
 
 // Desktop Plus layout: fixed logical canvas with a persistent left navigation
@@ -33,12 +35,18 @@ function reveal() {
   if (revealed) return;
   revealed = true;
   document.documentElement.classList.add("app-ready");
-  getCurrentWindow()
-    .show()
-    .catch(() => {});
+  if (isPanelTauriRuntime) {
+    getCurrentWindow()
+      .show()
+      .catch(() => {});
+  }
 }
 
 async function fitWindowToScreen() {
+  if (!isPanelTauriRuntime) {
+    reveal();
+    return;
+  }
   const win = getCurrentWindow();
   await win.setFullscreen(false).catch(() => {});
   await win.unmaximize().catch(() => {});
@@ -115,15 +123,31 @@ async function bootstrap() {
   );
 }
 
+function renderStartupError(error: unknown) {
+  reveal();
+  const root = document.getElementById("root");
+  if (!root) return;
+  const panel = document.createElement("section");
+  panel.setAttribute("role", "alert");
+  panel.style.cssText =
+    "margin:32px;padding:24px;border:1px solid #ff3b30;border-radius:14px;background:#fff;color:#1c1c1e;font:14px/1.5 'Segoe UI',sans-serif";
+  const title = document.createElement("strong");
+  title.textContent = translate(localStorage.getItem("cs2bi.language"), "startup.failed");
+  const detail = document.createElement("pre");
+  detail.style.cssText = "margin:12px 0 0;white-space:pre-wrap;overflow-wrap:anywhere";
+  detail.textContent = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  panel.append(title, detail);
+  root.replaceChildren(panel);
+}
+
 async function start() {
-  if (import.meta.env.DEV && new URLSearchParams(window.location.search).get("fixture") === "updates") {
-    const { installDevFixture } = await import("./devFixture");
-    installDevFixture();
-  }
   void fitWindowToScreen();
   // Safety net: never leave the window hidden if sizing hangs or is denied.
   setTimeout(reveal, 1200);
   await bootstrap();
 }
 
-void start();
+void start().catch((error) => {
+  console.error("[panel-startup]", error);
+  renderStartupError(error);
+});

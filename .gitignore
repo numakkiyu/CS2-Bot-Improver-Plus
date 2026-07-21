@@ -10,6 +10,8 @@ artifacts/
 
 # Repository-local caches and portable toolchains
 .cache/
+/*-toolchain/
+.local-build.ps1
 .cargo/
 .rustup/
 .nuget/

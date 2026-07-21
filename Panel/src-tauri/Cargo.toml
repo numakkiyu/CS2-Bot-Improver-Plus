@@ -1,6 +1,6 @@
 [package]
 name = "cs2-bot-improver-plus-panel"
-version = "1.4.2+4"
+version = "1.4.2-preview.3+5"
 description = "CS2BotImproverPlus Panel"
 authors = ["ed0ard", "CS2BotImproverPlus contributors"]
 edition = "2024"
@@ -29,6 +29,7 @@ tauri-plugin-dialog = "2.7.1"
 tauri-plugin-opener = "2.5.4"
 tauri-plugin-single-instance = "2.4.2"
 zip = { version = "2.4", default-features = false, features = ["deflate"] }
+notify = "8.2"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"

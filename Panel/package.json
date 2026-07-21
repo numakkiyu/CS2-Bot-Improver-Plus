@@ -1,12 +1,11 @@
 {
   "name": "cs2-bot-improver-plus-panel",
   "private": true,
-  "version": "1.4.2+4",
+  "version": "1.4.2-preview.3+5",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build": "tsc && vite build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",

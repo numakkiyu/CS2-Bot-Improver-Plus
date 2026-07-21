@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Modal from "../components/Modal";
 import Toggle from "../components/Toggle";
+import WearGauge from "../components/WearGauge";
 import GLOVE_SKINS, { gloveModelName, type GloveSkin } from "../data/gloveSkins";
 import { finishName, localizedSkinName } from "../data/skinLocalization";
 import { api, type GlovePreset, type KnifeCustomizerConfig } from "../lib/api";
 import { useT } from "../i18n";
 import { useStore } from "../state/store";
 import CosmeticsTeamSwitch, { useCosmeticsTeam } from "../components/CosmeticsTeamSwitch";
+import { useSelectedPickerScroll } from "../lib/useSelectedPickerScroll";
 import "./KnifePresetModal.css";
 
 const DEFAULT_GLOVE: GlovePreset = { enabled: false, defindex: 5030, paint: 10048, seed: 0, wear: 0.01 };
@@ -22,6 +24,7 @@ export default function GlovePresetModal({ open, csgoPath, config, onSaved, onEr
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [team, setTeam] = useCosmeticsTeam();
+  const skinListRef = useSelectedPickerScroll(open, `${team}:${draft.defindex}:${draft.paint}`);
   const modelName = (defindex: number) => gloveModelName(language, defindex);
   const skinName = (skin: GloveSkin) => finishName(localizedSkinName(language, skin.defindex, skin.paint, `${modelName(skin.defindex)} | ${skin.name}`));
 
@@ -63,14 +66,30 @@ export default function GlovePresetModal({ open, csgoPath, config, onSaved, onEr
     }
   };
 
-  return <Modal open={open} title={t("cosmetics.gloveTitle")} onClose={onClose} width={440} footer={<button className="kp__save" disabled={saving || draft.paint <= 0} onClick={() => void save()}>{saving ? t("cosmetics.saving") : t("cosmetics.save")}</button>}>
-    <div className="kp">
-      <div className="kp__team-row"><span>{t("cosmetics.teamLoadout")}</span><CosmeticsTeamSwitch value={team} onChange={setTeam} ariaLabel={t("cosmetics.teamLoadout")} compact /></div>
-      <div className="kp__preview"><img src={selected?.image} alt="" /><div><strong>{selected ? `${modelName(selected.defindex)} · ${skinName(selected)}` : t("cosmetics.chooseGlove")}</strong><span>{t("cosmetics.paintKit")} {draft.paint || "-"}</span></div></div>
-      <div className="kp__toggle-row"><span>{team === "ct" ? t("cosmetics.enableGloveCt") : t("cosmetics.enableGloveT")}</span><Toggle checked={draft.enabled} onChange={(enabled) => setDraft((value) => ({ ...value, enabled }))} /></div>
-      <label className="kp__field"><span>{t("cosmetics.gloveStyle")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("cosmetics.searchGlove")} /></label>
-      <div className="kp__skins">{visible.map((skin) => <button key={`${skin.defindex}-${skin.paint}`} className={skin.defindex === draft.defindex && skin.paint === draft.paint ? "is-selected" : ""} onClick={() => setDraft((value) => ({ ...value, defindex: skin.defindex, paint: skin.paint, wear: Math.min(skin.maxWear, Math.max(skin.minWear, value.wear)) }))}><img src={skin.image} alt="" loading="lazy" /><span>{modelName(skin.defindex)} · {skinName(skin)} [{skin.paint}]</span></button>)}</div>
-      <div className="kp__columns"><label className="kp__field"><span>{t("live.wear")}</span><input type="number" min={selected?.minWear ?? 0} max={selected?.maxWear ?? 1} step="0.000001" value={draft.wear} onChange={(event) => setDraft((value) => ({ ...value, wear: Math.min(selected?.maxWear ?? 1, Math.max(selected?.minWear ?? 0, Number(event.target.value))) }))} /></label><label className="kp__field"><span>{t("live.seed")}</span><input type="number" min="0" max="1000" step="1" value={draft.seed} onChange={(event) => setDraft((value) => ({ ...value, seed: Math.min(1000, Math.max(0, Number(event.target.value))) }))} /></label></div>
+  return <Modal open={open} title={t("cosmetics.gloveTitle")} onClose={onClose} width={880} scrimClassName="picker-modal" footer={<div className="kp__footer-actions"><button className="kp__save" disabled={saving || draft.paint <= 0} onClick={() => void save()}>{saving ? t("cosmetics.saving") : t("cosmetics.save")}</button></div>}>
+    <div className="kp kp--split">
+      <div className="kp__side">
+        <div className="kp__preview">
+          <span className="kp__team-fab"><CosmeticsTeamSwitch value={team} onChange={setTeam} ariaLabel={t("cosmetics.teamLoadout")} compact /></span>
+          <img src={selected?.image} alt="" />
+          <div><strong>{selected ? `${modelName(selected.defindex)} · ${skinName(selected)}` : t("cosmetics.chooseGlove")}</strong><span>{t("cosmetics.paintKit")} {draft.paint || "-"}</span></div>
+        </div>
+        <div className="kp__toggle-row"><span>{team === "ct" ? t("cosmetics.enableGloveCt") : t("cosmetics.enableGloveT")}</span><Toggle checked={draft.enabled} onChange={(enabled) => setDraft((value) => ({ ...value, enabled }))} /></div>
+        <div className="kp__columns"><label className="kp__field"><span>{t("live.wear")}</span><input type="number" min={selected?.minWear ?? 0} max={selected?.maxWear ?? 1} step="0.000001" value={draft.wear} onChange={(event) => setDraft((value) => ({ ...value, wear: Math.min(selected?.maxWear ?? 1, Math.max(selected?.minWear ?? 0, Number(event.target.value))) }))} /></label><label className="kp__field"><span>{t("live.seed")}</span><input type="number" min="0" max="1000" step="1" value={draft.seed} placeholder={t("live.seedPlaceholder")} onChange={(event) => setDraft((value) => ({ ...value, seed: Math.min(1000, Math.max(0, Number(event.target.value))) }))} /></label></div>
+        <WearGauge min={selected?.minWear ?? 0} max={selected?.maxWear ?? 1} value={draft.wear} />
+      </div>
+      <div className="kp__main">
+        <label className="kp__field"><span>{t("cosmetics.gloveStyle")}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("cosmetics.searchGlove")} /></label>
+        {visible.length ? <div className="kp__skins" ref={skinListRef}>{visible.map((skin) => {
+          const isSelected = skin.defindex === draft.defindex && skin.paint === draft.paint;
+          return (
+            <button key={`${skin.defindex}-${skin.paint}`} className={isSelected ? "is-selected" : ""} onClick={() => setDraft((value) => ({ ...value, defindex: skin.defindex, paint: skin.paint, wear: Math.min(skin.maxWear, Math.max(skin.minWear, value.wear)) }))}>
+              <img src={skin.image} alt="" loading="lazy" />
+              <span>{modelName(skin.defindex)} · {skinName(skin)} [{skin.paint}]</span>
+            </button>
+          );
+        })}</div> : <div className="wp-modal__empty">{t("music.noResults")}</div>}
+      </div>
     </div>
   </Modal>;
 }
