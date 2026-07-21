@@ -21,6 +21,10 @@
 > [!IMPORTANT]
 > CS2BotImproverPlus 是基于 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver) 开发的 Windows 增强发行分支
 >
+> 本仓库由独立维护者负责，与上游项目及其维护者互不隶属，也不代表上游官方或由上游负责维护。本仓库通过拉取和适配上游代码，在此基础上独立开发并分发 Plus 版本
+>
+> 如果遇到 Plus 构建、面板、安装、匹配、饰品、诊断或其他 Plus 专属问题，请在[本仓库 Issues](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/issues) 提交反馈，请勿将此类问题提交至上游。只有能够在未经修改的上游原版中同样复现的问题，才适合按照上游项目的要求进行反馈
+>
 > Plus 分支完整保留并同步上游增强人机功能，在此基础上增加玩家饰品预设、重新设计的面板、受管安装与恢复、诊断导出和在线更新
 >
 > 核心人机系统来自上游项目，相关成果与贡献归属于原作者及上游贡献者
