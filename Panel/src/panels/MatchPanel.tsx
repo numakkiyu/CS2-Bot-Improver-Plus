@@ -8,6 +8,7 @@ import Toggle from "../components/Toggle";
 import Dropdown from "../components/Dropdown";
 import MatchResultView from "./MatchResultView";
 import { MAP_IMAGES, MAP_LABELS } from "../data/maps";
+import { teamLogoPath } from "../data/matchVisuals";
 import "./MatchPanel.css";
 
 type Props = { onOpenInstallation?: () => void; onOpenHistory?: () => void };
@@ -58,6 +59,9 @@ export default function MatchPanel({ onOpenInstallation, onOpenHistory }: Props)
     value: team.id,
     label: (
       <span className="match-team-option">
+        <span className="match-team-option__logo" aria-hidden="true">
+          <img src={teamLogoPath(team.id)} alt="" loading="lazy" decoding="async" onError={(event) => { event.currentTarget.hidden = true; }} />
+        </span>
         <span className={`match-team-option__rank ${team.ranking && team.ranking <= 5 ? "is-top" : ""}`}>
           {team.ranking ? `#${team.ranking}` : "—"}
         </span>
@@ -167,7 +171,8 @@ export default function MatchPanel({ onOpenInstallation, onOpenHistory }: Props)
             <>
               <span className="match-vs__tag">{t("match.opponent")}</span>
               <span className="match-vs__avatar match-vs__avatar--team" aria-hidden="true">
-                {selectedTeam.badge ? <em>{selectedTeam.badge}</em> : <Shield size={22} />}
+                <Shield className="match-vs__avatar-fallback" size={22} />
+                <img src={teamLogoPath(selectedTeam.id)} alt="" decoding="async" onError={(event) => { event.currentTarget.hidden = true; }} />
               </span>
               <strong>{selectedTeam.ranking ? `#${selectedTeam.ranking} ` : ""}{selectedTeam.name}</strong>
               <span className="match-vs__roster">

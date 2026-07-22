@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Crosshair, Film, FolderOpen, Play, RotateCcw, Target, Trophy, X, Zap } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Crosshair, Film, FolderOpen, Play, RotateCcw, Target, Trophy, UserRound, X, Zap } from "lucide-react";
 import { api, type MatchResult, type PlayerMatchStats } from "../lib/api";
 import { useStore } from "../state/store";
 import type { useT } from "../i18n";
 import { MAP_IMAGES, MAP_LABELS } from "../data/maps";
+import { assignPlayerAvatarPaths, playerAvatarPath } from "../data/matchVisuals";
 import "./MatchPanel.css";
 
 type Outcome = "won" | "lost" | "draw" | "interrupted";
@@ -31,10 +32,13 @@ function openRatingModelVersion(version: string): string {
   return version.replace("rating-plus", "open-rating");
 }
 
-function PlayerAvatar({ name, size = 28 }: { name: string; size?: number }) {
-  const palette = ["#2f6fed", "#16856b", "#a64d79", "#9a5a18", "#654ab6", "#28758a"];
-  const index = [...name].reduce((hash, character) => (hash * 31 + character.codePointAt(0)!) >>> 0, 0) % palette.length;
-  return <span className="mr-avatar mr-avatar--fallback" style={{ width: size, height: size, fontSize: size * 0.46, backgroundColor: palette[index] }}>{name.slice(0, 1).toUpperCase()}</span>;
+function PlayerAvatar({ name, team, src, size = 28 }: { name: string; team: "ct" | "t"; src?: string; size?: number }) {
+  return (
+    <span className={`mr-avatar mr-avatar--${team}`} style={{ width: size, height: size }} aria-hidden="true">
+      <UserRound className="mr-avatar__fallback" size={Math.round(size * 0.5)} />
+      <img src={src ?? playerAvatarPath(name, team)} alt="" decoding="async" onError={(event) => { event.currentTarget.hidden = true; }} />
+    </span>
+  );
 }
 
 export default function MatchResultView({ result, onClose, t, csgo }: { result: MatchResult; onClose: () => void; t: ReturnType<typeof useT>; csgo?: string | null }) {
@@ -42,6 +46,7 @@ export default function MatchResultView({ result, onClose, t, csgo }: { result: 
   const [expanded, setExpanded] = useState<string | null>(null);
   const [demoBusy, setDemoBusy] = useState(false);
   const groups = ["ct", "t"] as const;
+  const avatarPaths = useMemo(() => assignPlayerAvatarPaths(result.players), [result.players]);
 
   const outcome: Outcome = result.state === "interrupted"
     ? "interrupted"
@@ -164,7 +169,7 @@ export default function MatchResultView({ result, onClose, t, csgo }: { result: 
               return (
                 <div className="match-result-row" key={player.player_id} onClick={() => setExpanded(expanded === player.player_id ? null : player.player_id)}>
                   <span className="match-player-name">
-                    <PlayerAvatar name={player.name} />
+                    <PlayerAvatar name={player.name} team={player.team} src={avatarPaths.get(player.player_id)} />
                     <strong>{player.name}</strong>
                     <span className={`match-kind kind-${player.kind}`}>{player.kind === "human" ? "P" : "B"}</span>
                   </span>
@@ -179,7 +184,7 @@ export default function MatchResultView({ result, onClose, t, csgo }: { result: 
                   {expanded === player.player_id && (
                     <div className="mr-detail" onClick={(event) => event.stopPropagation()}>
                       <div className="mr-detail__id">
-                        <PlayerAvatar name={player.name} size={46} />
+                        <PlayerAvatar name={player.name} team={player.team} src={avatarPaths.get(player.player_id)} size={46} />
                         <span className="mr-detail__who">
                           <strong>{player.name}</strong>
                           <small>{player.kind === "human" ? t("match.kindHuman") : t("match.kindBot")} · {player.team.toUpperCase()} · {player.rounds_played} {t("match.rounds")}</small>
