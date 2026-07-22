@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$PackageRoot,
-    [string]$ExpectedPackageVersion = "1.4.2.5-Preview.4"
+    [string]$ExpectedPackageVersion = "1.4.2.5"
 )
 
 $ErrorActionPreference = "Stop"
@@ -140,6 +140,14 @@ if ($nadeSystem -notmatch 'if \(!bot\.IsValid\) return;' -or
     $nadeSystem -notmatch 'botPawn = bot\.PlayerPawn\?\.Value;' -or
     $nadeSystem -notmatch 'catch \(Exception\)\s*\{\s*return;\s*\}') {
     Add-Failure "NadeSystem no longer guards delayed callbacks against disconnected bot pawns."
+}
+
+$matchCoordinator = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/PlusMatchCoordinator/PlusMatchCoordinator.cs") -Raw
+if ($matchCoordinator -notmatch 'private void EnsureInitialHumanSide\(\)' -or
+    $matchCoordinator -notmatch 'if \(human\.Team != target\) human\.SwitchTeam\(target\);' -or
+    ([regex]::Matches($matchCoordinator, 'EnsureInitialHumanSide\(\);').Count -ne 2) -or
+    ([regex]::Matches($matchCoordinator, '\.SwitchTeam\(').Count -ne 1)) {
+    Add-Failure "PlusMatchCoordinator may force the local player back to the initial side after halftime."
 }
 
 $roundDamageRecap = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.cs") -Raw

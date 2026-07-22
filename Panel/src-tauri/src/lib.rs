@@ -3104,7 +3104,7 @@ pub fn run() {
                 let removed = logging::cleanup(&root).unwrap_or(0);
                 let archives_removed = diagnostics::cleanup_archives(&root).unwrap_or(0);
                 let update_cache_removed = online_update::cleanup_cache(None).unwrap_or(0);
-                logging::append(&root, "INFO", "panel.started", &format!("version=1.4.2.5-Preview.4, logs_collected={removed}, archives_collected={archives_removed}, update_cache_collected={update_cache_removed}"));
+                logging::append(&root, "INFO", "panel.started", &format!("version=1.4.2.5, logs_collected={removed}, archives_collected={archives_removed}, update_cache_collected={update_cache_removed}"));
             }
             let update_app = app.handle().clone();
             tauri::async_runtime::spawn_blocking(move || {

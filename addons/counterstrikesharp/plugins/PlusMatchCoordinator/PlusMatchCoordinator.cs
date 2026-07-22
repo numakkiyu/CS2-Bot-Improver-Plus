@@ -17,7 +17,7 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
     private static readonly PluginCapability<IBotHiderApi> BotHiderCapability = new("bothider:api");
 
     public override string ModuleName => "PLUS Match Coordinator";
-    public override string ModuleVersion => "1.4.2.5-Preview.4";
+    public override string ModuleVersion => "1.4.2.5";
     public override string ModuleAuthor => "CS2BotImproverPlus contributors";
     public override string ModuleDescription => "Offline MR12 match sessions, GOTV demos, and OpenRating statistics";
 
@@ -311,6 +311,18 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
         Server.ExecuteCommand($"bot_add_{(side == TeamSide.Ct ? "ct" : "t")} \"{safeName}\"");
     }
 
+    private void EnsureInitialHumanSide()
+    {
+        var request = _request;
+        if (request == null) return;
+        var playerSide = request.PlayerSide == MatchSide.T ? TeamSide.T : TeamSide.Ct;
+        var target = playerSide == TeamSide.Ct ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
+        foreach (var human in Utilities.GetPlayers().Where(player => player is { IsValid: true, IsBot: false }))
+        {
+            if (human.Team != target) human.SwitchTeam(target);
+        }
+    }
+
     private void RegisterPlayers()
     {
         var request = _request;
@@ -318,8 +330,6 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
         if (request == null || statistics == null) return;
         var playerSide = request.PlayerSide == MatchSide.T ? TeamSide.T : TeamSide.Ct;
         var opponentSide = playerSide == TeamSide.Ct ? TeamSide.T : TeamSide.Ct;
-        foreach (var human in Utilities.GetPlayers().Where(player => player is { IsValid: true, IsBot: false }))
-            human.SwitchTeam(playerSide == TeamSide.Ct ? CsTeam.CounterTerrorist : CsTeam.Terrorist);
         foreach (var player in Utilities.GetPlayers().Where(player => player is { IsValid: true }))
         {
             if (!player.IsBot) _playerIdsBySlot[player.Slot] = "player-local";
@@ -380,6 +390,7 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
             _rosterSetupPhase = RosterSetupPhase.Binding;
         }
 
+        EnsureInitialHumanSide();
         RegisterPlayers();
         if (!TryBindRequestedRoster(out var detail))
         {
@@ -451,6 +462,7 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
         _rosterSetupPhase = RosterSetupPhase.Ready;
         _rosterValidated = true;
         _liveNotBefore = DateTimeOffset.UtcNow.AddSeconds(2);
+        EnsureInitialHumanSide();
         RegisterPlayers();
         StopRosterSync();
         StartDemoRecording(request);

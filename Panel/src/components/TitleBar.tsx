@@ -11,7 +11,7 @@ type Props = {
   showSettings?: boolean;
 };
 
-export default function TitleBar({ title = "CS2BotImproverPlus v1.4.2.5-Preview.4", onSettings, showSettings = true }: Props) {
+export default function TitleBar({ title = "CS2BotImproverPlus v1.4.2.5", onSettings, showSettings = true }: Props) {
   const appWindow = isPanelTauriRuntime ? getCurrentWindow() : null;
   const t = useT();
   const { reportError } = useStore();
