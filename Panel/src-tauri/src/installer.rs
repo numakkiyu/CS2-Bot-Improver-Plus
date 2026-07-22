@@ -517,7 +517,7 @@ fn read_manifest_document(payload_root: &Path) -> Result<PayloadManifest> {
     let bytes = fs::read(&path).map_err(|_| {
         if payload_root.join(PANEL_UPDATE_MARKER).is_file() {
             AppError::payload(
-                "This is the Panel-only online-update component, not the complete installer. Download and extract CS2BotImproverPlus-v1.4.2.5-Preview.3-windows.zip for a first installation."
+                "This is the Panel-only online-update component, not the complete installer. Download and extract CS2BotImproverPlus-v1.4.2.5-Preview.4-windows.zip for a first installation."
             )
         } else {
             AppError::payload(format!(
@@ -2085,7 +2085,7 @@ mod tests {
         assert!(
             error
                 .detail
-                .contains("CS2BotImproverPlus-v1.4.2.5-Preview.3-windows.zip")
+                .contains("CS2BotImproverPlus-v1.4.2.5-Preview.4-windows.zip")
         );
         fs::remove_dir_all(base).unwrap();
     }

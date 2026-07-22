@@ -12,10 +12,12 @@ namespace PlusMatchCoordinator;
 
 public sealed class PlusMatchCoordinatorPlugin : BasePlugin
 {
+    private enum RosterSetupPhase { Cleaning, Reconciling, Binding, Ready }
+
     private static readonly PluginCapability<IBotHiderApi> BotHiderCapability = new("bothider:api");
 
     public override string ModuleName => "PLUS Match Coordinator";
-    public override string ModuleVersion => "1.4.2.5-Preview.3";
+    public override string ModuleVersion => "1.4.2.5-Preview.4";
     public override string ModuleAuthor => "CS2BotImproverPlus contributors";
     public override string ModuleDescription => "Offline MR12 match sessions, GOTV demos, and OpenRating statistics";
 
@@ -23,6 +25,7 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
     private readonly TradeTracker _trades = new();
     private readonly Dictionary<int, string> _playerIdsBySlot = new();
     private OpenRatingWeights _ratingWeights = OpenRatingWeights.ProxyV1;
+    private string? _csgoRoot;
     private BotIdentityCatalog? _identityCatalog;
     private IBotHiderApi? _botHider;
     private MatchRequest? _request;
@@ -36,27 +39,39 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
     private bool _rosterValidated;
     private DateTimeOffset _liveNotBefore;
     private CounterStrikeSharp.API.Modules.Timers.Timer? _rosterSyncTimer;
-    private CounterStrikeSharp.API.Modules.Timers.Timer? _rosterValidationTimer;
     private CounterStrikeSharp.API.Modules.Timers.Timer? _activationTimer;
     private int _rosterSyncRemaining;
+    private int _cleanRosterStableTicks;
+    private int _boundRosterStableTicks;
+    private RosterSetupPhase _rosterSetupPhase;
     private int _activationRemaining;
     private int _mapGeneration;
     private string? _activatedSessionId;
     private bool _demoRecordingStarted;
     private bool _botHiderFailureLogged;
     private Task? _resultWriteTask;
+    private CancellationTokenSource? _controlWatcherCancellation;
+    private Task? _controlWatcherTask;
+    private string? _acceptedControlSessionId;
 
     public override void Load(bool hotReload)
     {
         _ratingWeights = OpenRatingWeights.Load(Path.Combine(ModuleDirectory, "open-rating-3.0-proxy-v1.json"));
         try
         {
+            _csgoRoot = PlusManagedPaths.ResolveCsgoRoot(Server.GameDirectory);
+            Logger.LogInformation(
+                "[PlusMatchCoordinator] Resolved CS2 content root: reported={ReportedDirectory}; resolved={CsgoRoot}",
+                Server.GameDirectory, _csgoRoot);
             _identityCatalog = BotIdentityCatalog.Load(
-                Path.Combine(Server.GameDirectory, "addons", "BotHider", "bot_info.json"));
+                Path.Combine(_csgoRoot, "addons", "BotHider", "bot_info.json"));
         }
         catch (Exception error)
         {
-            Logger.LogError(error, "[PlusMatchCoordinator] Cannot load bot identity catalog");
+            Logger.LogCritical(
+                error,
+                "[PlusMatchCoordinator] Cannot initialize managed CS2 paths or load the bot identity catalog; candidates={Candidates}",
+                string.Join(", ", PlusManagedPaths.CandidateCsgoRoots(Server.GameDirectory)));
         }
         RegisterListener<Listeners.OnMapStart>(OnMapStart);
         RegisterListener<Listeners.OnMapEnd>(OnMapEnd);
@@ -84,7 +99,7 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
     {
         StopActivation();
         StopRosterSync();
-        StopRosterValidation();
+        StopControlWatcher();
         for (var attempt = 0; attempt < 2 && _request != null; attempt++)
         {
             if (!_finalizing) FinalizeMatch(MatchState.Interrupted, "plugin_unloaded");
@@ -102,6 +117,11 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
     private void ScheduleActivation(string mapName)
     {
         if (string.IsNullOrWhiteSpace(mapName)) return;
+        if (_csgoRoot == null)
+        {
+            Logger.LogCritical("[PlusMatchCoordinator] Match activation disabled because the CS2 content root is unresolved");
+            return;
+        }
         StopActivation();
         var generation = _mapGeneration;
         _activationRemaining = 30;
@@ -162,7 +182,7 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
         MatchRequest? request = null;
         try
         {
-            var active = Path.Combine(Server.GameDirectory, ".csbip", "match-active.json");
+            var active = PlusManagedPaths.ActiveMatchPath(CsgoRoot);
             if (!File.Exists(active)) return;
             request = JsonSerializer.Deserialize<MatchRequest>(File.ReadAllText(active), MatchJson.Options);
             if (request == null || !request.MapId.Equals(mapName, StringComparison.OrdinalIgnoreCase)) return;
@@ -208,11 +228,11 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
         }
     }
 
-    private static void ValidateRequestPaths(MatchRequest request)
+    private void ValidateRequestPaths(MatchRequest request)
     {
         if (request.SessionId.Length == 0 || request.SessionId.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not ('-' or '_')))
             throw new InvalidDataException("Unsafe match session id");
-        var gameRoot = Path.GetFullPath(Server.GameDirectory).TrimEnd(Path.DirectorySeparatorChar);
+        var gameRoot = CsgoRoot;
         var expectedResult = Path.Combine(gameRoot, ".csbip", "matches", request.SessionId, "result.json");
         var expectedDemo = Path.Combine(gameRoot, "demos", "csbip", request.SessionId + ".dem");
         if (!Path.GetFullPath(request.ResultPath).Equals(expectedResult, StringComparison.OrdinalIgnoreCase) ||
@@ -220,21 +240,24 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
             throw new InvalidDataException("Match request paths are outside the managed session roots");
     }
 
-    private static string ManagedResultPath(MatchRequest request)
+    private string ManagedResultPath(MatchRequest request)
     {
         if (request.SessionId.Length == 0 || request.SessionId.Any(character => !char.IsAsciiLetterOrDigit(character) && character is not ('-' or '_')))
             throw new InvalidDataException("Unsafe match session id");
-        return Path.Combine(Path.GetFullPath(Server.GameDirectory), ".csbip", "matches", request.SessionId, "result.json");
+        return Path.Combine(CsgoRoot, ".csbip", "matches", request.SessionId, "result.json");
     }
 
-    private static string ManagedDemoPath(MatchRequest request) =>
-        Path.Combine(Path.GetFullPath(Server.GameDirectory), "demos", "csbip", request.SessionId + ".dem");
+    private string ManagedDemoPath(MatchRequest request) =>
+        Path.Combine(CsgoRoot, "demos", "csbip", request.SessionId + ".dem");
 
-    private static bool TryManagedResultPath(MatchRequest request, out string path)
+    private bool TryManagedResultPath(MatchRequest request, out string path)
     {
         try { path = ManagedResultPath(request); return true; }
         catch { path = ""; return false; }
     }
+
+    private string CsgoRoot => _csgoRoot
+        ?? throw new InvalidOperationException("The CS2 content root was not resolved");
 
     private void StartSession(MatchRequest request)
     {
@@ -252,6 +275,10 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
             _demoRecordingStarted = false;
             _liveNotBefore = DateTimeOffset.UtcNow.AddSeconds(2);
             _activatedSessionId = request.SessionId;
+            _rosterSetupPhase = RosterSetupPhase.Cleaning;
+            _cleanRosterStableTicks = 0;
+            _boundRosterStableTicks = 0;
+            _acceptedControlSessionId = null;
         }
 
         Server.ExecuteCommand("mp_autoteambalance 0");
@@ -265,13 +292,8 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
         Server.ExecuteCommand("bot_quota 0");
         Server.ExecuteCommand("bot_kick");
 
-        var playerSide = request.PlayerSide == MatchSide.T ? TeamSide.T : TeamSide.Ct;
-        var opponentSide = playerSide == TeamSide.Ct ? TeamSide.T : TeamSide.Ct;
-        foreach (var player in request.PlayerTeam.Where(player => player.Kind == PlayerKind.Bot)) AddBot(player.Name, playerSide);
-        foreach (var player in request.OpponentTeam) AddBot(player.Name, opponentSide);
-
         StartRosterSync();
-        StartRosterValidation();
+        StartControlWatcher(request);
     }
 
     private void StartSessionIfIdle(MatchRequest request)
@@ -309,7 +331,7 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
 
     private void StartRosterSync()
     {
-        _rosterSyncRemaining = Math.Max(_rosterSyncRemaining, 80);
+        _rosterSyncRemaining = Math.Max(_rosterSyncRemaining, 160);
         if (_rosterSyncTimer != null) return;
         _rosterSyncTimer = AddTimer(0.25f, SyncRosterTick, TimerFlags.REPEAT | TimerFlags.STOP_ON_MAPCHANGE);
     }
@@ -321,10 +343,53 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
             StopRosterSync();
             return;
         }
-        TryBindRequestedRoster(out _);
-        RegisterPlayers();
         _rosterSyncRemaining--;
-        if (_rosterSyncRemaining <= 0) StopRosterSync();
+        if (_rosterSyncRemaining <= 0)
+        {
+            Logger.LogError("[PlusMatchCoordinator] Roster setup timed out in phase {Phase}", _rosterSetupPhase);
+            FinalizeMatch(MatchState.Interrupted, "roster_setup_timeout");
+            return;
+        }
+
+        if (_rosterSetupPhase == RosterSetupPhase.Cleaning)
+        {
+            var bots = CurrentBots();
+            if (bots.Length > 0)
+            {
+                _cleanRosterStableTicks = 0;
+                if (_rosterSyncRemaining % 4 == 0)
+                {
+                    Server.ExecuteCommand("bot_quota 0");
+                    Server.ExecuteCommand("bot_kick");
+                }
+                return;
+            }
+            if (++_cleanRosterStableTicks < 2) return;
+            _rosterSetupPhase = RosterSetupPhase.Reconciling;
+            Logger.LogInformation("[PlusMatchCoordinator] Previous Bot roster cleared; creating requested teams");
+        }
+
+        if (_rosterSetupPhase is RosterSetupPhase.Reconciling or RosterSetupPhase.Binding)
+        {
+            if (!ReconcileRequestedRoster())
+            {
+                _rosterSetupPhase = RosterSetupPhase.Reconciling;
+                _boundRosterStableTicks = 0;
+                return;
+            }
+            _rosterSetupPhase = RosterSetupPhase.Binding;
+        }
+
+        RegisterPlayers();
+        if (!TryBindRequestedRoster(out var detail))
+        {
+            _boundRosterStableTicks = 0;
+            if (_rosterSyncRemaining % 20 == 0)
+                Logger.LogInformation("[PlusMatchCoordinator] Waiting for requested roster identities: {Detail}", detail);
+            return;
+        }
+        if (++_boundRosterStableTicks < 2) return;
+        CompleteRosterSetup();
     }
 
     private void StopRosterSync()
@@ -334,39 +399,122 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
         _rosterSyncRemaining = 0;
     }
 
-    private void StartRosterValidation()
-    {
-        StopRosterValidation();
-        _rosterValidationTimer = AddTimer(8.0f, ValidateRoster, TimerFlags.STOP_ON_MAPCHANGE);
-    }
+    private CCSPlayerController[] CurrentBots() => Utilities.GetPlayers()
+        .Where(player => player is { IsValid: true, IsBot: true }
+            && player.Team is CsTeam.Terrorist or CsTeam.CounterTerrorist)
+        .OrderBy(player => player.Slot)
+        .ToArray();
 
-    private void StopRosterValidation()
+    private bool ReconcileRequestedRoster()
     {
-        _rosterValidationTimer?.Kill();
-        _rosterValidationTimer = null;
-    }
-
-    private void ValidateRoster()
-    {
-        StopRosterValidation();
         var request = _request;
-        if (request == null || _finalizing) return;
-
-        if (!TryBindRequestedRoster(out var detail))
+        if (request == null || _finalizing) return false;
+        var playerSide = request.PlayerSide == MatchSide.T ? CsTeam.Terrorist : CsTeam.CounterTerrorist;
+        var opponentSide = playerSide == CsTeam.CounterTerrorist ? CsTeam.Terrorist : CsTeam.CounterTerrorist;
+        var playerRoster = request.PlayerTeam.Where(player => player.Kind == PlayerKind.Bot).ToArray();
+        var opponentRoster = request.OpponentTeam.ToArray();
+        var bots = CurrentBots();
+        var playerBots = bots.Where(player => player.Team == playerSide).ToArray();
+        var opponentBots = bots.Where(player => player.Team == opponentSide).ToArray();
+        var action = RosterReconciler.Next(playerBots.Length, opponentBots.Length, playerRoster.Length, opponentRoster.Length);
+        switch (action)
         {
-            Logger.LogError("[PlusMatchCoordinator] Roster validation failed: {Detail}", detail);
-            FinalizeMatch(MatchState.Interrupted, "roster_profile_unavailable");
-            return;
+            case RosterAction.RemovePlayerBot:
+                RemoveBot(playerBots[^1]);
+                return false;
+            case RosterAction.RemoveOpponentBot:
+                RemoveBot(opponentBots[^1]);
+                return false;
+            case RosterAction.AddPlayerBot:
+                AddBot(playerRoster[playerBots.Length].Name, playerSide == CsTeam.Terrorist ? TeamSide.T : TeamSide.Ct);
+                return false;
+            case RosterAction.AddOpponentBot:
+                AddBot(opponentRoster[opponentBots.Length].Name, opponentSide == CsTeam.Terrorist ? TeamSide.T : TeamSide.Ct);
+                return false;
+            default:
+                return true;
         }
+    }
 
+    private static void RemoveBot(CCSPlayerController player)
+    {
+        if (player.UserId is int userId)
+            Server.ExecuteCommand($"kickid {userId}");
+        else
+            Server.ExecuteCommand($"bot_kick \"{player.PlayerName.Replace("\"", string.Empty, StringComparison.Ordinal)}\"");
+    }
+
+    private void CompleteRosterSetup()
+    {
+        var request = _request;
+        if (request == null || _finalizing || _rosterSetupPhase == RosterSetupPhase.Ready) return;
+        _rosterSetupPhase = RosterSetupPhase.Ready;
         _rosterValidated = true;
         _liveNotBefore = DateTimeOffset.UtcNow.AddSeconds(2);
         RegisterPlayers();
+        StopRosterSync();
         StartDemoRecording(request);
         Logger.LogInformation(
             "[PlusMatchCoordinator] Roster validated and bound: {Players}",
             string.Join(",", request.PlayerTeam.Concat(request.OpponentTeam).Select(player => player.Name)));
         Server.ExecuteCommand("mp_warmup_end; mp_restartgame 3");
+    }
+
+    private string ManagedControlPath(MatchRequest request) =>
+        Path.Combine(CsgoRoot, ".csbip", "matches", request.SessionId, "control.json");
+
+    private void StartControlWatcher(MatchRequest request)
+    {
+        StopControlWatcher();
+        var cancellation = new CancellationTokenSource();
+        _controlWatcherCancellation = cancellation;
+        _controlWatcherTask = Task.Run(async () =>
+        {
+            var path = ManagedControlPath(request);
+            while (!cancellation.IsCancellationRequested)
+            {
+                try
+                {
+                    if (File.Exists(path))
+                    {
+                        var control = JsonSerializer.Deserialize<MatchControlRequest>(
+                            await File.ReadAllTextAsync(path, cancellation.Token), MatchJson.Options);
+                        if (control is { SchemaVersion: MatchJson.SchemaVersion, Action: "finish_early" }
+                            && control.SessionId == request.SessionId
+                            && _acceptedControlSessionId != request.SessionId)
+                        {
+                            _acceptedControlSessionId = request.SessionId;
+                            try { File.Delete(path); } catch { }
+                            Server.NextFrame(() =>
+                            {
+                                if (_request?.SessionId == request.SessionId && !_finalizing)
+                                {
+                                    Logger.LogInformation(
+                                        "[PlusMatchCoordinator] Early finish requested for {SessionId}", request.SessionId);
+                                    FinalizeMatch(MatchState.Interrupted, "user_finished_early");
+                                }
+                            });
+                            return;
+                        }
+                    }
+                }
+                catch (OperationCanceledException) { return; }
+                catch (Exception error)
+                {
+                    Logger.LogWarning(error, "[PlusMatchCoordinator] Cannot read match control request for {SessionId}", request.SessionId);
+                }
+                try { await Task.Delay(500, cancellation.Token); }
+                catch (OperationCanceledException) { return; }
+            }
+        }, cancellation.Token);
+    }
+
+    private void StopControlWatcher()
+    {
+        _controlWatcherCancellation?.Cancel();
+        _controlWatcherCancellation?.Dispose();
+        _controlWatcherCancellation = null;
+        _controlWatcherTask = null;
     }
 
     private bool TryBindRequestedRoster(out string detail)
@@ -574,7 +722,7 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
         _mapGeneration++;
         StopActivation();
         StopRosterSync();
-        StopRosterValidation();
+        StopControlWatcher();
         if (_request != null && !_finalizing) FinalizeMatch(MatchState.Interrupted, "map_changed");
     }
 
@@ -594,7 +742,7 @@ public sealed class PlusMatchCoordinatorPlugin : BasePlugin
         }
 
         StopRosterSync();
-        StopRosterValidation();
+        StopControlWatcher();
 
         if (_demoRecordingStarted)
         {

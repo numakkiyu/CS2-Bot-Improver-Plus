@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { AlertTriangle, History, Play, RotateCcw, Shield, Swords, Users } from "lucide-react";
-import { api, type MatchCatalog, type MatchResult, type PrepareMatchInput } from "../lib/api";
+import { AlertTriangle, History, Play, RotateCcw, Shield, Square, Swords, Users } from "lucide-react";
+import { api, type MatchCatalog, type MatchResult, type MatchSession, type PrepareMatchInput } from "../lib/api";
 import { useT } from "../i18n";
 import { useStore } from "../state/store";
 import Toggle from "../components/Toggle";
@@ -18,6 +18,7 @@ export default function MatchPanel({ onOpenInstallation, onOpenHistory }: Props)
   const csgo = directory?.valid ? directory.selected : null;
   const [catalog, setCatalog] = useState<MatchCatalog | null>(null);
   const [result, setResult] = useState<MatchResult | null>(null);
+  const [activeMatch, setActiveMatch] = useState<MatchSession | null>(null);
   const [selectedMap, setSelectedMap] = useState("de_mirage");
   const [opponentKind, setOpponentKind] = useState<PrepareMatchInput["opponent_kind"]>("featured_team");
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -35,12 +36,15 @@ export default function MatchPanel({ onOpenInstallation, onOpenHistory }: Props)
     void api.getActiveMatch(csgo).then((active) => {
       if (active && (active.state === "finished" || active.state === "interrupted")) {
         void api.getMatchResult(csgo, active.session_id).then(setResult).catch(() => {});
+      } else {
+        setActiveMatch(active);
       }
     }).catch(() => {});
   }, [csgo]);
 
   useEffect(() => {
     const promise = listen<MatchResult>("match-finished", (event) => {
+      setActiveMatch(null);
       setResult(event.payload);
       setBusy(false);
     });
@@ -71,11 +75,64 @@ export default function MatchPanel({ onOpenInstallation, onOpenHistory }: Props)
     localStorage.setItem("cs2bi.matchDifficulty", difficulty);
     localStorage.setItem("cs2bi.matchDemoV2", recordDemo ? "1" : "0");
     try {
-      await api.prepareAndLaunchMatch(csgo, { schema_version: 1, map_id: selectedMap, player_side: side, difficulty, opponent_kind: opponentKind, opponent_team_id: opponentKind === "featured_team" ? teamId : null, record_demo: recordDemo });
+      const request = await api.prepareAndLaunchMatch(csgo, { schema_version: 1, map_id: selectedMap, player_side: side, difficulty, opponent_kind: opponentKind, opponent_team_id: opponentKind === "featured_team" ? teamId : null, record_demo: recordDemo });
+      setActiveMatch({
+        schema_version: request.schema_version,
+        session_id: request.session_id,
+        state: "launching",
+        map_id: request.map_id,
+        opponent_name: request.opponent_name,
+        created_at_unix: request.created_at_unix,
+        player_score: 0,
+        opponent_score: 0,
+        demo: { state: request.record_demo ? "pending" : "disabled", path: request.record_demo ? request.demo_path : null, size_bytes: 0, error_code: null, detail: null },
+        result_path: request.result_path,
+      });
+      setBusy(false);
     } catch (error) { setBusy(false); reportError(error); }
   };
 
+  const finishEarly = async () => {
+    if (!csgo || !activeMatch || !window.confirm(t("match.finishEarlyConfirm"))) return;
+    setBusy(true);
+    try {
+      await api.finishActiveMatch(csgo, activeMatch.session_id);
+    } catch (error) {
+      setBusy(false);
+      reportError(error);
+    }
+  };
+
   if (result) return <MatchResultView result={result} onClose={() => setResult(null)} t={t} csgo={csgo} />;
+
+  if (activeMatch) return (
+    <div className="match-page match-active-page">
+      <header className="workspace__head match-page__head">
+        <div className="match-page__title">
+          <span className="workspace__eyebrow">{t("match.activeEyebrow")}</span>
+          <h1>{t("match.active")}</h1>
+          <p>{t("match.activeAgainst", { team: activeMatch.opponent_name })}</p>
+        </div>
+        {onOpenHistory && <button className="match-history-button" onClick={onOpenHistory}><History size={16} />{t("match.history")}</button>}
+      </header>
+      <section className="match-active glass">
+        <div className="match-active__map">
+          <img src={MAP_IMAGES[activeMatch.map_id]} alt="" aria-hidden="true" />
+          <span>{MAP_LABELS[activeMatch.map_id] ?? activeMatch.map_id}</span>
+        </div>
+        <div className="match-active__body">
+          <span className="match-active__pulse" aria-hidden="true" />
+          <small>{t("match.active")}</small>
+          <strong>{activeMatch.opponent_name}</strong>
+          <span>5v5 · MR12</span>
+        </div>
+        <button className="match-finish-early" disabled={busy} onClick={finishEarly}>
+          {busy ? <RotateCcw className="is-spinning" size={17} /> : <Square size={15} fill="currentColor" />}
+          {busy ? t("match.finishingEarly") : t("match.finishEarly")}
+        </button>
+      </section>
+    </div>
+  );
 
   const sideLabel = side === "random" ? t("match.random") : side.toUpperCase();
 

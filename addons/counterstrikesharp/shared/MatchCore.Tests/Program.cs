@@ -79,4 +79,55 @@ Check(identities.TryGet("zywoo", out var identity), "Bot identity lookup must be
 Check(identity.SteamId64 == BotIdentity.SteamId64Base + 1234, "Steam account ids must convert to SteamID64");
 File.Delete(identityPath);
 
+var caseConflictPath = Path.Combine(Path.GetTempPath(), $"csbip-identity-conflicts-{Environment.ProcessId}.json");
+File.WriteAllText(caseConflictPath, """
+{
+  "HObbit": { "steamid": 1001, "crosshair_code": null, "scoreboard_flair": 0 },
+  "Hobbit": { "steamid": 1002, "crosshair_code": null, "scoreboard_flair": 0 },
+  "ZywOo": { "steamid": 1003, "crosshair_code": null, "scoreboard_flair": 0 }
+}
+""", Encoding.UTF8);
+var caseConflicts = BotIdentityCatalog.Load(caseConflictPath);
+Check(caseConflicts.TryGet("HObbit", out var upperIdentity) && upperIdentity.SteamAccountId == 1001,
+    "exact bot identity lookup must preserve casing");
+Check(caseConflicts.TryGet("Hobbit", out var titleIdentity) && titleIdentity.SteamAccountId == 1002,
+    "case-distinct bot identities must both load");
+Check(!caseConflicts.TryGet("hobbit", out _),
+    "ambiguous case-insensitive identity lookup must fail instead of selecting the wrong player");
+Check(caseConflicts.TryGet("zywoo", out var uniqueFallback) && uniqueFallback.SteamAccountId == 1003,
+    "unique case-insensitive identity lookup must still work");
+File.Delete(caseConflictPath);
+
+Check(RosterReconciler.Next(5, 5, 4, 5) == RosterAction.RemovePlayerBot,
+    "roster reconciliation must remove stale player-side bots before adding");
+Check(RosterReconciler.Next(4, 6, 4, 5) == RosterAction.RemoveOpponentBot,
+    "roster reconciliation must remove stale opponent-side bots");
+Check(RosterReconciler.Next(3, 5, 4, 5) == RosterAction.AddPlayerBot,
+    "roster reconciliation must add one missing teammate at a time");
+Check(RosterReconciler.Next(4, 4, 4, 5) == RosterAction.AddOpponentBot,
+    "roster reconciliation must add one missing opponent at a time");
+Check(RosterReconciler.Next(4, 5, 4, 5) == RosterAction.None,
+    "an exact roster must not be changed");
+
+var gameInstall = Path.Combine(Path.GetTempPath(), $"csbip-game-root-{Environment.ProcessId}");
+var reportedGameRoot = Path.Combine(gameInstall, "game");
+var expectedCsgoRoot = Path.Combine(reportedGameRoot, "csgo");
+Directory.CreateDirectory(expectedCsgoRoot);
+File.WriteAllText(Path.Combine(expectedCsgoRoot, "gameinfo.gi"), "GameInfo {}", Encoding.UTF8);
+try
+{
+    Check(PlusManagedPaths.ResolveCsgoRoot(reportedGameRoot) == Path.GetFullPath(expectedCsgoRoot),
+        "CounterStrikeSharp game directory must resolve to the nested csgo content root");
+    Check(PlusManagedPaths.ResolveCsgoRoot(expectedCsgoRoot) == Path.GetFullPath(expectedCsgoRoot),
+        "an existing csgo content root must remain unchanged");
+    Check(PlusManagedPaths.ActiveMatchPath(expectedCsgoRoot) == Path.Combine(expectedCsgoRoot, ".csbip", "match-active.json"),
+        "active match path must live under the csgo content root");
+    Check(!PlusManagedPaths.TryResolveCsgoRoot(Path.Combine(gameInstall, "missing"), out _),
+        "a directory without gameinfo.gi must not be accepted as a CS2 content root");
+}
+finally
+{
+    Directory.Delete(gameInstall, recursive: true);
+}
+
 Console.WriteLine("MatchCore tests passed");

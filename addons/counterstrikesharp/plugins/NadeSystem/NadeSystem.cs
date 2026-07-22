@@ -1119,7 +1119,16 @@ public class NadeSystemPlugin : BasePlugin
             if (speed < 5f) return;
 
             // recreate a new flash with all the current state
-            var botPawn = bot.PlayerPawn?.Value;
+            CCSPlayerPawn? botPawn;
+            try
+            {
+                if (!bot.IsValid) return;
+                botPawn = bot.PlayerPawn?.Value;
+            }
+            catch (Exception)
+            {
+                return;
+            }
             if (botPawn == null || !botPawn.IsValid) return;
 
             var newOrigin = new Vector(curPos.X, curPos.Y, curPos.Z);

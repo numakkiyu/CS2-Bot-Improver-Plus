@@ -545,6 +545,8 @@ export const api = {
   getMatchCatalog: (csgo: string | null) => invoke<MatchCatalog>("get_match_catalog", { csgo }),
   prepareAndLaunchMatch: (csgo: string, input: PrepareMatchInput) =>
     invoke<MatchRequest>("prepare_and_launch_match", { csgo, input }),
+  finishActiveMatch: (csgo: string, sessionId: string) =>
+    invoke<MatchSession>("finish_active_match", { csgo, sessionId }),
   getActiveMatch: (csgo: string) => invoke<MatchSession | null>("get_active_match", { csgo }),
   listMatchHistory: (csgo: string) => invoke<MatchSession[]>("list_match_history", { csgo }),
   getMatchResult: (csgo: string, sessionId: string) =>

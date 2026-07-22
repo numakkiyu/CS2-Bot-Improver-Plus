@@ -13,6 +13,7 @@
       <Private>false</Private>
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
+    <Compile Include="..\..\shared\MatchCore\PlusManagedPaths.cs" Link="PlusManagedPaths.cs" />
   </ItemGroup>
 
 </Project>

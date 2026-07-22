@@ -687,7 +687,7 @@ dependencies = [
 
 [[package]]
 name = "cs2-bot-improver-plus-panel"
-version = "1.4.2-preview.3+5"
+version = "1.4.2-preview.4+5"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
