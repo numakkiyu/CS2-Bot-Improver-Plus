@@ -59,7 +59,15 @@ if ($buildScript.Contains($privateToolLabel, [StringComparison]::OrdinalIgnoreCa
 }
 
 & git -C $repo cat-file -e "$base^{commit}" 2>$null
-if ($LASTEXITCODE -ne 0) {
+$baseAvailable = $LASTEXITCODE -eq 0
+if (-not $baseAvailable -and $env:GITHUB_ACTIONS -eq "true") {
+    & git -C $repo fetch --no-tags --depth=1 $manifest.upstream.repository $base
+    if ($LASTEXITCODE -eq 0) {
+        & git -C $repo cat-file -e "$base^{commit}" 2>$null
+        $baseAvailable = $LASTEXITCODE -eq 0
+    }
+}
+if (-not $baseAvailable) {
     Add-Failure "Pinned upstream commit is unavailable: $base"
 }
 else {
