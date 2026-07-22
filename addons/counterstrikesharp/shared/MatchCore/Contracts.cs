@@ -71,6 +71,12 @@ public sealed record MatchRequest(
     string ResultPath,
     string DemoPath);
 
+public sealed record MatchControlRequest(
+    int SchemaVersion,
+    string SessionId,
+    string Action,
+    long CreatedAtUnix);
+
 public sealed record DemoStatus(
     DemoState State,
     string? Path,

@@ -14,11 +14,15 @@ public sealed record BotIdentity(
 
 public sealed class BotIdentityCatalog
 {
-    private readonly IReadOnlyDictionary<string, BotIdentity> _identities;
+    private readonly IReadOnlyDictionary<string, BotIdentity> _exactIdentities;
+    private readonly IReadOnlyDictionary<string, BotIdentity?> _uniqueCaseInsensitiveIdentities;
 
-    private BotIdentityCatalog(IReadOnlyDictionary<string, BotIdentity> identities)
+    private BotIdentityCatalog(
+        IReadOnlyDictionary<string, BotIdentity> exactIdentities,
+        IReadOnlyDictionary<string, BotIdentity?> uniqueCaseInsensitiveIdentities)
     {
-        _identities = identities;
+        _exactIdentities = exactIdentities;
+        _uniqueCaseInsensitiveIdentities = uniqueCaseInsensitiveIdentities;
     }
 
     public static BotIdentityCatalog Load(string path)
@@ -26,17 +30,29 @@ public sealed class BotIdentityCatalog
         var source = JsonSerializer.Deserialize<Dictionary<string, BotIdentity>>(
             File.ReadAllText(path), MatchJson.Options)
             ?? throw new InvalidDataException("bot_info.json is empty");
-        var identities = new Dictionary<string, BotIdentity>(StringComparer.OrdinalIgnoreCase);
+        var identities = new Dictionary<string, BotIdentity>(StringComparer.Ordinal);
+        var caseInsensitive = new Dictionary<string, BotIdentity?>(StringComparer.OrdinalIgnoreCase);
         foreach (var (name, identity) in source)
         {
             if (string.IsNullOrWhiteSpace(name) || identity.SteamAccountId == 0)
                 continue;
             if (!identities.TryAdd(name, identity))
                 throw new InvalidDataException($"Duplicate bot identity: {name}");
+            if (!caseInsensitive.TryAdd(name, identity))
+                caseInsensitive[name] = null;
         }
-        return new BotIdentityCatalog(identities);
+        return new BotIdentityCatalog(identities, caseInsensitive);
     }
 
-    public bool TryGet(string name, out BotIdentity identity) =>
-        _identities.TryGetValue(name, out identity!);
+    public bool TryGet(string name, out BotIdentity identity)
+    {
+        if (_exactIdentities.TryGetValue(name, out identity!)) return true;
+        if (_uniqueCaseInsensitiveIdentities.TryGetValue(name, out var unique) && unique != null)
+        {
+            identity = unique;
+            return true;
+        }
+        identity = null!;
+        return false;
+    }
 }

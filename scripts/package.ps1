@@ -7,7 +7,7 @@ param(
     [string]$LlvmBin,
     [string]$XwinCache,
     [string]$OutputDirectory,
-    [string]$ReleaseVersion = "1.4.2.5-Preview.3",
+    [string]$ReleaseVersion = "1.4.2.5-Preview.4",
     [switch]$SkipBuild,
     [switch]$SkipNpmInstall
 )

@@ -51,6 +51,19 @@
 .match-start:disabled { cursor: not-allowed; opacity: .48; }
 .is-spinning { animation: match-spin 900ms linear infinite; }
 @keyframes match-spin { to { transform: rotate(360deg); } }
+.match-active-page { justify-content: flex-start; }
+.match-active { min-height: 220px; display: grid; grid-template-columns: minmax(220px,.9fr) minmax(200px,1fr) auto; align-items: center; gap: 24px; padding: 20px; }
+.match-active__map { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--r-md); background: #4f6372; box-shadow: var(--sh-soft); }
+.match-active__map img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.match-active__map::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 45%, rgba(10,16,22,.62)); }
+.match-active__map span { position: absolute; z-index: 1; left: 14px; bottom: 11px; color: #fff; font-size: 18px; font-weight: 850; }
+.match-active__body { min-width: 0; display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 5px 9px; }
+.match-active__pulse { width: 9px; height: 9px; grid-row: 1 / 3; border-radius: 50%; background: var(--c-green); box-shadow: 0 0 0 5px rgba(52,199,89,.12); }
+.match-active__body small { color: var(--c-green); font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.match-active__body strong { overflow: hidden; color: var(--text-primary); font-size: 22px; font-weight: 820; text-overflow: ellipsis; white-space: nowrap; }
+.match-active__body > span:last-child { grid-column: 2; color: var(--text-tertiary); font-size: 11px; }
+.match-finish-early { min-height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; border: 1px solid rgba(255,59,48,.2); border-radius: var(--r-sm); background: rgba(255,59,48,.11); color: var(--c-red); font-size: 12px; font-weight: 780; }
+.match-finish-early:disabled { cursor: wait; opacity: .55; }
 .match-maps, .match-history { min-width: 0; }
 .match-section-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; margin-bottom: 10px; }
 .match-section-head h2 { margin: 3px 0 0; color: var(--text-primary); font-size: 16px; font-weight: 780; }
@@ -196,5 +209,5 @@
 .mr-demo__play:disabled { opacity: .55; }
 .mr-demo__folder { border: 1px solid rgba(0,0,0,.07); background: rgba(255,255,255,.66); color: var(--text-secondary); }
 @media (max-width: 1080px) { .match-layout { grid-template-columns: minmax(230px,.38fr) minmax(0,.62fr); gap: 12px; } .match-map-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .mh-stats { grid-template-columns: repeat(3,minmax(0,1fr)); } .mr-chips { grid-template-columns: repeat(2,minmax(0,1fr)); } }
-@media (max-width: 760px) { .match-layout { grid-template-columns: 1fr; } .match-map-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .mh-card { grid-template-columns: 96px minmax(0,1fr) auto; } .mh-card__map { height: 54px; } .mr-demo { grid-template-columns: 44px minmax(0,1fr); } .mr-demo__actions { grid-column: 1 / -1; } .match-result-header, .match-result-row { grid-template-columns: minmax(130px,1.4fr) .55fr .65fr .65fr .7fr; } .match-result-header span:nth-child(5), .match-result-header span:nth-child(6), .match-result-row > span:nth-child(5), .match-result-row > span:nth-child(6) { display: none; } }
+@media (max-width: 760px) { .match-layout { grid-template-columns: 1fr; } .match-map-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .match-active { grid-template-columns: 1fr; gap: 14px; } .match-active__map { max-height: 210px; } .match-finish-early { width: 100%; } .mh-card { grid-template-columns: 96px minmax(0,1fr) auto; } .mh-card__map { height: 54px; } .mr-demo { grid-template-columns: 44px minmax(0,1fr); } .mr-demo__actions { grid-column: 1 / -1; } .match-result-header, .match-result-row { grid-template-columns: minmax(130px,1.4fr) .55fr .65fr .65fr .7fr; } .match-result-header span:nth-child(5), .match-result-header span:nth-child(6), .match-result-row > span:nth-child(5), .match-result-row > span:nth-child(6) { display: none; } }
 @media (prefers-reduced-motion: reduce) { .match-map-card, .match-start, .mh-card, .mh-card__map img { transition: none; } .is-spinning, .mh-stats, .mh-card, .mr-hero, .mr-hero__bg, .mr-chip, .match-result-table, .mr-demo { animation: none; } }

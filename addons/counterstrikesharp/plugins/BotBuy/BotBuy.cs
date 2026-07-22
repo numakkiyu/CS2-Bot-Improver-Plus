@@ -4,6 +4,7 @@ using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Utils;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Timers;
+using MatchCore;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -67,7 +68,8 @@ public sealed class BotBuyPatch : BasePlugin
         // The coordinator owns economy setup during a PLUS match. Skipping this
         // delayed rewrite pipeline also prevents callbacks from touching bot
         // controllers that the coordinator replaced during roster setup.
-        if (File.Exists(Path.Combine(Server.GameDirectory, ".csbip", "match-active.json")))
+        if (PlusManagedPaths.TryResolveCsgoRoot(Server.GameDirectory, out var csgoRoot) &&
+            File.Exists(PlusManagedPaths.ActiveMatchPath(csgoRoot)))
             return HookResult.Continue;
         // Don't Buy on Aim_Rush
         if (Server.MapName == "aim_rush") return HookResult.Continue;

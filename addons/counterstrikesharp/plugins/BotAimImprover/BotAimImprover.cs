@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using MatchCore;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
@@ -174,7 +175,8 @@ public class BotAimImprover : BasePlugin
         // native aim hook is intentionally skipped for that isolated workflow:
         // it is the only unmanaged high-frequency path in the stack and was the
         // last active hook before the observed counterstrikesharp.dll crash.
-        if (File.Exists(Path.Combine(Server.GameDirectory, ".csbip", "match-active.json")))
+        if (PlusManagedPaths.TryResolveCsgoRoot(Server.GameDirectory, out var csgoRoot) &&
+            File.Exists(PlusManagedPaths.ActiveMatchPath(csgoRoot)))
         {
             Logger.LogWarning("[BotAimImprover] Native aim hook disabled for the active PLUS match session.");
             return;

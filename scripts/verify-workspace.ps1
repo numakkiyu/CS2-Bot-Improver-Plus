@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$PackageRoot,
-    [string]$ExpectedPackageVersion = "1.4.2.5-Preview.3"
+    [string]$ExpectedPackageVersion = "1.4.2.5-Preview.4"
 )
 
 $ErrorActionPreference = "Stop"
@@ -90,6 +90,7 @@ else {
         "addons/counterstrikesharp/plugins/BotAimImprover/BotAimImprover.cs",
         "addons/counterstrikesharp/plugins/BotAimImprover/BotAimImprover.csproj",
         "addons/counterstrikesharp/plugins/BotBuy/BotBuy.cs",
+        "addons/counterstrikesharp/plugins/BotBuy/BotBuy.csproj",
         "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.cs",
         "addons/counterstrikesharp/plugins/BotRandomizer/bot_randomizer_options.json",
         "addons/counterstrikesharp/plugins/BotControllerImpl/BotControllerImpl.csproj",
@@ -101,6 +102,7 @@ else {
         "addons/counterstrikesharp/plugins/BotControllerImpl/ReplayDriver.cs",
         "addons/counterstrikesharp/plugins/BotHiderImpl/BotHiderImpl.csproj",
         "addons/counterstrikesharp/plugins/BotHiderImpl/BotHiderImplPlugin.cs",
+        "addons/counterstrikesharp/plugins/NadeSystem/NadeSystem.cs",
         "addons/counterstrikesharp/plugins/NadeSystem/NadeSystem.csproj",
         "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.cs",
         "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.csproj",
@@ -133,8 +135,15 @@ if ($botBuy -notmatch 'PLUS P0 safety: delayed callbacks must revalidate capture
     Add-Failure "BotBuy no longer guards delayed callbacks against invalid CounterStrikeSharp controllers."
 }
 
+$nadeSystem = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/NadeSystem/NadeSystem.cs") -Raw
+if ($nadeSystem -notmatch 'if \(!bot\.IsValid\) return;' -or
+    $nadeSystem -notmatch 'botPawn = bot\.PlayerPawn\?\.Value;' -or
+    $nadeSystem -notmatch 'catch \(Exception\)\s*\{\s*return;\s*\}') {
+    Add-Failure "NadeSystem no longer guards delayed callbacks against disconnected bot pawns."
+}
+
 $roundDamageRecap = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.cs") -Raw
-if ($roundDamageRecap -notmatch 'match-active\.json' -or
+if ($roundDamageRecap -notmatch 'PlusManagedPaths\.ActiveMatchPath' -or
     $roundDamageRecap -notmatch 'PlusMatchCoordinator owns match statistics') {
     Add-Failure "RoundDamageRecap no longer yields PLUS match statistics ownership."
 }

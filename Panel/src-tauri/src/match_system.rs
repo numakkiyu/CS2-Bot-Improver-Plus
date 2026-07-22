@@ -89,6 +89,14 @@ pub struct MatchRequest {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+struct MatchControlRequest {
+    schema_version: u32,
+    session_id: String,
+    action: String,
+    created_at_unix: u64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PrepareMatchInput {
     pub schema_version: u32,
     pub map_id: String,
@@ -334,6 +342,33 @@ pub fn active(csgo: &Path) -> Result<Option<MatchSession>> {
     Ok(Some(session_from_request(&request)))
 }
 
+pub fn finish_active(csgo: &Path, session_id: &str) -> Result<MatchSession> {
+    validate_segment(session_id, "session id")?;
+    let active_request = active_path(csgo);
+    if !active_request.is_file() {
+        return Err(AppError::new("E1702", "match", "There is no active match to finish"));
+    }
+    let request: MatchRequest = read_json(&active_request)?;
+    if request.session_id != session_id {
+        return Err(AppError::new("E1702", "match", "The active match session changed; refresh and try again"));
+    }
+    let (result_path, _) = validated_request_paths(csgo, &request)?;
+    if result_path.is_file() {
+        return Err(AppError::new("E1702", "match", "The match result is already available"));
+    }
+    let control = MatchControlRequest {
+        schema_version: SCHEMA_VERSION,
+        session_id: request.session_id.clone(),
+        action: "finish_early".into(),
+        created_at_unix: now(),
+    };
+    let control_path = result_path.parent()
+        .ok_or_else(|| AppError::invalid("Managed match result has no session directory"))?
+        .join("control.json");
+    write_json(&control_path, &control)?;
+    Ok(session_from_request(&request))
+}
+
 fn session_from_request(request: &MatchRequest) -> MatchSession {
     MatchSession {
         schema_version: SCHEMA_VERSION, session_id: request.session_id.clone(), state: MatchState::Launching,
@@ -376,9 +411,13 @@ pub fn get_result(csgo: &Path, session_id: &str) -> Result<MatchResult> {
             "The selected match is still active and has no result yet",
         ));
     }
-    let result: MatchResult = read_json(&path)?;
+    let mut result: MatchResult = read_json(&path)?;
     if result.session_id != session_id {
         return Err(AppError::invalid("Match result session id does not match its managed directory"));
+    }
+    if matches!(result.demo.state.as_str(), "pending" | "recording" | "validating") {
+        validate_demo(csgo, &mut result);
+        write_json(&path, &result)?;
     }
     clear_active_session(csgo, session_id);
     Ok(result)
@@ -622,6 +661,41 @@ mod tests {
     }
 
     #[test]
+    fn finish_active_writes_a_session_bound_atomic_control_request() {
+        let root = root("finish-active");
+        let session = "session-finish";
+        let session_root = match_root(&root).join(session);
+        fs::create_dir_all(&session_root).unwrap();
+        let request = MatchRequest {
+            schema_version: SCHEMA_VERSION,
+            session_id: session.into(),
+            created_at_unix: 1,
+            map_id: "de_mirage".into(),
+            player_side: "ct".into(),
+            difficulty: "medium".into(),
+            opponent_kind: "featured_team".into(),
+            opponent_team_id: Some("falcons".into()),
+            opponent_name: "Falcons".into(),
+            record_demo: true,
+            player_team: vec![],
+            opponent_team: vec![],
+            result_path: session_root.join("result.json").to_string_lossy().into_owned(),
+            demo_path: root.join("demos/csbip/session-finish.dem").to_string_lossy().into_owned(),
+        };
+        write_json(&active_path(&root), &request).unwrap();
+        write_json(&session_root.join("request.json"), &request).unwrap();
+
+        let active = finish_active(&root, session).unwrap();
+        assert_eq!(active.session_id, session);
+        let control: MatchControlRequest = read_json(&session_root.join("control.json")).unwrap();
+        assert_eq!(control.schema_version, SCHEMA_VERSION);
+        assert_eq!(control.session_id, session);
+        assert_eq!(control.action, "finish_early");
+        assert!(finish_active(&root, "different-session").is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn history_delete_stays_inside_match_root() {
         let csgo = root("delete");
         let directory = match_root(&csgo).join("session-1");
@@ -672,6 +746,40 @@ mod tests {
         assert!(active(&csgo).unwrap().is_some_and(|session| session.state == MatchState::Finished));
         assert_eq!(get_result(&csgo, "session-1").unwrap().player_score, 13);
         assert!(!active_path(&csgo).exists());
+        fs::remove_dir_all(csgo).unwrap();
+    }
+
+    #[test]
+    fn reopening_the_panel_finishes_demo_validation_without_the_original_watcher() {
+        let csgo = root("recover-demo");
+        let directory = match_root(&csgo).join("session-demo");
+        let demo = csgo.join("demos/csbip/session-demo.dem");
+        fs::create_dir_all(&directory).unwrap();
+        fs::create_dir_all(demo.parent().unwrap()).unwrap();
+        let mut bytes = vec![0u8; 2048];
+        bytes[..7].copy_from_slice(b"PBDEMS2");
+        fs::write(&demo, bytes).unwrap();
+        let result = MatchResult {
+            schema_version: 1,
+            session_id: "session-demo".into(),
+            state: MatchState::Interrupted,
+            map_id: "de_mirage".into(),
+            started_at_unix: 1,
+            finished_at_unix: 2,
+            player_score: 1,
+            opponent_score: 0,
+            opponent_name: "Falcons".into(),
+            rating_model_version: "test".into(),
+            demo: DemoStatus { state: "validating".into(), path: Some(demo.to_string_lossy().into_owned()), size_bytes: 0, error_code: None, detail: None },
+            players: vec![],
+            interruption_reason: Some("user_finished_early".into()),
+        };
+        write_json(&directory.join("result.json"), &result).unwrap();
+
+        let recovered = get_result(&csgo, "session-demo").unwrap();
+        assert_eq!(recovered.demo.state, "ready");
+        assert_eq!(recovered.demo.size_bytes, 2048);
+        assert_eq!(read_json::<MatchResult>(&directory.join("result.json")).unwrap().demo.state, "ready");
         fs::remove_dir_all(csgo).unwrap();
     }
 
