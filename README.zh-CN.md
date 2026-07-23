@@ -13,7 +13,7 @@
 <br/>
 <br/>
 
-[下载已发布版本](https://github.com/numakkiyu/Local-Arena/releases) · [提交问题反馈](https://github.com/numakkiyu/Local-Arena/issues) · [为什么更名](#为什么更名为-local-arena) · [代码来源与署名](#上游代码来源与署名)
+[下载已发布版本](https://github.com/numakkiyu/Local-Arena/releases) · [提交问题反馈](https://github.com/numakkiyu/Local-Arena/issues) · [品牌与独立性说明](#品牌更名与项目关系说明) · [代码来源与署名](#上游代码来源与署名)
 
 </div>
 
@@ -42,11 +42,13 @@
 
 ---
 
-## 为什么更名为 Local Arena
+## 品牌更名与项目关系说明
 
-项目现已发展为一套独立的本地 CS2 体验，拥有自己的匹配系统、饰品管理、Demo 流程、诊断能力、安装器、发布流程和用户支持责任。**Local Arena** 更能准确表达产品定位，也可以避免用户误以为本项目是由上游维护的官方增强版本。
+应上游项目作者提出的明确品牌分离要求，同时为进一步厘清项目的品牌归属与维护边界，本项目将自下一版本起由 **CS2BotImproverPlus** 正式更名为 **Local Arena**
 
-这次调整只是在品牌和维护边界上进行分离，并不抹去项目的代码来源。源自上游 AGPL-3.0 代码的组件会继续保留作者署名并遵守许可证要求，上游仓库也会继续列在代码来源章节中。Local Arena 特有功能和发行版本的问题应在本仓库反馈，避免让上游维护者处理其并未开发或发布的功能。
+**Local Arena** 是独立开发、独立发布并独立维护的项目，与 **CS2-Bot-Improver** 及其作者不存在隶属、授权、联合维护、官方合作或技术支持关系。本项目仅依据 [AGPL-3.0](https://github.com/numakkiyu/Local-Arena/blob/main/LICENSE) 开源许可证引用、修改和再分发部分开源代码，并将持续完整保留相关代码来源、作者署名及许可证声明
+
+自下一版本起，Local Arena 将启用全新的 UI 设计语言与品牌 Logo。为保障现有用户的数据、更新、安装和历史版本兼容性，部分旧版本、历史界面、文件名称及兼容性标识在过渡期间仍可能显示原品牌名称
 
 ## Local Arena 功能
 
