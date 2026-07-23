@@ -15,8 +15,8 @@ export type Contributor = {
 export const PROJECTS: ProjectLink[] = [
   {
     id: "plus",
-    name: "numakkiyu/CS2-Bot-Improver-Plus",
-    url: "https://github.com/numakkiyu/CS2-Bot-Improver-Plus",
+    name: "numakkiyu/Local-Arena",
+    url: "https://github.com/numakkiyu/Local-Arena",
   },
   {
     id: "upstream",
@@ -25,7 +25,7 @@ export const PROJECTS: ProjectLink[] = [
   },
 ];
 
-// Snapshot of the Plus repository owner and GitHub contributor API on 2026-07-14.
+// Snapshot of the Local Arena repository owner and GitHub contributor API on 2026-07-14.
 export const CONTRIBUTORS: Contributor[] = [
   {
     login: "numakkiyu",

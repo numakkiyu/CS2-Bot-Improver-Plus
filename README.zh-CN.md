@@ -1,33 +1,32 @@
 <div align="center">
 
-# CS2BotImproverPlus
+# Local Arena
 
 [English](README.md) | **简体中文**
 
 <br/>
 
-<a href="https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases"><img alt="发行版本" src="https://img.shields.io/github/v/release/numakkiyu/CS2-Bot-Improver-Plus?display_name=tag&sort=semver"></a>
+<a href="https://github.com/numakkiyu/Local-Arena/releases"><img alt="发行版本" src="https://img.shields.io/github/v/release/numakkiyu/Local-Arena?display_name=tag&sort=semver"></a>
 <img alt="支持平台" src="https://img.shields.io/badge/platform-Windows-0078D4">
-<a href="LICENSE"><img alt="许可证" src="https://img.shields.io/github/license/numakkiyu/CS2-Bot-Improver-Plus"></a>
-<a href="https://github.com/ed0ard/CS2-Bot-Improver"><img alt="上游项目" src="https://img.shields.io/badge/upstream-ed0ard%2FCS2--Bot--Improver-2ea44f"></a>
+<a href="LICENSE"><img alt="许可证" src="https://img.shields.io/github/license/numakkiyu/Local-Arena"></a>
 
 <br/>
 <br/>
 
-[下载已发布版本](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases) · [查看上游项目](https://github.com/ed0ard/CS2-Bot-Improver) · [提交问题反馈](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/issues)
+[下载已发布版本](https://github.com/numakkiyu/Local-Arena/releases) · [提交问题反馈](https://github.com/numakkiyu/Local-Arena/issues) · [为什么更名](#为什么更名为-local-arena) · [代码来源与署名](#上游代码来源与署名)
 
 </div>
 
 > [!IMPORTANT]
-> CS2BotImproverPlus 是基于 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver) 开发的 Windows 增强发行分支
+> Local Arena 是独立开发和维护的 Windows 工具，用于本地 CS2 对局、玩家饰品、Demo、诊断和受管安装
 >
-> 本仓库由独立维护者负责，与上游项目及其维护者互不隶属，也不代表上游官方或由上游负责维护。本仓库通过拉取和适配上游代码，在此基础上独立开发并分发 Plus 版本
+> Local Arena 与 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver) 及其维护者互不隶属，不代表上游官方，也不由上游维护者提供支持
 >
-> 如果遇到 Plus 构建、面板、安装、匹配、饰品、诊断或其他 Plus 专属问题，请在[本仓库 Issues](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/issues) 提交反馈，请勿将此类问题提交至上游。只有能够在未经修改的上游原版中同样复现的问题，才适合按照上游项目的要求进行反馈
+> Local Arena 的构建、面板、安装、匹配、饰品、诊断、闪退或更新问题，请统一在[本仓库 Issues](https://github.com/numakkiyu/Local-Arena/issues) 提交，不要向上游项目反馈 Local Arena 的问题
 >
-> Plus 分支完整保留并同步上游增强人机功能，在此基础上增加玩家饰品预设、重新设计的面板、受管安装与恢复、诊断导出和在线更新
+> 部分增强人机组件仍基于上游 AGPL-3.0 代码，其来源和作者署名会继续保留；Local Arena 的开发、发布、问题追踪和用户支持均由本仓库独立负责
 >
-> 核心人机系统来自上游项目，相关成果与贡献归属于原作者及上游贡献者
+> 仓库迁移期间，现有安装会暂时保留旧可执行文件名、`.csbip` 数据目录、图标和面板外观，以保证在线更新、备份、预设和比赛记录不丢失
 
 <div align="center">
 
@@ -38,18 +37,24 @@
 </div>
 
 <p align="center">
-  <img src="./Panel/src/assets/guide/01-overview.png" alt="CS2BotImproverPlus 概览页面" width="100%">
+  <img src="./Panel/src/assets/guide/01-overview.png" alt="Local Arena 当前面板概览" width="100%">
 </p>
 
 ---
 
-## Plus 新增内容
+## 为什么更名为 Local Arena
+
+项目现已发展为一套独立的本地 CS2 体验，拥有自己的匹配系统、饰品管理、Demo 流程、诊断能力、安装器、发布流程和用户支持责任。**Local Arena** 更能准确表达产品定位，也可以避免用户误以为本项目是由上游维护的官方增强版本。
+
+这次调整只是在品牌和维护边界上进行分离，并不抹去项目的代码来源。源自上游 AGPL-3.0 代码的组件会继续保留作者署名并遵守许可证要求，上游仓库也会继续列在代码来源章节中。Local Arena 特有功能和发行版本的问题应在本仓库反馈，避免让上游维护者处理其并未开发或发布的功能。
+
+## Local Arena 功能
 
 - 玩家刀具、手套和武器皮肤支持 CT 与 T 两套独立预设
 - 双方共用武器可以使用同一皮肤，也可以解除联动后分别设置
 - 真人玩家音乐盒预设以及兼容皮肤的 StatTrak 和纪念品选项
 - 正常匹配、饰品预览、增强人机三种启动模式
-- 四步首次安装向导，自动识别纯净 CS2、旧版 Plus 和上游原版插件
+- 四步首次安装向导，自动识别纯净 CS2、旧版兼容安装和上游原版插件
 - 事务式备份、安装验证、修复、回滚和恢复纯净 CS2
 - 面板与插件负载分别进行在线更新
 - 一键导出诊断 ZIP，并自动打开日志包所在文件夹
@@ -60,9 +65,9 @@
 > [!WARNING]
 > 安装、修复、恢复、更新插件、切换难度或切换模式前必须完整关闭 CS2
 
-- Plus 当前提供 Windows 版本
+- Local Arena 当前提供 Windows 版本
 - 打开面板前先把完整 ZIP 解压到普通文件夹
-- `CS2BotImproverPlus.exe`、`addons`、`cfg`、`overrides` 和 `plus-payload-manifest.json` 必须保持在同一个目录
+- 旧版可执行文件、`addons`、`cfg`、`overrides` 和 `plus-payload-manifest.json` 必须保持在同一个目录
 - 不要直接在压缩包里面运行面板
 - 正确的游戏目录末尾应为 `Counter-Strike Global Offensive\game\csgo`
 - 饰品预览和增强人机模式会使用 `-insecure`，不能进入官方匹配
@@ -99,10 +104,10 @@
 
 | 检测到的环境 | 面板执行的操作 | 保留的数据 |
 | --- | --- | --- |
-| 纯净 CS2 | 安装 Plus | 覆盖前备份原有文件 |
-| 已纳管 Plus | 更新或修复 Plus | 保留首次原始备份和玩家预设 |
-| 旧版 Plus | 一键接管并更新 | 保留现有饰品和迁移前文件 |
-| 上游原版插件 | 一键替换为 Plus | 先备份当前上游安装 |
+| 纯净 CS2 | 安装 Local Arena | 覆盖前备份原有文件 |
+| 已纳管 Local Arena | 更新或修复 Local Arena | 保留首次原始备份和玩家预设 |
+| 旧版安装 | 一键接管并更新 | 保留现有饰品和迁移前文件 |
+| 上游原版插件 | 一键替换为 Local Arena | 先备份当前上游安装 |
 | 混合或未知插件 | 禁止自动安装 | 先导出诊断或恢复纯净 CS2 |
 
 <p align="center">
@@ -127,7 +132,7 @@
 
 如果必须更换面板目录，需要先把旧目录中的完整 `.csbip` 文件夹复制到新面板旁边，再打开新面板，这样原始备份、安装登记、玩家预设和日志才不会断开
 
-安装器可以区分已经纳管的 Plus、以前手动覆盖的旧版 Plus、上游原版增强人机插件和不完整的混合环境
+安装器可以区分已经纳管的 Local Arena、旧版安装、上游原版增强人机插件和不完整的混合环境
 
 玩家饰品 JSON、当前难度和受支持的人机选项不会被当成负载损坏文件
 
@@ -163,7 +168,7 @@
 
 ### 增强人机
 
-用于完整的 Plus 体验
+用于完整的 Local Arena 体验
 
 该模式会启用全部同步的上游人机功能、当前难度、人机物品、控制台指令和玩家饰品
 
@@ -255,8 +260,8 @@
 | --- | --- | --- |
 | 验证安装 | 需要重新检查健康状态 | 只读检查所有受管文件 |
 | 修复安装 | 受管文件确实缺失或损坏 | 只重新安装受影响的负载文件 |
-| 一键恢复原样 | 需要撤销已经纳管的 Plus 安装 | 恢复安装时备份并删除 Plus 新建文件 |
-| 恢复纯净 CS2 | 需要删除 Plus 或上游增强插件 | 删除确认属于增强版的文件，保留未知第三方文件，然后提示 Steam 验证 |
+| 一键恢复原样 | 需要撤销已经纳管的 Local Arena 安装 | 恢复安装时备份并删除 Local Arena 新建的文件 |
+| 恢复纯净 CS2 | 需要删除 Local Arena 或上游增强插件 | 删除确认属于增强版的文件，保留未知第三方文件，然后提示 Steam 验证 |
 | 导出诊断 | 问题可以复现或原因不明确 | 创建 ZIP 并自动打开所在文件夹 |
 
 执行受管恢复前，玩家饰品预设会复制到便携式 `.csbip/presets` 目录
@@ -275,7 +280,7 @@
 
 ### 安装环境显示混合或未知插件
 
-面板只找到部分 Plus 或上游插件，同时存在无法安全确认归属的文件
+面板只找到部分 Local Arena 或上游插件，同时存在无法安全确认归属的文件
 
 删除或覆盖任何内容前先导出诊断，使用**恢复纯净 CS2**删除能够确认的增强插件文件，完成 Steam 文件验证后重新进行纯净首次安装
 
@@ -316,7 +321,7 @@
 
 ### 一键恢复原样后仍然不是纯净 CS2
 
-**一键恢复原样**会回到受管安装记录中的安装前状态，而安装前状态本身可能已经包含旧版 Plus 或上游插件
+**一键恢复原样**会回到受管安装记录中的安装前状态，而安装前状态本身可能已经包含旧版兼容安装或上游插件
 
 需要删除所有能够确认的增强插件时，应使用**恢复纯净 CS2**，然后在启动游戏前完成 Steam 文件验证
 
@@ -328,9 +333,9 @@
 
 如果是在选边阶段闪退，还需要说明停留在选边页面多久后才选择 CT 或 T
 
-## Plus 保留的上游功能
+## 上游代码来源与署名
 
-Plus 完整保留 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver) 的功能体系，包括
+Local Arena 分发部分基于 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver) AGPL-3.0 代码的增强人机组件，包括
 
 1. 更强且更接近真人的瞄准方式
 2. 根据局势使用投掷物
@@ -343,7 +348,7 @@ Plus 完整保留 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Im
 9. 更适合人机对局的游戏规则
 10. 扩展控制台指令和职业战队阵容
 
-上游实现细节、Linux 安装说明和原始文档请访问 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
+上游项目是 Local Arena 的代码来源和署名对象，不是 Local Arena 的支持渠道。需要查看其原始实现、Linux 安装说明和文档时，请访问 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
 
 ## 致谢
 
@@ -367,6 +372,6 @@ Plus 完整保留 [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Im
 
 <div align="center">
 
-[返回顶部](#cs2botimproverplus)
+[返回顶部](#local-arena)
 
 </div>

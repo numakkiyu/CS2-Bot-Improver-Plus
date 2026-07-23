@@ -11,9 +11,9 @@ use tauri::{AppHandle, Emitter};
 
 pub const CURRENT_VERSION: &str = "1.4.2.5";
 pub const MANIFEST_URL: &str =
-    "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/latest/download/latest.json";
+    "https://github.com/numakkiyu/Local-Arena/releases/latest/download/latest.json";
 const SIGNATURE_URL: &str =
-    "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/latest/download/latest.json.sig";
+    "https://github.com/numakkiyu/Local-Arena/releases/latest/download/latest.json.sig";
 const UPDATE_PUBLIC_KEY: &str = "RbIjlfASpYVu740SsmQMLuLO7ExxiDBYTdnYThfqU/4=";
 const CACHE_SECONDS: u64 = 6 * 60 * 60;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
