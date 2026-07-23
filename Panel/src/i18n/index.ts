@@ -6,6 +6,11 @@ export type { I18nKey };
 
 export type TParams = Record<string, string | number>;
 
+export function removeTerminalFullStop(value: string): string {
+  if (value.endsWith("...")) return value;
+  return value.replace(/[.。．]$/u, "");
+}
+
 /** Translate a key for a locale, falling back to English, then the key itself. */
 export function translate(lang: string | null, key: I18nKey, params?: TParams): string {
   const dict = lang ? DICTS[lang] : undefined;
@@ -15,7 +20,7 @@ export function translate(lang: string | null, key: I18nKey, params?: TParams): 
       s = s.replace(`{${k}}`, String(v));
     }
   }
-  return s;
+  return removeTerminalFullStop(s);
 }
 
 /** Hook returning a translator bound to the current language. */

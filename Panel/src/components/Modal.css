@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(31, 30, 27, 0.32);
   animation: scrim-in var(--dur) var(--ease);
 }
 @keyframes scrim-in {
@@ -20,24 +20,19 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: var(--r-xl);
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-lg);
   box-shadow: var(--sh-pop);
   animation: modal-in var(--dur) var(--ease);
 }
-/* Opaque surface: translucent glass lets the page behind ghost through, which
-   reads especially badly in image pickers. Keep the border/shadow, drop the see-through. */
 .modal.modal--solid {
-  background: rgba(251, 251, 253, 0.98);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-.modal.modal--solid::before {
-  opacity: 0.4;
+  background: var(--card);
 }
 @keyframes modal-in {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(6px) scale(0.985);
   }
 }
 
@@ -49,22 +44,25 @@
   padding: 16px 18px 8px;
 }
 .modal__title {
-  font-size: 16px;
-  font-weight: 700;
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 .modal__close {
   width: 26px;
   height: 26px;
-  border: none;
-  border-radius: var(--r-pill);
-  background: rgba(120, 120, 128, 0.16);
-  color: var(--text-secondary);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  color: var(--text-tertiary);
   display: grid;
   place-items: center;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .modal__close:hover {
-  background: rgba(120, 120, 128, 0.26);
+  border-color: var(--line-strong);
+  color: var(--text-primary);
 }
 
 .modal__body {

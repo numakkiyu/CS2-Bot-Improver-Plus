@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   BookOpenText,
-  Boxes,
   Command,
   Crosshair,
   History,
@@ -16,7 +15,6 @@ import TitleBar from "./components/TitleBar";
 import ErrorModal from "./components/ErrorModal";
 import OverviewDashboard, { type DashboardTarget } from "./panels/OverviewDashboard";
 import PresetsPanel from "./panels/PresetsPanel";
-import BotItemsPanel from "./panels/BotItemsPanel";
 import CommandsPanel from "./panels/CommandsPanel";
 import WeaponPresetsPanel from "./panels/WeaponPresetsPanel";
 import MatchPanel from "./panels/MatchPanel";
@@ -27,14 +25,14 @@ import StickersPanel from "./panels/StickersPanel";
 import FirstRunLanguages from "./panels/settings/FirstRunLanguages";
 import { useStore } from "./state/store";
 import { useT, type I18nKey } from "./i18n";
-import upstreamAppLogo from "./assets/upstream-app-logo.png";
+import appLogo from "./assets/app-logo.png";
 import { stickerFeatureEnabled } from "./lib/stickerEditor";
 import { APP_DISPLAY_VERSION } from "./lib/version";
 import "./App.css";
 
 type View = "main" | "stickers" | DashboardTarget;
 
-const VIEWS: View[] = ["main", "match", "matchHistory", "settings", "presets", "botItems", "commands", "weaponPresets", "stickers", "guide"];
+const VIEWS: View[] = ["main", "match", "matchHistory", "settings", "presets", "commands", "weaponPresets", "stickers", "guide"];
 const VIEW_KEY = "cs2bi.view";
 
 export default function App() {
@@ -42,7 +40,8 @@ export default function App() {
   const t = useT();
   // Remember the open view in the portable Panel memory.
   const [view, setView] = useState<View>(() => {
-    const saved = localStorage.getItem(VIEW_KEY) as View | null;
+    const stored = localStorage.getItem(VIEW_KEY);
+    const saved = (stored === "botItems" ? "presets" : stored) as View | null;
     return saved && VIEWS.includes(saved) ? saved : "main";
   });
   useEffect(() => {
@@ -67,7 +66,6 @@ export default function App() {
     { view: "match", key: "match.title", icon: Swords },
     { view: "matchHistory", key: "match.history", icon: History },
     { view: "presets", key: "pre.title", icon: SlidersHorizontal },
-    { view: "botItems", key: "bi.title", icon: Boxes },
     { view: "commands", key: "cmd.title", icon: Command },
     { view: "weaponPresets", key: "weapons.title", icon: Crosshair },
     ...(stickersVisible ? [{ view: "stickers" as View, key: "stickers.title" as I18nKey, icon: Sticker }] : []),
@@ -85,10 +83,9 @@ export default function App() {
       <div className="shell__frame">
         <aside className="sidebar">
           <div className="sidebar__brand">
-            <img className="sidebar__mark" src={upstreamAppLogo} alt="" aria-hidden="true" />
+            <img className="sidebar__mark" src={appLogo} alt="" aria-hidden="true" />
             <span className="sidebar__brand-copy">
-              <strong>CS2BotImprover</strong>
-              <small>PLUS</small>
+              <strong>Local Arena</strong>
             </span>
           </div>
 
@@ -108,7 +105,7 @@ export default function App() {
           </nav>
 
           <div className="sidebar__footer">
-            <span>PLUS</span>
+            <span>Local Arena</span>
             <small>v{APP_DISPLAY_VERSION}</small>
           </div>
         </aside>
@@ -118,8 +115,6 @@ export default function App() {
             <SettingsView />
           ) : view === "presets" ? (
             <PresetsPanel />
-          ) : view === "botItems" ? (
-            <BotItemsPanel />
           ) : view === "commands" ? (
             <CommandsPanel />
           ) : view === "weaponPresets" ? (

@@ -10,10 +10,10 @@
 .stickers-editor,
 .sticker-catalog {
   min-width: 0;
-  border: 1px solid rgba(255, 255, 255, 0.68);
+  border: 0;
   border-radius: var(--r-md);
-  background: rgba(255, 255, 255, 0.48);
-  box-shadow: var(--sh-card), var(--glass-inset);
+  background: var(--card);
+  box-shadow: var(--sh-card);
 }
 
 .stickers-weapons {
@@ -58,12 +58,12 @@
 }
 .stickers-weapons > div > button:hover { background: rgba(255, 255, 255, 0.62); }
 .stickers-weapons > div > button.is-active {
-  border-color: rgba(0, 122, 255, 0.24);
-  background: rgba(0, 122, 255, 0.09);
-  color: var(--c-blue);
+  border-color: transparent;
+  background: var(--c-accent-soft);
+  color: var(--c-accent-hover);
 }
 .stickers-weapons img { width: 58px; height: 34px; object-fit: contain; }
-.stickers-weapons span { overflow: hidden; font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.stickers-weapons span { overflow: hidden; font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .stickers-weapons p { margin: 14px 8px; color: var(--text-tertiary); font-size: 11px; line-height: 1.5; }
 
 .stickers-editor {
@@ -77,9 +77,9 @@
   overflow: hidden;
   width: 100%;
   aspect-ratio: 16 / 8.8;
-  border: 1px solid rgba(120, 120, 128, 0.14);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
-  background: linear-gradient(145deg, rgba(245, 247, 250, 0.92), rgba(224, 229, 235, 0.76));
+  background: var(--paper-sunken);
   touch-action: none;
 }
 .stickers-preview::after {
@@ -87,7 +87,7 @@
   inset: 0;
   content: "";
   pointer-events: none;
-  background-image: linear-gradient(rgba(120, 120, 128, 0.055) 1px, transparent 1px), linear-gradient(90deg, rgba(120, 120, 128, 0.055) 1px, transparent 1px);
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 .stickers-preview__weapon {
@@ -113,7 +113,7 @@
   cursor: grab;
   transform-origin: center;
 }
-.stickers-preview__sticker.is-active { border-color: var(--c-blue); box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.16); }
+.stickers-preview__sticker.is-active { border-color: var(--c-accent); box-shadow: 0 0 0 2px var(--c-accent-soft); }
 .stickers-preview__sticker:active { cursor: grabbing; }
 .stickers-preview__sticker img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 
@@ -128,12 +128,12 @@
   display: grid;
   place-items: center;
   padding: 5px;
-  border: 1px solid rgba(120, 120, 128, 0.15);
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
   background: rgba(255, 255, 255, 0.52);
   color: var(--text-tertiary);
 }
-.sticker-slots > button.is-active { border-color: var(--c-blue); background: rgba(0, 122, 255, 0.08); }
+.sticker-slots > button.is-active { border-color: var(--c-accent-line); background: var(--c-accent-soft); }
 .sticker-slots b { position: absolute; top: 4px; left: 6px; color: var(--text-tertiary); font-size: 9px; }
 .sticker-slots img { width: 38px; height: 38px; object-fit: contain; }
 .sticker-slots > button > span:not(.sticker-image-fallback) { font-size: 20px; font-weight: 400; }
@@ -177,7 +177,7 @@
   gap: 9px;
 }
 .sticker-control > span,
-.sticker-custom > span { color: var(--text-secondary); font-size: 10px; font-weight: 700; }
+.sticker-custom > span { color: var(--text-secondary); font-size: 10px; font-weight: 650; }
 .sticker-control input[type="range"] { width: 100%; accent-color: var(--c-blue); }
 .sticker-control input[type="number"] {
   width: 66px;
@@ -202,7 +202,7 @@
   background: rgba(255, 255, 255, 0.56);
   color: var(--text-secondary);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 650;
 }
 
 .sticker-catalog {
@@ -247,9 +247,9 @@
   color: var(--text-secondary);
 }
 .sticker-catalog__grid > button:hover { background: rgba(255, 255, 255, 0.75); }
-.sticker-catalog__grid > button.is-active { border-color: var(--c-blue); background: rgba(0, 122, 255, 0.08); }
+.sticker-catalog__grid > button.is-active { border-color: var(--c-accent-line); background: var(--c-accent-soft); }
 .sticker-catalog__grid img { width: 48px; height: 48px; object-fit: contain; }
-.sticker-catalog__grid > button > span:not(.sticker-image-fallback) { width: 100%; overflow: hidden; font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.sticker-catalog__grid > button > span:not(.sticker-image-fallback) { width: 100%; overflow: hidden; font-size: 8px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .sticker-catalog__grid small { color: var(--text-tertiary); font-size: 8px; }
 .sticker-catalog footer { min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 10px; border-top: 1px solid var(--line-subtle); }
 .sticker-catalog footer span { min-width: 58px; color: var(--text-tertiary); font-size: 9px; text-align: center; }
@@ -263,11 +263,13 @@
   padding: 0 12px;
   border: 0;
   border-radius: var(--r-sm);
-  background: var(--c-blue);
-  color: #fff;
+  background: var(--c-ink);
+  color: var(--text-on-accent);
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 650;
 }
+.stickers-save:hover:not(:disabled) { background: var(--c-ink-hover); }
+.stickers-save:active:not(:disabled) { transform: translateY(1px); }
 .stickers-save:disabled { opacity: 0.42; cursor: default; }
 
 @media (max-width: 1080px) {

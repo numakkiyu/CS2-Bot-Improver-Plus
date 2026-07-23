@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, ChevronDown, FolderOpen, LifeBuoy, RotateCcw, Stethoscope } from "lucide-react";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { openPath } from "@tauri-apps/plugin-opener";
 import Modal from "./Modal";
 import { AlertIcon, CopyIcon } from "./icons";
 import { useToast } from "./Toast";
 import { useT, type I18nKey } from "../i18n";
 import type { AppError } from "../lib/api";
 import type { DiagnosticReport } from "../lib/api";
+import { openExternalPath, writeClipboard } from "../lib/platform";
 import "./ErrorModal.css";
 
 const KNOWN_CATS = ["path", "permission", "steam", "parse", "io", "config", "internal",
@@ -64,7 +63,7 @@ export default function ErrorModal({ error, onClose, message, onExport, onOpenGu
 
   const copy = async (text: string) => {
     try {
-      await writeText(text);
+      await writeClipboard(text);
       toast.show(t("common.copied"), "green");
     } catch {
       toast.show(t("common.copyFailed"), "red");
@@ -87,7 +86,7 @@ export default function ErrorModal({ error, onClose, message, onExport, onOpenGu
   const openDiagnosticFolder = async () => {
     if (!diagnosticPath) return;
     try {
-      await openPath(diagnosticPath.replace(/[\\/][^\\/]+$/, ""));
+      await openExternalPath(diagnosticPath.replace(/[\\/][^\\/]+$/, ""));
     } catch {
       toast.show(t("common.copyFailed"), "red");
     }

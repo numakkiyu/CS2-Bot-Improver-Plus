@@ -1,7 +1,10 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+import { browserMockInvoke } from "./browserMock";
+import { isPanelTauriRuntime } from "./runtime";
 
 function invoke<T>(command: string, args?: Record<string, unknown>) {
-  return tauriInvoke<T>(command, args);
+  if (isPanelTauriRuntime) return tauriInvoke<T>(command, args);
+  return browserMockInvoke<T>(command, args ?? {});
 }
 
 /** Mirrors Rust `AppError` (error.rs). Codes are stable & not localized. */

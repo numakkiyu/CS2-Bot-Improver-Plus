@@ -13,7 +13,8 @@
 
 .toast {
   padding: 10px 18px;
-  border-radius: var(--r-pill);
+  border-left: 3px solid var(--line-strong);
+  border-radius: var(--r-md);
   font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
@@ -21,10 +22,10 @@
   animation: toast-in 220ms var(--ease);
 }
 .toast--green {
-  color: var(--c-green);
+  border-left-color: var(--st-green);
 }
 .toast--red {
-  color: var(--c-red);
+  border-left-color: var(--st-red);
 }
 
 @keyframes toast-in {

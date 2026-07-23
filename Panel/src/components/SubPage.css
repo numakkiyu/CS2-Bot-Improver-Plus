@@ -2,12 +2,12 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  animation: subpage-in 160ms var(--ease);
+  animation: subpage-in 200ms var(--ease);
 }
 @keyframes subpage-in {
   from {
     opacity: 0;
-    transform: translateY(4px);
+    transform: translateY(5px);
   }
 }
 
@@ -15,27 +15,30 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 70px;
-  padding: 18px 24px 12px;
-  border-bottom: 1px solid var(--line-subtle);
+  min-height: 64px;
+  padding: 16px 36px 12px;
+  border-bottom: 1px solid var(--line);
   flex: 0 0 auto;
 }
 .subpage__back {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   display: grid;
   place-items: center;
-  border: none;
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-sm);
-  background: rgba(120, 120, 128, 0.16);
+  background: var(--card);
   color: var(--text-secondary);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 .subpage__back:hover {
-  background: rgba(120, 120, 128, 0.26);
+  border-color: var(--c-accent-line);
+  color: var(--c-accent-hover);
 }
 .subpage__title {
-  font-size: 22px;
-  font-weight: 700;
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text-primary);
   flex: 1 1 auto;
 }
@@ -49,8 +52,8 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px 24px 28px;
+  padding: 20px 36px 36px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }

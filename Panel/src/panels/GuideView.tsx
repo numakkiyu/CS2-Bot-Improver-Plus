@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   BookOpenText,
   Download,
@@ -11,6 +10,7 @@ import {
 import Modal from "../components/Modal";
 import { useStore } from "../state/store";
 import { useT, type I18nKey } from "../i18n";
+import { openExternalUrl } from "../lib/platform";
 import overviewImage from "../assets/guide/01-overview.png";
 import weaponPresetsImage from "../assets/guide/02-weapon-presets.png";
 import botPresetsImage from "../assets/guide/03-bot-presets.png";
@@ -146,7 +146,7 @@ export default function GuideView({ anchor, onAnchorHandled }: Props) {
 
   const openTutorial = async () => {
     try {
-      await openUrl(TUTORIAL_URL);
+      await openExternalUrl(TUTORIAL_URL);
     } catch (error) {
       reportError(error);
     }

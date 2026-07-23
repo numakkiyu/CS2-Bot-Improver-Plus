@@ -1,0 +1,5 @@
+Panel/src/data/stickerCatalog.json text eol=lf
+Panel/src/data/stickerCatalog.source.json text eol=lf
+Panel/src/data/stickerWeaponIds.json text eol=lf
+addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_ids.json text eol=lf
+addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_weapon_ids.json text eol=lf

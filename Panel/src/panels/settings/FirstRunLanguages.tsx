@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
 import { CheckCircle2, FolderSearch, ShieldCheck } from "lucide-react";
 import { useStore } from "../../state/store";
 import { LANGUAGES } from "../../data/languages";
 import { useT, type I18nKey } from "../../i18n";
 import type { InstallationSource, InstallPlan, MigrationKind } from "../../lib/api";
 import StatusDot from "../../components/StatusDot";
+import { openDialog } from "../../lib/platform";
 import "./settings.css";
 
 type Step = "language" | "directory" | "preview" | "complete";
@@ -66,7 +66,7 @@ export default function FirstRunLanguages() {
   const browse = async () => {
     if (working) return;
     try {
-      const picked = await open({ directory: true, title: "Select game/csgo folder" });
+      const picked = await openDialog({ directory: true, title: "Select game/csgo folder" });
       if (typeof picked === "string") await chooseDirectory(picked);
     } catch (error) { reportError(error); }
   };

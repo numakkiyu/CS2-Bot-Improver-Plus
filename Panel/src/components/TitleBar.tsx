@@ -12,7 +12,7 @@ type Props = {
   showSettings?: boolean;
 };
 
-export default function TitleBar({ title = `CS2BotImproverPlus v${APP_DISPLAY_VERSION}`, onSettings, showSettings = true }: Props) {
+export default function TitleBar({ title = `Local Arena v${APP_DISPLAY_VERSION}`, onSettings, showSettings = true }: Props) {
   const appWindow = isPanelTauriRuntime ? getCurrentWindow() : null;
   const t = useT();
   const { reportError } = useStore();
@@ -27,8 +27,9 @@ export default function TitleBar({ title = `CS2BotImproverPlus v${APP_DISPLAY_VE
 
   return (
     <header className="titlebar" data-tauri-drag-region>
-      <span className="titlebar__title" data-tauri-drag-region>
-        {title}
+      <span className="titlebar__identity" data-tauri-drag-region>
+        <span className="titlebar__title" data-tauri-drag-region>{title}</span>
+        {!isPanelTauriRuntime && <span className="titlebar__demo">{t("tb.browserDemo")}</span>}
       </span>
       <div className="titlebar__controls">
         {showSettings && <button

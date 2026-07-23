@@ -1,6 +1,8 @@
 .collapsible {
+  border: 1px solid var(--edge);
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--card);
+  box-shadow: var(--sh-card);
   overflow: hidden;
 }
 
@@ -18,7 +20,7 @@
   font-weight: 600;
 }
 .collapsible__head:hover {
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(31, 30, 27, 0.03);
 }
 
 .collapsible__right {

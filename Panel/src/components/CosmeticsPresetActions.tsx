@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { open, save } from "@tauri-apps/plugin-dialog";
 import { Download, Upload } from "lucide-react";
 import { api, type KnifeCustomizerConfig } from "../lib/api";
+import { openDialog, saveDialog } from "../lib/platform";
 import { useT } from "../i18n";
 import { useToast } from "./Toast";
 import "./CosmeticsPresetActions.css";
@@ -19,7 +19,7 @@ export default function CosmeticsPresetActions({ csgoPath, onImported, onError }
 
   const exportPreset = async () => {
     if (!csgoPath || busy) return;
-    const destination = await save({ defaultPath: "cs2bip-cosmetics-preset.json", filters: [{ name: "JSON", extensions: ["json"] }] });
+    const destination = await saveDialog({ defaultPath: "cs2bip-cosmetics-preset.json", filters: [{ name: "JSON", extensions: ["json"] }] });
     if (!destination) return;
     setBusy("export");
     try {
@@ -31,7 +31,7 @@ export default function CosmeticsPresetActions({ csgoPath, onImported, onError }
 
   const importPreset = async () => {
     if (!csgoPath || busy) return;
-    const source = await open({ multiple: false, directory: false, filters: [{ name: "JSON", extensions: ["json"] }] });
+    const source = await openDialog({ multiple: false, directory: false, filters: [{ name: "JSON", extensions: ["json"] }] });
     if (!source) return;
     setBusy("import");
     try {
