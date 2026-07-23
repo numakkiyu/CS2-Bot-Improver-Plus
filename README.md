@@ -1,33 +1,32 @@
 <div align="center">
 
-# CS2BotImproverPlus
+# Local Arena
 
 **English** | [简体中文](README.zh-CN.md)
 
 <br/>
 
-<a href="https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases"><img alt="Release" src="https://img.shields.io/github/v/release/numakkiyu/CS2-Bot-Improver-Plus?display_name=tag&sort=semver"></a>
+<a href="https://github.com/numakkiyu/Local-Arena/releases"><img alt="Release" src="https://img.shields.io/github/v/release/numakkiyu/Local-Arena?display_name=tag&sort=semver"></a>
 <img alt="Platform" src="https://img.shields.io/badge/platform-Windows-0078D4">
-<a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/numakkiyu/CS2-Bot-Improver-Plus"></a>
-<a href="https://github.com/ed0ard/CS2-Bot-Improver"><img alt="Upstream" src="https://img.shields.io/badge/upstream-ed0ard%2FCS2--Bot--Improver-2ea44f"></a>
+<a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/numakkiyu/Local-Arena"></a>
 
 <br/>
 <br/>
 
-[Download a published build](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases) · [View upstream](https://github.com/ed0ard/CS2-Bot-Improver) · [Report an issue](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/issues)
+[Download a published build](https://github.com/numakkiyu/Local-Arena/releases) · [Report an issue](https://github.com/numakkiyu/Local-Arena/issues) · [Why the name changed](#why-local-arena) · [Source attribution](#upstream-source-and-attribution)
 
 </div>
 
 > [!IMPORTANT]
-> CS2BotImproverPlus is a Windows distribution based on [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
+> Local Arena is an independently developed and maintained Windows toolkit for local CS2 matches, player cosmetics, demos, diagnostics, and managed installation
 >
-> This repository is independently maintained. It is not affiliated with, endorsed by, or maintained by the upstream project or its maintainers. It pulls and adapts upstream code while developing and distributing the Plus edition separately
+> Local Arena is not affiliated with, endorsed by, or maintained by [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver) or its maintainers. The upstream project does not provide support for Local Arena
 >
-> For issues involving Plus builds, the Panel, installation, matching, cosmetics, diagnostics, or other Plus-specific behavior, please [open an issue in this repository](https://github.com/numakkiyu/CS2-Bot-Improver-Plus/issues) and do not submit the report upstream. An issue should be reported upstream only when it can also be reproduced with an unmodified upstream installation
+> For any Local Arena build, Panel, installation, matching, cosmetics, diagnostics, crash, or update problem, [open an issue in this repository](https://github.com/numakkiyu/Local-Arena/issues). Do not submit Local Arena reports to the upstream project
 >
-> The Plus branch retains and synchronizes all upstream enhanced-bot features, then adds player cosmetic presets, a redesigned Panel, managed installation, recovery, diagnostics, and online updates
+> Selected enhanced-bot components remain derived from upstream AGPL-3.0 code. Their origin and authorship remain credited below, while development, releases, issue tracking, and user support are managed independently by Local Arena
 >
-> Upstream remains the source of the core bot systems and receives full credit for that work
+> During the repository transition, existing installations intentionally retain the legacy executable name, `.csbip` state directory, icon, and Panel appearance so online updates, backups, presets, and match history remain compatible
 
 <div align="center">
 
@@ -38,18 +37,24 @@ The current `main` branch targets **1.4.2.5**
 </div>
 
 <p align="center">
-  <img src="./Panel/src/assets/guide/01-overview.png" alt="CS2BotImproverPlus overview" width="100%">
+  <img src="./Panel/src/assets/guide/01-overview.png" alt="Local Arena current Panel overview" width="100%">
 </p>
 
 ---
 
-## What Plus Adds
+## Why Local Arena
+
+The project was renamed because it has grown into an independent local CS2 experience with its own match system, cosmetics, Demo workflow, diagnostics, installer, release process, and support responsibilities. **Local Arena** describes that product more clearly and prevents users from mistaking it for an official edition maintained by the upstream project.
+
+This is a brand and maintenance-boundary change, not an attempt to erase the project's origins. Components derived from upstream AGPL-3.0 code remain attributed, their license obligations remain in force, and the upstream repository remains linked in the source attribution section. Problems specific to Local Arena should be reported here so the upstream maintainers are not asked to diagnose features and releases they do not maintain.
+
+## What Local Arena Adds
 
 - CT and T player loadouts with independent knives, gloves, and weapon skins
 - Shared weapons can use one linked skin or separate CT and T skins
 - Human-player music kit presets and compatible StatTrak or Souvenir options
 - Three launch modes for online play, cosmetic preview, and enhanced bots
-- A four-step installer that detects clean CS2, older Plus builds, and the original upstream plugin
+- A four-step installer that detects clean CS2, legacy compatible builds, and the original upstream plugin
 - Transactional backups, installation verification, repair, rollback, and pristine-CS2 recovery
 - Separate online updates for the Panel and plugin payload
 - One-click diagnostic ZIP export that opens the output folder automatically
@@ -60,9 +65,9 @@ The current `main` branch targets **1.4.2.5**
 > [!WARNING]
 > Close CS2 before installing, repairing, restoring, updating plugins, changing difficulty, or switching modes
 
-- Plus is currently packaged for Windows
+- Local Arena is currently packaged for Windows
 - Extract the complete ZIP to a normal folder before opening the Panel
-- Keep `CS2BotImproverPlus.exe`, `addons`, `cfg`, `overrides`, and `plus-payload-manifest.json` together
+- Keep the legacy executable, `addons`, `cfg`, `overrides`, and `plus-payload-manifest.json` together
 - Do not run the Panel from inside the ZIP
 - The correct game directory ends with `Counter-Strike Global Offensive\game\csgo`
 - Cosmetic preview and enhanced-bot mode use `-insecure` and cannot enter official matchmaking
@@ -99,10 +104,10 @@ The preview identifies the existing environment before changing files
 
 | Detected environment | Panel action | Preserved data |
 | --- | --- | --- |
-| Clean CS2 | Install Plus | Existing files are backed up before replacement |
-| Managed Plus | Update or repair Plus | Original backup and player presets are retained |
-| Older Plus | Adopt and update | Existing cosmetics and migration files are preserved |
-| Original upstream plugin | Replace with Plus | The upstream installation is backed up first |
+| Clean CS2 | Install Local Arena | Existing files are backed up before replacement |
+| Managed Local Arena | Update or repair Local Arena | Original backup and player presets are retained |
+| Legacy installation | Adopt and update | Existing cosmetics and migration files are preserved |
+| Original upstream plugin | Replace with Local Arena | The upstream installation is backed up first |
 | Mixed or unknown plugins | Block automatic installation | Export diagnostics or return to pristine CS2 first |
 
 <p align="center">
@@ -127,7 +132,7 @@ For a manual package update, close CS2 and the old Panel, extract the new packag
 
 If the new package must use a different folder, copy the complete old `.csbip` folder beside the new Panel before opening it so the original backups, installation records, presets, and logs remain connected
 
-The installer can distinguish a managed Plus installation, an older manually copied Plus installation, the original upstream plugin, and a partial mixed environment
+The installer can distinguish a managed Local Arena installation, a legacy installation, the original upstream plugin, and a partial mixed environment
 
 It does not treat your cosmetic JSON, selected difficulty, or managed bot options as corrupted payload files
 
@@ -163,7 +168,7 @@ Enhanced-bot AI, difficulty, buying, profiles, agents, and behavior systems are 
 
 ### Enhanced bots
 
-Use this mode for the complete Plus experience
+Use this mode for the complete Local Arena experience
 
 It enables all synchronized upstream bot features, the selected difficulty, bot items, commands, and player cosmetics
 
@@ -255,8 +260,8 @@ The Panel and plugin payload are checked and installed separately
 | --- | --- | --- |
 | Verify installation | You want a fresh health result | Performs a read-only managed-file check |
 | Repair installation | Managed files are missing or damaged | Reinstalls only affected payload files |
-| Restore original state | A managed Plus installation must be rolled back | Restores installation-time backups and removes Plus-owned new files |
-| Restore pristine CS2 | Plus or upstream enhanced plugins must be removed | Deletes recognized enhanced-plugin files, preserves unknown third-party files, then asks for Steam verification |
+| Restore original state | A managed Local Arena installation must be rolled back | Restores installation-time backups and removes files created by Local Arena |
+| Restore pristine CS2 | Local Arena or upstream enhanced plugins must be removed | Deletes recognized enhanced-plugin files, preserves unknown third-party files, then asks for Steam verification |
 | Export diagnostics | A problem is reproducible or unclear | Creates a ZIP and opens its folder automatically |
 
 Player cosmetic presets are copied to the portable `.csbip/presets` area before a managed restore
@@ -275,7 +280,7 @@ Open **Settings → Directory**, select the folder that directly contains `gamei
 
 ### The environment is mixed or unknown
 
-The Panel found only part of Plus or the upstream plugin together with files whose ownership cannot be proven safely
+The Panel found only part of Local Arena or the upstream plugin together with files whose ownership cannot be proven safely
 
 Export diagnostics before deleting or overwriting anything, use **Restore pristine CS2** to remove recognized enhanced-plugin files, run Steam file verification, and then start a clean first installation
 
@@ -316,7 +321,7 @@ Keep the current version, confirm GitHub connectivity, retry a manual check, and
 
 ### Restore original state does not produce clean CS2
 
-**Restore original state** returns a managed installation to its recorded pre-install state, which may itself contain an older Plus or upstream plugin
+**Restore original state** returns a managed installation to its recorded pre-install state, which may itself contain a legacy compatible build or upstream plugin
 
 Use **Restore pristine CS2** when all recognized enhanced-plugin files must be removed, then complete Steam file verification before launching the game
 
@@ -328,9 +333,9 @@ Send the ZIP together with the selected mode, map, game type, team, and exact re
 
 For team-selection crashes, include how long the game remained on the team selection screen before CT or T was chosen
 
-## Upstream Features Retained by Plus
+## Upstream Source and Attribution
 
-Plus keeps the feature set from [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver), including
+Local Arena distributes selected AGPL-3.0 enhanced-bot components derived from [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver), including
 
 1. More capable and human-like bot aim
 2. Situation-aware grenade usage
@@ -343,7 +348,7 @@ Plus keeps the feature set from [ed0ard/CS2-Bot-Improver](https://github.com/ed0
 9. Bot-friendly game-rule adjustments
 10. Additional console commands and team lineups
 
-For upstream implementation details, Linux instructions, and original documentation, visit [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
+The upstream project is a source dependency and attribution target, not a Local Arena support channel. For its original implementation, Linux instructions, and documentation, visit [ed0ard/CS2-Bot-Improver](https://github.com/ed0ard/CS2-Bot-Improver)
 
 ## Credits
 
@@ -367,6 +372,6 @@ For upstream implementation details, Linux instructions, and original documentat
 
 <div align="center">
 
-[Back to top](#cs2botimproverplus)
+[Back to top](#local-arena)
 
 </div>
