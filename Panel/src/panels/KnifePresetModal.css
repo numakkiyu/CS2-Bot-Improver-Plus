@@ -7,25 +7,24 @@
 .kp--split .kp__columns { grid-template-columns: 1fr; }
 .kp--split .kp__skins { height: min(424px, calc(100vh - 330px)); min-height: 220px; }
 
-/* Colorful hero in the app-background family */
-.kp__preview { position: relative; min-height: 0; display: grid; justify-items: center; gap: 10px; padding: 20px 15px 16px; overflow: hidden; border: 1px solid rgba(255,255,255,.78); border-radius: var(--r-md); background: linear-gradient(130deg, rgba(0,122,255,.18), rgba(52,199,89,.11) 46%, rgba(255,149,0,.14)); box-shadow: var(--sh-soft); }
-.kp__preview::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 90% at 14% -10%, rgba(255,255,255,.55), transparent 52%); }
+/* Quiet paper preview keeps attention on the selected finish. */
+.kp__preview { position: relative; min-height: 0; display: grid; justify-items: center; gap: 10px; padding: 20px 15px 16px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--paper-sunken); }
 .kp__preview img { position: relative; z-index: 1; width: 228px; height: 102px; object-fit: contain; filter: drop-shadow(0 8px 12px rgba(18,24,28,.3)); }
 .kp__preview div { position: relative; z-index: 1; width: 100%; min-width: 0; display: grid; gap: 7px; justify-items: start; align-content: center; }
-.kp__preview strong { color: var(--text-primary); font-size: 15px; font-weight: 760; line-height: 1.35; overflow-wrap: anywhere; }
-.kp__preview span { width: fit-content; padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,.68); color: var(--text-secondary); font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 10px; font-weight: 700; }
-.kp__preview .wp-modal__team--ct { background: rgba(0,122,255,.15); color: var(--c-blue); }
-.kp__preview .wp-modal__team--t { background: rgba(255,149,0,.18); color: #a15c00; }
+.kp__preview strong { color: var(--text-primary); font-size: 15px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+.kp__preview span { width: fit-content; padding: 3px 8px; border-radius: 6px; background: rgba(255,255,255,.68); color: var(--text-secondary); font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 10px; font-weight: 650; }
+.kp__preview .wp-modal__team--ct { background: var(--track); color: var(--text-secondary); }
+.kp__preview .wp-modal__team--t { background: var(--c-accent-soft); color: var(--c-accent-hover); }
 
 /* Team switch pinned inside the hero */
 .kp__team-fab { position: absolute; top: 10px; right: 10px; z-index: 3; }
-.kp__team-fab .team-switch { width: 136px; min-height: 30px; padding: 3px; background: rgba(255,255,255,.52); box-shadow: inset 0 0 0 1px rgba(255,255,255,.4); }
+.kp__team-fab .team-switch { width: 136px; min-height: 30px; padding: 3px; background: var(--track); box-shadow: none; }
 .kp__team-fab .team-switch__option { min-height: 24px; padding: 0 10px; font-size: 11px; color: var(--text-secondary); }
 .kp__team-fab .team-switch__option:hover:not(.is-active) { color: var(--text-primary); }
-.kp__team-fab .team-switch__option.is-active { background: rgba(255,255,255,.94); box-shadow: 0 1px 4px rgba(18,24,28,.16); }
+.kp__team-fab .team-switch__option.is-active { background: var(--card); color: var(--text-primary); box-shadow: var(--sh-pill); }
 
 .kp__team-row { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.kp__team-row > span { font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+.kp__team-row > span { font-size: 12px; font-weight: 650; color: var(--text-secondary); }
 
 .kp__field { display: grid; gap: 6px; }
 .kp__field > span, .kp__toggle-row > span { font-size: 13px; font-weight: 600; }
@@ -35,21 +34,23 @@
 /* Card-style skin grid */
 .kp__skins { height: 238px; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: start; gap: 8px; padding: 2px 4px 2px 2px; }
 .kp__skins button { position: relative; min-width: 0; display: grid; grid-template-rows: 66px auto; justify-items: center; align-items: center; gap: 5px; padding: 8px 7px 9px; border: 1px solid rgba(0,0,0,.07); border-radius: var(--r-sm); background: rgba(255,255,255,.48); color: var(--text-primary); text-align: center; transition: transform var(--dur) var(--ease), background var(--dur) var(--ease), border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
-.kp__skins button:hover { transform: translateY(-1px); background: rgba(255,255,255,.74); border-color: rgba(0,122,255,.24); }
-.kp__skins button.is-selected { border-color: var(--c-green); background: rgba(52,199,89,.13); box-shadow: 0 0 0 2px rgba(52,199,89,.16); }
-.kp__skins button.is-selected::after { content: "✓"; position: absolute; top: 5px; right: 5px; width: 17px; height: 17px; display: grid; place-items: center; border-radius: 50%; background: var(--c-green); color: #fff; font-size: 10px; font-weight: 850; box-shadow: 0 1px 4px rgba(52,199,89,.5); }
+.kp__skins button:hover { background: var(--card); border-color: var(--line-strong); }
+.kp__skins button.is-selected { border-color: var(--c-accent-line); background: var(--c-accent-soft); box-shadow: 0 0 0 2px var(--c-accent-soft); }
+.kp__skins button.is-selected::after { content: "✓"; position: absolute; top: 5px; right: 5px; width: 17px; height: 17px; display: grid; place-items: center; border-radius: 50%; background: var(--c-accent); color: #fff; font-size: 10px; font-weight: 650; }
 .kp__skins img { width: 100%; height: 66px; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(18,24,28,.18)); }
 .kp__skins span { min-width: 0; max-width: 100%; height: 26px; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: var(--text-secondary); font-size: 10px; line-height: 13px; font-weight: 650; overflow-wrap: anywhere; }
-.kp__skins button.is-selected span { color: #1f7a35; }
+.kp__skins button.is-selected span { color: var(--c-accent-hover); }
 
 /* StatTrak / souvenir corner badges */
 .kp__badges { position: absolute; top: 5px; left: 5px; z-index: 1; display: flex; gap: 3px; }
-.kp__badges i { padding: 2px 5px; border-radius: 5px; font-size: 8px; font-style: normal; font-weight: 850; letter-spacing: .04em; box-shadow: 0 1px 3px rgba(0,0,0,.22); }
+.kp__badges i { padding: 2px 5px; border-radius: 5px; font-size: 8px; font-style: normal; font-weight: 650; letter-spacing: .04em; box-shadow: 0 1px 3px rgba(0,0,0,.22); }
 .kp__badges .is-st { background: #cf6a32; color: #fff; }
 .kp__badges .is-sv { background: #e4c149; color: #4d3c00; }
 
 .kp__toggle-row { min-height: 38px; display: flex; align-items: center; justify-content: space-between; }
-.kp__save { min-height: 38px; padding: 0 18px; border: 0; border-radius: var(--r-sm); background: var(--c-blue); color: white; font-weight: 700; }
+.kp__save { min-height: 38px; padding: 0 18px; border: 0; border-radius: var(--r-sm); background: var(--c-ink); color: var(--text-on-accent); font-weight: 650; }
+.kp__save:hover:not(:disabled) { background: var(--c-ink-hover); }
+.kp__save:active:not(:disabled) { transform: translateY(1px); }
 .kp__save:disabled { opacity: .45; }
 .kp__footer-actions { width: 320px; max-width: 100%; margin-right: auto; display: flex; gap: 10px; }
 .kp__footer-actions > button { flex: 1 1 0; margin-right: 0; }

@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { openPath, openUrl } from "@tauri-apps/plugin-opener";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { ArchiveRestore, CheckCircle2, CircleAlert, CircleX, ClipboardCheck, Copy, FileCheck2, FolderOpen, RefreshCw, Stethoscope, Trash2, Wrench } from "lucide-react";
 import { useStore } from "../../state/store";
 import { useT, type I18nKey } from "../../i18n";
@@ -8,6 +6,7 @@ import { useToast } from "../../components/Toast";
 import { api, type InstallCheckReport, type InstallationSource, type MigrationKind } from "../../lib/api";
 import { localizeInstallCheck } from "../../lib/installCheckLocalization";
 import Modal from "../../components/Modal";
+import { openExternalPath, openExternalUrl, writeClipboard } from "../../lib/platform";
 
 const SOURCE_KEYS: Record<InstallationSource, I18nKey> = {
   clean: "install.source.clean",
@@ -103,7 +102,7 @@ export default function InstallationPage() {
   const copyDiagnosticPath = async () => {
     if (!diagnosticPath) return;
     try {
-      await writeText(diagnosticPath);
+      await writeClipboard(diagnosticPath);
       toast.show(t("common.copied"), "green");
     } catch {
       toast.show(t("common.copyFailed"), "red");
@@ -139,7 +138,7 @@ export default function InstallationPage() {
   };
 
   const open = async (path: string) => {
-    try { await openPath(path); } catch (error) { reportError(error); }
+    try { await openExternalPath(path); } catch (error) { reportError(error); }
   };
 
   return (
@@ -274,7 +273,7 @@ export default function InstallationPage() {
       )}
 
       {restored && (
-        <button className="steam-verify" onClick={() => openUrl("steam://validate/730")}>
+        <button className="steam-verify" onClick={() => openExternalUrl("steam://validate/730")}>
           {t("install.openSteamVerify")}
         </button>
       )}

@@ -1,7 +1,10 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+import { browserMockInvoke } from "./browserMock";
+import { isPanelTauriRuntime } from "./runtime";
 
 function invoke<T>(command: string, args?: Record<string, unknown>) {
-  return tauriInvoke<T>(command, args);
+  if (isPanelTauriRuntime) return tauriInvoke<T>(command, args);
+  return browserMockInvoke<T>(command, args ?? {});
 }
 
 /** Mirrors Rust `AppError` (error.rs). Codes are stable & not localized. */
@@ -220,6 +223,18 @@ export type KnifePreset = {
   stattrak_enabled: boolean;
   stattrak_count: number;
   souvenir_enabled?: boolean;
+  stickers?: StickerPreset[];
+};
+
+export type StickerPreset = {
+  slot: number;
+  id: number;
+  wear: number;
+  scale: number;
+  rotation: number;
+  offset_x: number;
+  offset_y: number;
+  custom_position: boolean;
 };
 
 export type GlovePreset = {
@@ -240,13 +255,14 @@ export type TeamCosmeticLoadout = {
 };
 
 export type KnifeCustomizerConfig = {
-  schema_version: 2;
+  schema_version: 3;
   enabled: boolean;
   apply_to_human_players: boolean;
   apply_on_pickup: boolean;
   music_kit_id: number;
   loadouts: Record<CosmeticsTeam, TeamCosmeticLoadout>;
   shared_weapon_links: Record<string, boolean>;
+  stickers_enabled: boolean;
 };
 
 export type KnifeCustomizerState = {
@@ -302,6 +318,8 @@ export type AppConfig = {
   first_run_step?: string | null;
   cosmetics_enabled_before_online?: boolean | null;
   cosmetics_enabled_before_preview?: boolean | null;
+  experimental_features_enabled?: boolean;
+  experimental_stickers_enabled?: boolean;
 };
 
 export type UpdateComponentState = {

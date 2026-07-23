@@ -1,49 +1,15 @@
-/* Liquid-glass surfaces with graceful degradation.
-   Two-layer fallback strategy:
-   1. CSS @supports — covers browsers that report no backdrop-filter.
-   2. .no-backdrop on <html> — set by JS feature detection (lib/glass.ts) for
-      engines (some WebKitGTK builds) that claim support but render it broken. */
+/* Paper card surfaces. The old liquid-glass system (backdrop blur, specular
+   sheen, no-backdrop fallbacks) is retired; `.glass` now renders as a plain
+   card whose layering comes from a faint ambient shadow. */
 
 .glass {
   position: relative;
-  background: var(--glass-fill);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)) brightness(1.04);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)) brightness(1.04);
-  border: 1px solid var(--glass-stroke);
+  background: var(--card);
+  border: 0;
   border-radius: var(--r-lg);
-  box-shadow: var(--sh-card), var(--glass-inset);
+  box-shadow: var(--sh-card);
 }
 
 .glass-strong {
-  background: var(--glass-fill-strong);
-}
-
-/* Specular sheen: a bright top-left highlight (where light hits the glass) plus
-   a broad top sheen, giving the surface a curved, lensed feel. */
-.glass::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  background: radial-gradient(
-      125% 85% at 12% -12%,
-      rgba(255, 255, 255, 0.6) 0%,
-      rgba(255, 255, 255, 0) 44%
-    ),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 36%);
-}
-
-@supports not ((-webkit-backdrop-filter: blur(2px)) or (backdrop-filter: blur(2px))) {
-  .glass,
-  .glass-strong {
-    background: var(--glass-fallback);
-  }
-}
-
-html.no-backdrop .glass,
-html.no-backdrop .glass-strong {
-  background: var(--glass-fallback);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
+  background: var(--card);
 }

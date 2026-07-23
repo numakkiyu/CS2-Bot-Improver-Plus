@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { AlertTriangle, ArrowRight, Download, ExternalLink, PackageCheck, RefreshCw, X } from "lucide-react";
 import { api, toAppError, type OnlineUpdateSnapshot, type UpdateProgress } from "../../lib/api";
 import { useStore } from "../../state/store";
 import { useT } from "../../i18n";
+import { listenAppEvent, openExternalUrl } from "../../lib/platform";
 
 function formatBytes(value: number) {
   if (!value) return "0 B";
@@ -30,7 +29,7 @@ export default function OnlineUpdatePage() {
 
   useEffect(() => {
     void refreshSnapshot();
-    const unlisten = listen<UpdateProgress>("update-progress", () => void refreshSnapshot());
+    const unlisten = listenAppEvent<UpdateProgress>("update-progress", () => void refreshSnapshot());
     return () => { void unlisten.then((dispose) => dispose()); };
   }, [refreshSnapshot]);
 
@@ -131,7 +130,7 @@ export default function OnlineUpdatePage() {
         <span><small>{t("update.lastChecked")}</small><strong>{formatTime(snapshot?.checked_at ?? null)}</strong></span>
         <div>
           {snapshot?.release_notes_url && (
-            <button title={t("update.releaseNotes")} onClick={() => openUrl(snapshot.release_notes_url!)}>
+            <button title={t("update.releaseNotes")} onClick={() => openExternalUrl(snapshot.release_notes_url!)}>
               <ExternalLink size={16} />{t("update.releaseNotes")}
             </button>
           )}

@@ -9,13 +9,12 @@ import {
 import App from "./App";
 import { ToastProvider } from "./components/Toast";
 import { AppStateProvider } from "./state/store";
-import { applyGlassSupport } from "./lib/glass";
 import { api } from "./lib/api";
 import { isPanelTauriRuntime } from "./lib/runtime";
 import { translate } from "./i18n";
 import "./styles/global.css";
 
-// Desktop Plus layout: fixed logical canvas with a persistent left navigation
+// Desktop Local Arena layout: fixed logical canvas with persistent navigation
 // rail and a wide work area. Smaller displays scale the complete tool while
 // preserving the two-column information architecture.
 const DESIGN_W = 1300;
@@ -99,8 +98,6 @@ document.addEventListener(
   },
   { capture: true }
 );
-
-applyGlassSupport();
 
 async function bootstrap() {
   try {

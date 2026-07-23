@@ -9,54 +9,79 @@
   user-select: none;
 }
 
+.titlebar__identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  pointer-events: none;
+}
+
 .titlebar__title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.2px;
+  letter-spacing: 0;
   color: var(--text-secondary);
   pointer-events: none;
+}
+.titlebar__title small {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-quaternary);
+}
+
+.titlebar__demo {
+  padding: 3px 7px;
+  border: 1px solid var(--c-accent-line);
+  border-radius: 6px;
+  background: var(--c-accent-soft);
+  color: var(--c-accent-hover);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 650;
+  letter-spacing: 0.06em;
 }
 
 .titlebar__controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tl {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   margin: 0;
-  border: none;
+  border: 1px solid var(--line-strong);
   border-radius: var(--r-pill);
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 0;
-  color: rgba(255, 255, 255, 0.95);
-  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.18);
-  transition: filter var(--dur) var(--ease), transform var(--dur) var(--ease);
+  background: transparent;
+  color: var(--text-tertiary);
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease),
+    background var(--dur) var(--ease), transform var(--dur) var(--ease);
 }
 .tl:hover {
-  filter: brightness(1.08);
+  border-color: var(--c-accent-line);
+  color: var(--c-accent-hover);
+  background: var(--c-accent-soft);
 }
 .tl:active {
-  transform: scale(0.92);
+  transform: translateY(1px);
 }
 .tl svg {
   display: block;
-  stroke-width: 2.6;
-  opacity: 0.92;
+  stroke-width: 2.4;
 }
 
-.tl--green {
-  background: radial-gradient(120% 120% at 30% 25%, #5fd97e, var(--c-green));
-}
-.tl--yellow {
-  background: radial-gradient(120% 120% at 30% 25%, #ffd84d, var(--c-yellow));
-  color: rgba(90, 64, 0, 0.9);
-}
-.tl--red {
-  background: radial-gradient(120% 120% at 30% 25%, #ff6b62, var(--c-red));
+.tl--red:hover {
+  border-color: rgba(194, 84, 74, 0.4);
+  color: var(--st-red);
+  background: var(--st-red-soft);
 }

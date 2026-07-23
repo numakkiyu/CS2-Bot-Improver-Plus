@@ -10,7 +10,7 @@ type Props = {
   title?: string;
 };
 
-export default function StatusDot({ status, size = 10, pulse, onClick, title }: Props) {
+export default function StatusDot({ status, size = 8, pulse, onClick, title }: Props) {
   const interactive = !!onClick;
   return (
     <span

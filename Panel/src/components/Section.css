@@ -1,7 +1,9 @@
 .section {
+  border: 0;
   border-radius: var(--r-lg);
-  background: rgba(255, 255, 255, 0.4);
-  padding: 14px 16px;
+  background: var(--card);
+  box-shadow: var(--sh-card);
+  padding: var(--pad-card);
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -14,7 +16,8 @@
   gap: 10px;
 }
 .section__title {
-  font-size: 15px;
+  font-family: var(--serif);
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
 }

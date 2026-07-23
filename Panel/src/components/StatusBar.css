@@ -17,9 +17,7 @@
 }
 
 .statusbar__divider {
-  width: 1px;
-  margin: 8px 0;
-  background: rgba(0, 0, 0, 0.08);
+  display: none;
 }
 
 .statusbar__text {
@@ -50,7 +48,7 @@
   transition: background var(--dur) var(--ease);
 }
 .statusbar__item.is-clickable:hover {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(31, 30, 27, 0.045);
 }
 
 .missing-note {
@@ -62,7 +60,7 @@
 .missing-note code {
   display: inline-block;
   margin-top: 4px;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 12px;
   color: var(--text-secondary);
   word-break: break-all;
@@ -73,7 +71,7 @@
   padding: 0 0 0 18px;
   max-height: 300px;
   overflow-y: auto;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 12px;
   line-height: 1.6;
   color: var(--text-secondary);

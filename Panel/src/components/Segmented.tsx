@@ -3,7 +3,6 @@ import "./Segmented.css";
 export type SegOption<T extends string> = {
   value: T;
   label: string;
-  tone?: "green" | "yellow" | "red";
 };
 
 type Props<T extends string> = {
@@ -16,8 +15,8 @@ type Props<T extends string> = {
   ariaLabel?: string;
 };
 
-const GAP = 4;
-const PAD = 4;
+const GAP = 3;
+const PAD = 3;
 
 export default function Segmented<T extends string>({
   options,
@@ -29,7 +28,6 @@ export default function Segmented<T extends string>({
 }: Props<T>) {
   const n = options.length;
   const activeIndex = options.findIndex((o) => o.value === value);
-  const activeTone = activeIndex >= 0 ? options[activeIndex].tone : undefined;
 
   // A single sliding indicator that animates to the active cell.
   const size = `calc((100% - ${2 * PAD}px - ${(n - 1) * GAP}px) / ${n})`;
@@ -46,9 +44,7 @@ export default function Segmented<T extends string>({
       aria-label={ariaLabel}
     >
       <span
-        className={`seg__ind ${activeIndex < 0 ? "is-hidden" : ""} ${
-          activeTone ? `seg__ind--${activeTone}` : ""
-        }`}
+        className={`seg__ind ${activeIndex < 0 ? "is-hidden" : ""}`}
         style={indStyle}
         aria-hidden
       />
@@ -60,9 +56,7 @@ export default function Segmented<T extends string>({
             role="radio"
             aria-checked={active}
             disabled={disabled}
-            className={`seg__item ${active ? "is-active" : ""} ${
-              active && o.tone ? `seg__item--${o.tone}` : ""
-            }`}
+            className={`seg__item ${active ? "is-active" : ""}`}
             onClick={() => onChange(o.value)}
           >
             {o.label}

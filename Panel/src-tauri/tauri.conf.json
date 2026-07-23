@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "CS2BotImproverPlus",
-  "version": "1.4.2+5",
-  "identifier": "com.cs2botimproverplus.panel",
+  "productName": "Local Arena",
+  "version": "1.4.2-preview.1+6",
+  "identifier": "com.localarena.panel",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420/",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "CS2BotImproverPlus",
+        "title": "Local Arena",
         "width": 1300,
         "height": 800,
         "minWidth": 860,

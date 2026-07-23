@@ -25,11 +25,10 @@
   gap: 8px;
   margin: 14px 0 6px;
   padding: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.78);
+  border: 0;
   border-radius: var(--r-md);
-  /* Opaque background: translucent fills + backdrop-filter let scrolled text bleed through. */
-  background: rgba(252, 252, 253, 0.97);
-  box-shadow: var(--sh-pop);
+  background: var(--card);
+  box-shadow: var(--sh-card);
 }
 .guide-view__toc-item {
   min-width: 0;
@@ -50,7 +49,7 @@
   flex: 0 0 auto;
   color: var(--c-blue);
   font-size: 10px;
-  font-weight: 800;
+  font-weight: 650;
 }
 .guide-view__toc-item span {
   overflow: hidden;
@@ -62,9 +61,9 @@
   color: var(--text-primary);
 }
 .guide-view__toc-item.is-active {
-  border-color: rgba(0, 122, 255, 0.22);
-  background: rgba(0, 122, 255, 0.1);
-  color: var(--c-blue);
+  border-color: transparent;
+  background: var(--c-accent-soft);
+  color: var(--c-accent-hover);
 }
 
 .guide { display: grid; }
@@ -81,8 +80,8 @@
 }
 .guide__chapter-head svg { margin-top: 2px; }
 .guide__chapter-head > span { min-width: 0; display: grid; gap: 4px; }
-.guide__chapter-head small, .guide__number { color: var(--c-blue); font-size: 10px; font-weight: 800; }
-.guide__chapter-head h3 { color: var(--text-primary); font-size: 17px; font-weight: 740; }
+.guide__chapter-head small, .guide__number { color: var(--c-blue); font-size: 10px; font-weight: 650; }
+.guide__chapter-head h3 { color: var(--text-primary); font-size: 17px; font-weight: 650; }
 .guide__chapter-head p {
   max-width: 800px;
   color: var(--text-tertiary);
@@ -110,7 +109,7 @@
   width: 2px;
   transform: translateX(-50%);
   border-radius: 1px;
-  background: rgba(0, 122, 255, 0.16);
+  background: var(--c-accent-line);
 }
 .guide__install-step:last-child .guide__install-rail::before { display: none; }
 .guide__install-dot {
@@ -121,12 +120,12 @@
   flex: 0 0 34px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(0, 122, 255, 0.28);
+  border: 0;
   border-radius: 50%;
-  background: rgba(0, 122, 255, 0.1);
-  color: var(--c-blue);
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 650;
   box-shadow: 0 0 0 4px var(--workspace-bg);
 }
 .guide__install-card {
@@ -136,9 +135,10 @@
   gap: 20px;
   align-items: center;
   padding: 16px;
-  border: 1px solid var(--line-subtle);
+  border: 0;
   border-radius: var(--r-md);
-  background: rgba(255, 255, 255, 0.34);
+  background: var(--card);
+  box-shadow: var(--sh-card);
 }
 
 .guide__steps { display: grid; }
@@ -153,7 +153,7 @@
 .guide__step:first-child { border-top: 0; }
 .guide__step:nth-child(even) .guide__copy { order: 2; }
 .guide__copy { min-width: 0; display: grid; align-content: start; gap: 9px; }
-.guide h4 { color: var(--text-primary); font-size: 15px; font-weight: 730; }
+.guide h4 { color: var(--text-primary); font-size: 15px; font-weight: 650; }
 .guide__copy p { color: var(--text-secondary); font-size: 12px; line-height: 1.55; text-wrap: pretty; }
 .guide__points { display: grid; gap: 7px; padding: 0; list-style: none; }
 .guide__points li {
@@ -187,14 +187,14 @@
   display: grid;
   align-content: start;
   overflow: hidden;
-  border: 1px solid var(--line-subtle);
-  border-top-width: 3px;
+  border: 0;
   border-radius: var(--r-sm);
-  background: rgba(255, 255, 255, 0.34);
+  background: var(--card);
+  box-shadow: var(--sh-card);
 }
-.guide__trouble--red { border-top-color: var(--st-red); }
-.guide__trouble--yellow { border-top-color: var(--st-yellow); }
-.guide__trouble--green { border-top-color: var(--st-green); }
+.guide__trouble--red { box-shadow: inset 0 3px var(--st-red), var(--sh-card); }
+.guide__trouble--yellow { box-shadow: inset 0 3px var(--st-yellow), var(--sh-card); }
+.guide__trouble--green { box-shadow: inset 0 3px var(--st-green), var(--sh-card); }
 .guide__trouble .guide__copy { padding: 15px 16px 17px; }
 .guide__number--red { color: var(--st-red); }
 .guide__number--yellow { color: var(--st-yellow); }

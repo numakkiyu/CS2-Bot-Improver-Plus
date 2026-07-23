@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from "react";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import {
   Bot,
   Check,
@@ -17,6 +16,7 @@ import SubPage from "../components/SubPage";
 import { useToast } from "../components/Toast";
 import { useT, type I18nKey } from "../i18n";
 import { COMMANDS_TXT, TEAMS, type Team } from "../data/commands";
+import { writeClipboard } from "../lib/platform";
 import "./CommandsPanel.css";
 
 type TabId = "common" | "bots" | "teams" | "buy" | "multiplayer";
@@ -308,7 +308,7 @@ export default function CommandsPanel({ onBack }: { onBack?: () => void }) {
 
   const copy = async (id: string, value: string) => {
     try {
-      await writeText(value);
+      await writeClipboard(value);
       setCopiedId(id);
       if (copiedTimer.current) window.clearTimeout(copiedTimer.current);
       copiedTimer.current = window.setTimeout(() => setCopiedId(""), 900);

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   ArrowRight,
   BookOpenText,
-  Boxes,
   Command,
   Crosshair,
   Download,
@@ -22,7 +21,7 @@ import { MAP_IMAGES, MAP_LABELS } from "../data/maps";
 import { useT, type I18nKey } from "../i18n";
 
 export type DashboardTarget =
-  | "match" | "matchHistory" | "settings" | "presets" | "botItems" | "commands" | "weaponPresets" | "guide";
+  | "match" | "matchHistory" | "settings" | "presets" | "commands" | "weaponPresets" | "guide";
 
 type Tile = { view: DashboardTarget; key: I18nKey; icon: LucideIcon };
 
@@ -31,7 +30,6 @@ const TILES: Tile[] = [
   { view: "matchHistory", key: "match.history", icon: History },
   { view: "weaponPresets", key: "weapons.title", icon: Crosshair },
   { view: "presets", key: "pre.title", icon: SlidersHorizontal },
-  { view: "botItems", key: "bi.title", icon: Boxes },
   { view: "commands", key: "cmd.title", icon: Command },
   { view: "guide", key: "nav.guide", icon: BookOpenText },
   { view: "settings", key: "set.title", icon: Settings2 },
@@ -62,7 +60,7 @@ export default function OverviewDashboard({ onNavigate }: { onNavigate: (view: D
   return (
     <div className="dashboard">
       <header className="workspace__head">
-        <span className="workspace__eyebrow">PLUS</span>
+        <span className="workspace__eyebrow">Local Arena</span>
         <h1>{t("nav.overview")}</h1>
       </header>
       <StatusBar onOpenSettings={() => onNavigate("settings")} />

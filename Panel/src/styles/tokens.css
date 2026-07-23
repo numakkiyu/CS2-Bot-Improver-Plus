@@ -1,75 +1,101 @@
 :root {
-  /* Original Panel palette. */
-  --c-light-gray: #e5e5ea;
-  --c-mid-gray: #8e8e93;
-  --c-dark-gray-2: #3a3a3c;
-  --c-dark-gray: #1c1c1e;
-  --c-blue: #007aff;
-  --c-green: #34c759;
-  --c-orange: #ff9500;
-  --c-red: #ff3b30;
-  --c-yellow: #ffcc00;
+  /* ---- Paper surfaces ---- */
+  --app-surface: #fbfaf6;
+  --paper-sunken: #f4f1ea;
+  --card: #fffefa;
+  --card-warm: #faf7f0;
 
-  /* ---- Semantic status (red / yellow / green dots & toggles) ---- */
-  --st-green: var(--c-green);
-  --st-yellow: var(--c-orange); /* orange reads better than pure yellow for "warning" */
-  --st-red: var(--c-red);
-  --st-off: var(--c-mid-gray);
-
-  /* ---- Text ---- */
-  --text-primary: var(--c-dark-gray);
-  --text-secondary: var(--c-dark-gray-2);
-  --text-tertiary: var(--c-mid-gray);
+  /* ---- Ink text ---- */
+  --text-primary: #1f1e1b;
+  --text-secondary: #3d3a34;
+  --text-tertiary: #87867f;
+  --text-quaternary: #b4b2a9;
   --text-on-accent: #ffffff;
 
+  /* ---- Hairline borders: near-invisible, grouping comes from spacing ---- */
+  --line: rgba(31, 30, 27, 0.06);
+  --line-strong: rgba(31, 30, 27, 0.12);
+  --line-subtle: var(--line);
+  /* Edge for elevated cards: shadows carry the layering, the edge is only a
+     whisper so the card silhouette stays readable on the paper surface. */
+  --edge: rgba(31, 30, 27, 0.04);
+  /* Sunken control beds (segmented tracks, code chips). */
+  --track: rgba(31, 30, 27, 0.045);
+
+  /* ---- Accent: terracotta (selections and small accents only) ---- */
+  --c-accent: #d97757;
+  --c-accent-hover: #c05f3c;
+  --c-accent-soft: rgba(217, 119, 87, 0.09);
+  --c-accent-line: rgba(217, 119, 87, 0.28);
+
+  /* ---- Ink: primary action surfaces ---- */
+  --c-ink: #23211c;
+  --c-ink-hover: #3a382f;
+
+  /* Legacy aliases: the old iOS palette resolves onto the new system so
+     existing component styles migrate without per-file renames. */
+  --c-blue: var(--c-accent);
+  --c-green: var(--st-green);
+  --c-orange: var(--st-warn);
+  --c-red: var(--st-red);
+  --c-yellow: var(--st-warn);
+  --c-light-gray: #e8e6dc;
+  --c-mid-gray: var(--text-tertiary);
+  --c-dark-gray-2: var(--text-secondary);
+  --c-dark-gray: var(--text-primary);
+
+  /* ---- Status (desaturated) ---- */
+  --st-green: #5f8a55;
+  --st-green-soft: rgba(95, 138, 85, 0.13);
+  --st-warn: #c08a3e;
+  --st-warn-soft: rgba(192, 138, 62, 0.11);
+  --st-red: #c2544a;
+  --st-red-soft: rgba(194, 84, 74, 0.12);
+  --st-off: #b4b2a9;
+  --st-yellow: var(--st-warn);
+
+  /* ---- Typography ---- */
+  --serif: Georgia, "Songti SC", "Noto Serif CJK SC", "Source Han Serif SC",
+    "SimSun", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+
   /* ---- Radii ---- */
-  --r-xs: 10px;
-  --r-sm: 14px;
-  --r-md: 20px;
-  --r-lg: 26px;
-  --r-xl: 30px;
+  --r-xs: 6px;
+  --r-sm: 9px;
+  --r-md: 12px;
+  --r-lg: 18px;
+  --r-xl: 18px;
   --r-pill: 999px;
 
-  /* ---- Shadows ---- */
-  /* Layered like real depth: a tight contact line + a soft wide ambient cast,
-     so glass surfaces read as floating rather than flat. */
-  --sh-card: 0 1px 1.5px rgba(0, 0, 0, 0.05), 0 8px 24px -10px rgba(0, 0, 0, 0.18),
-    0 2px 8px -6px rgba(0, 0, 0, 0.1);
-  --sh-pop: 0 1px 1.5px rgba(0, 0, 0, 0.06), 0 22px 55px -14px rgba(0, 0, 0, 0.3),
-    0 8px 22px -12px rgba(0, 0, 0, 0.18);
-  --sh-soft: 0 4px 16px rgba(0, 0, 0, 0.06);
-  --sh-green: 0 0 0 1px rgba(52, 199, 89, 0.35), 0 8px 24px -6px rgba(52, 199, 89, 0.3);
-  --sh-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.85);
-
-  /* ---- Glass ---- */
-  /* More translucent fills — deeper blur lets the backdrop show through while
-     keeping text legible. */
-  --glass-fill: rgba(255, 255, 255, 0.44);
-  --glass-fill-strong: rgba(255, 255, 255, 0.58);
-  --glass-stroke: rgba(255, 255, 255, 0.6);
-  --glass-blur: 30px;
-  --glass-sat: 190%;
-  --glass-fallback: rgba(247, 247, 250, 0.94);
-  /* Inner light that gives glass its edge: a bright specular top rim, a faint
-     light bottom rim, and a subtle inner ring (the "lensed" glass edge). */
-  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  /* ---- Shadows: large, faint ambient casts carry the layering ---- */
+  --sh-card: 0 1px 2px rgba(31, 30, 27, 0.04),
+    0 12px 32px -16px rgba(31, 30, 27, 0.1);
+  --sh-pop: 0 2px 6px rgba(31, 30, 27, 0.05),
+    0 24px 64px -20px rgba(31, 30, 27, 0.18);
+  --sh-soft: 0 12px 32px -16px rgba(31, 30, 27, 0.1);
+  --sh-pill: 0 1px 3px rgba(31, 30, 27, 0.08),
+    0 4px 12px -4px rgba(31, 30, 27, 0.08);
+  --sh-green: 0 0 0 1px rgba(95, 138, 85, 0.35);
+  --sh-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.6);
 
   /* ---- Spacing ---- */
   --gap: 12px;
   --pad: 16px;
+  --pad-page: 28px 36px 40px;
+  --pad-card: 18px 20px;
+  --gap-card: 16px;
 
   /* ---- Motion ---- */
-  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --dur: 220ms;
+  --ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --dur: 180ms;
 
-  /* Desktop Plus layout surfaces, derived from the original glass system. */
-  --sidebar-bg: rgba(255, 255, 255, 0.38);
+  /* ---- Layout surfaces ---- */
+  --sidebar-bg: var(--paper-sunken);
   --sidebar-text: var(--text-primary);
   --sidebar-muted: var(--text-secondary);
-  --sidebar-accent: var(--c-blue);
+  --sidebar-accent: var(--c-accent);
   --workspace-bg: transparent;
-  --app-surface: transparent;
-  --panel-muted: rgba(255, 255, 255, 0.42);
-  --line-subtle: rgba(255, 255, 255, 0.58);
+  --panel-muted: var(--card-warm);
 }

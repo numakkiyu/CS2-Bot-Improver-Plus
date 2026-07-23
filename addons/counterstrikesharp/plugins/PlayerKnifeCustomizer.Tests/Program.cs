@@ -41,6 +41,65 @@ config.SharedWeaponLinks[9] = true;
 Require(WeaponPresetResolver.TryResolveGunPreset(config, 9, CosmeticTeam.T, out var linkedAwp) && linkedAwp.Paint == 344,
     "A linked shared weapon must fall back to the configured side.");
 
+var validStickerIds = new HashSet<uint> { 1, 2, 3, 4, 5, 6 };
+var validStickerWeaponIds = new HashSet<ushort> { 7, 9 };
+var customSticker = new StickerPreset
+{
+    Slot = 0, Id = 1, Wear = 0.25f, Scale = 1.2f, Rotation = 45f,
+    OffsetX = -0.4f, OffsetY = 0.7f, CustomPosition = true,
+};
+Require(StickerAttributePlanner.TryBuild(7, true, [customSticker], validStickerIds, validStickerWeaponIds, out var attributes, out var stickerError),
+    $"A valid sticker plan must build: {stickerError}");
+Require(attributes.Select(attribute => attribute.Name).SequenceEqual([
+    "sticker slot 0 id", "sticker slot 0 schema", "sticker slot 0 offset x", "sticker slot 0 offset y",
+    "sticker slot 0 wear", "sticker slot 0 scale", "sticker slot 0 rotation",
+]), "Sticker attributes must use the exact CS2 attribute names and deterministic order.");
+Require(unchecked((uint)BitConverter.SingleToInt32Bits(attributes[0].Value)) == customSticker.Id,
+    "Sticker IDs must be encoded by reinterpreting uint bits as float bits.");
+Require(attributes[1].Value == 0f && attributes[2].Value == customSticker.OffsetX && attributes[3].Value == customSticker.OffsetY,
+    "Custom positions must emit schema zero and bounded X/Y offsets.");
+
+customSticker.CustomPosition = false;
+Require(StickerAttributePlanner.TryBuild(7, true, [customSticker], validStickerIds, validStickerWeaponIds, out attributes, out _)
+    && attributes.All(attribute => !attribute.Name.Contains("schema") && !attribute.Name.Contains("offset")),
+    "Default sticker placement must not emit schema or offset attributes.");
+Require(StickerAttributePlanner.TryBuild(7, false, [customSticker], validStickerIds, validStickerWeaponIds, out attributes, out _)
+    && attributes.Count == 0,
+    "Disabling the feature must preserve configuration without emitting sticker attributes.");
+Require(!StickerAttributePlanner.TryBuild(515, false, [customSticker], validStickerIds, validStickerWeaponIds, out _, out stickerError)
+    && stickerError.Contains("knife"),
+    "Knife stickers must be rejected even while sticker application is disabled.");
+Require(!StickerAttributePlanner.TryBuild(7, true,
+        Enumerable.Range(0, 6).Select(index => new StickerPreset { Slot = (byte)index, Id = (uint)(index + 1), Scale = 1f }),
+        validStickerIds, validStickerWeaponIds, out _, out stickerError) && stickerError.Contains("more than five"),
+    "A weapon must reject more than five stickers.");
+Require(!StickerAttributePlanner.TryBuild(7, true,
+        [new StickerPreset { Slot = 0, Id = 1, Scale = 1f }, new StickerPreset { Slot = 0, Id = 2, Scale = 1f }],
+        validStickerIds, validStickerWeaponIds, out _, out stickerError) && stickerError.Contains("unique"),
+    "Duplicate sticker slots must be rejected.");
+Require(!StickerAttributePlanner.TryBuild(7, true,
+        [new StickerPreset { Slot = 0, Id = 999, Scale = 1f }], validStickerIds, validStickerWeaponIds, out _, out stickerError)
+    && stickerError.Contains("unknown"),
+    "Unknown sticker IDs must be rejected before native writes.");
+Require(!StickerAttributePlanner.TryBuild(7, true,
+        [new StickerPreset { Slot = 0, Id = 1, Scale = float.NaN }], validStickerIds, validStickerWeaponIds, out _, out stickerError)
+    && stickerError.Contains("range"),
+    "Non-finite sticker values must be rejected before native writes.");
+Require(!StickerAttributePlanner.TryBuild(42, true, [customSticker], validStickerIds, validStickerWeaponIds, out _, out stickerError)
+    && stickerError.Contains("not supported"),
+    "Weapons outside the fixed capability catalog must be rejected before native writes.");
+Require(StickerFailurePolicy.ShouldRestoreBaseSkin(false) && !StickerFailurePolicy.ShouldRestoreBaseSkin(true),
+    "A failed sticker plan or native write must restore the ordinary gun skin attributes.");
+
+var linkedStickerConfig = new KnifeConfig();
+linkedStickerConfig.Loadouts.Ct.GunPresets[9] = Preset(344);
+linkedStickerConfig.Loadouts.Ct.GunPresets[9].Stickers = [customSticker.Clone()];
+linkedStickerConfig.SharedWeaponLinks[9] = true;
+linkedStickerConfig.Normalize();
+Require(linkedStickerConfig.Loadouts.T.GunPresets[9].ValueEquals(linkedStickerConfig.Loadouts.Ct.GunPresets[9])
+    && linkedStickerConfig.Loadouts.T.GunPresets[9].Stickers[0].Id == 1,
+    "Shared CT/T normalization must copy the complete preset including sticker order and values.");
+
 var tracker = new ApplyGenerationTracker();
 nint playerHandle = (nint)0x1000;
 
@@ -72,6 +131,11 @@ Require(!tracker.MarkRetryExhausted(playerHandle, pickupStorm) && tracker.RetryE
 long retryAfterEvent = tracker.Begin(playerHandle, CosmeticApplyPhase.Guns);
 Require(tracker.MarkRetryExhausted(playerHandle, retryAfterEvent) && tracker.RetryExhaustions == 2,
     "A later gameplay event must create a fresh bounded retry window.");
+Require(tracker.TryMarkReequip(playerHandle, retryAfterEvent) && !tracker.TryMarkReequip(playerHandle, retryAfterEvent),
+    "A generation must issue at most one controlled re-equip fallback.");
+long nextReequipGeneration = tracker.Begin(playerHandle, CosmeticApplyPhase.Guns);
+Require(tracker.TryMarkReequip(playerHandle, nextReequipGeneration),
+    "A later gameplay generation may issue one new controlled re-equip fallback.");
 
 tracker.CancelAll();
 for (int i = 0; i < 1000; i++)

@@ -1,0 +1,287 @@
+.stickers-page {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 190px minmax(390px, 1fr) minmax(270px, 330px);
+  gap: 12px;
+  padding: 14px 18px 20px;
+}
+
+.stickers-weapons,
+.stickers-editor,
+.sticker-catalog {
+  min-width: 0;
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: var(--sh-card);
+}
+
+.stickers-weapons {
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.stickers-weapons > header {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+.stickers-weapons > header strong {
+  color: var(--text-primary);
+  font-size: 12px;
+}
+.stickers-weapons > div {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 3px;
+  padding: 7px;
+}
+.stickers-weapons > div > button {
+  min-width: 0;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+}
+.stickers-weapons > div > button:hover { background: rgba(255, 255, 255, 0.62); }
+.stickers-weapons > div > button.is-active {
+  border-color: transparent;
+  background: var(--c-accent-soft);
+  color: var(--c-accent-hover);
+}
+.stickers-weapons img { width: 58px; height: 34px; object-fit: contain; }
+.stickers-weapons span { overflow: hidden; font-size: 11px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.stickers-weapons p { margin: 14px 8px; color: var(--text-tertiary); font-size: 11px; line-height: 1.5; }
+
+.stickers-editor {
+  align-content: start;
+  display: grid;
+  gap: 11px;
+  padding: 12px;
+}
+.stickers-preview {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 16 / 8.8;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--paper-sunken);
+  touch-action: none;
+}
+.stickers-preview::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.stickers-preview__weapon {
+  position: absolute;
+  inset: 8% 5%;
+  width: 90%;
+  height: 84%;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 13px rgba(0, 0, 0, 0.17));
+  user-select: none;
+}
+.stickers-preview__sticker {
+  position: absolute;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: grab;
+  transform-origin: center;
+}
+.stickers-preview__sticker.is-active { border-color: var(--c-accent); box-shadow: 0 0 0 2px var(--c-accent-soft); }
+.stickers-preview__sticker:active { cursor: grabbing; }
+.stickers-preview__sticker img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+
+.sticker-slots {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 7px;
+}
+.sticker-slots > button {
+  position: relative;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  padding: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.52);
+  color: var(--text-tertiary);
+}
+.sticker-slots > button.is-active { border-color: var(--c-accent-line); background: var(--c-accent-soft); }
+.sticker-slots b { position: absolute; top: 4px; left: 6px; color: var(--text-tertiary); font-size: 9px; }
+.sticker-slots img { width: 38px; height: 38px; object-fit: contain; }
+.sticker-slots > button > span:not(.sticker-image-fallback) { font-size: 20px; font-weight: 400; }
+
+.sticker-controls {
+  display: grid;
+  gap: 9px;
+  padding-top: 2px;
+}
+.sticker-controls > header {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-subtle);
+}
+.sticker-controls > header > span { min-width: 0; display: grid; gap: 2px; }
+.sticker-controls > header small { color: var(--text-tertiary); font-size: 9px; }
+.sticker-controls > header strong { overflow: hidden; color: var(--text-primary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.sticker-controls > header > div { display: flex; gap: 4px; }
+.sticker-controls > header button,
+.sticker-catalog footer button {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(120, 120, 128, 0.14);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--text-secondary);
+}
+.sticker-controls button:disabled,
+.sticker-catalog button:disabled { opacity: 0.38; cursor: default; }
+.sticker-control {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 58px minmax(90px, 1fr) 66px;
+  align-items: center;
+  gap: 9px;
+}
+.sticker-control > span,
+.sticker-custom > span { color: var(--text-secondary); font-size: 10px; font-weight: 650; }
+.sticker-control input[type="range"] { width: 100%; accent-color: var(--c-blue); }
+.sticker-control input[type="number"] {
+  width: 66px;
+  height: 29px;
+  padding: 0 6px;
+  border: 1px solid rgba(120, 120, 128, 0.17);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--text-primary);
+  font: 10px ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+.sticker-custom { min-height: 31px; display: flex; align-items: center; justify-content: space-between; }
+.sticker-reset {
+  min-height: 31px;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border: 1px solid rgba(120, 120, 128, 0.14);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.56);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.sticker-catalog {
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 10px;
+}
+.sticker-catalog > label {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid rgba(120, 120, 128, 0.16);
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--text-tertiary);
+}
+.sticker-catalog input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--text-primary); font-size: 11px; }
+.sticker-catalog__grid {
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
+  gap: 6px;
+  padding: 9px 1px;
+}
+.sticker-catalog__grid > button {
+  min-width: 0;
+  height: 94px;
+  display: grid;
+  grid-template-rows: 50px auto auto;
+  justify-items: center;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid rgba(120, 120, 128, 0.12);
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.47);
+  color: var(--text-secondary);
+}
+.sticker-catalog__grid > button:hover { background: rgba(255, 255, 255, 0.75); }
+.sticker-catalog__grid > button.is-active { border-color: var(--c-accent-line); background: var(--c-accent-soft); }
+.sticker-catalog__grid img { width: 48px; height: 48px; object-fit: contain; }
+.sticker-catalog__grid > button > span:not(.sticker-image-fallback) { width: 100%; overflow: hidden; font-size: 8px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.sticker-catalog__grid small { color: var(--text-tertiary); font-size: 8px; }
+.sticker-catalog footer { min-height: 34px; display: flex; align-items: center; justify-content: center; gap: 10px; border-top: 1px solid var(--line-subtle); }
+.sticker-catalog footer span { min-width: 58px; color: var(--text-tertiary); font-size: 9px; text-align: center; }
+.sticker-image-fallback { display: grid; place-items: center; color: var(--text-tertiary); }
+
+.stickers-save {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--c-ink);
+  color: var(--text-on-accent);
+  font-size: 11px;
+  font-weight: 650;
+}
+.stickers-save:hover:not(:disabled) { background: var(--c-ink-hover); }
+.stickers-save:active:not(:disabled) { transform: translateY(1px); }
+.stickers-save:disabled { opacity: 0.42; cursor: default; }
+
+@media (max-width: 1080px) {
+  .stickers-page { grid-template-columns: 170px minmax(360px, 1fr); }
+  .sticker-catalog { grid-column: 1 / -1; min-height: 330px; }
+  .sticker-catalog__grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}
+
+@media (max-width: 760px) {
+  .stickers-page { grid-template-columns: 1fr; padding: 10px; }
+  .stickers-weapons { max-height: 250px; }
+  .sticker-catalog { grid-column: auto; }
+  .sticker-catalog__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sticker-control { grid-template-columns: 52px minmax(70px, 1fr) 62px; }
+}

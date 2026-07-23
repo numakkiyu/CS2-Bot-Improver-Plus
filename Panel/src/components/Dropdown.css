@@ -9,15 +9,18 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 11px 14px;
-  border: none;
-  border-radius: var(--r-md);
-  background: rgba(255, 255, 255, 0.6);
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  padding: 10px 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--card);
   color: var(--text-tertiary);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   text-align: left;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.dropdown__btn:hover:not(:disabled) {
+  border-color: var(--c-accent-line);
 }
 .dropdown__btn.has-value {
   color: var(--text-primary);
@@ -45,17 +48,15 @@
   left: 0;
   right: 0;
   margin: 0;
-  padding: 6px;
+  padding: 5px;
   list-style: none;
   max-height: 240px;
   overflow-y: auto;
+  background: var(--card);
+  border: 1px solid var(--edge);
   border-radius: var(--r-md);
   box-shadow: var(--sh-pop);
   animation: dd-in 160ms var(--ease);
-}
-/* Opaque fill: translucent glass lets underlying text bleed through the menu. */
-.dropdown .dropdown__menu {
-  background: rgba(252, 252, 253, 0.98);
 }
 /* Inline mode: the menu flows directly under the button inside its parent,
    so it can never detach from its anchor or be clipped by card overflow. */
@@ -72,17 +73,18 @@
 }
 
 .dropdown__item {
-  padding: 9px 12px;
-  border-radius: var(--r-sm);
-  font-size: 14px;
-  font-weight: 600;
+  padding: 8px 11px;
+  border-radius: var(--r-xs);
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-primary);
   cursor: pointer;
 }
 .dropdown__item:hover {
-  background: rgba(120, 120, 128, 0.16);
+  background: rgba(31, 30, 27, 0.045);
 }
 .dropdown__item.is-selected {
-  color: var(--c-blue);
-  background: rgba(0, 122, 255, 0.1);
+  color: var(--c-accent-hover);
+  background: var(--c-accent-soft);
+  font-weight: 600;
 }

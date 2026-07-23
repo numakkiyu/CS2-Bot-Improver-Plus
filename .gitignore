@@ -61,6 +61,8 @@ CONTEXT.md
 # Logs, temporary files, and local environment overrides
 logs/
 **/logs/
+tmp/
+.playwright-mcp/
 *.log
 *.tmp
 *.temp

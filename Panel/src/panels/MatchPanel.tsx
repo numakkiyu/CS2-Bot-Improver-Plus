@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
 import { AlertTriangle, History, Play, RotateCcw, Shield, Square, Swords, Users } from "lucide-react";
 import { api, type MatchCatalog, type MatchResult, type MatchSession, type PrepareMatchInput } from "../lib/api";
 import { useT } from "../i18n";
 import { useStore } from "../state/store";
+import { listenAppEvent } from "../lib/platform";
 import Toggle from "../components/Toggle";
 import Dropdown from "../components/Dropdown";
 import MatchResultView from "./MatchResultView";
@@ -44,7 +44,7 @@ export default function MatchPanel({ onOpenInstallation, onOpenHistory }: Props)
   }, [csgo]);
 
   useEffect(() => {
-    const promise = listen<MatchResult>("match-finished", (event) => {
+    const promise = listenAppEvent<MatchResult>("match-finished", (event) => {
       setActiveMatch(null);
       setResult(event.payload);
       setBusy(false);
@@ -144,7 +144,7 @@ export default function MatchPanel({ onOpenInstallation, onOpenHistory }: Props)
     <div className="match-page">
       <header className="workspace__head match-page__head">
         <div className="match-page__title">
-          <span className="workspace__eyebrow">PLUS MATCH</span>
+          <span className="workspace__eyebrow">LOCAL ARENA MATCH</span>
           <h1>{t("match.title")}</h1>
           <p>{t("match.subtitle")}</p>
         </div>

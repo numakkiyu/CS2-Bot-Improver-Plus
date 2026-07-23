@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import Collapsible from "../components/Collapsible";
 import Dropdown from "../components/Dropdown";
 import Segmented from "../components/Segmented";
 import { CopyIcon } from "../components/icons";
+import { writeClipboard } from "../lib/platform";
 import { useToast } from "../components/Toast";
 import { useT } from "../i18n";
 import { TEAMS } from "../data/commands";
@@ -28,7 +28,7 @@ export default function TeamsSection() {
       return;
     }
     try {
-      await writeText(segment);
+      await writeClipboard(segment);
       toast.show(t("common.copied"), "green");
     } catch {
       toast.show(t("common.copyFailed"), "red");

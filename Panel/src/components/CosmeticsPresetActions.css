@@ -1,5 +1,5 @@
 .cosmetics-transfer { display: flex; align-items: center; justify-content: flex-end; gap: 7px; }
-.cosmetics-transfer button { min-height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; border: 1px solid rgba(0,0,0,.08); border-radius: var(--r-sm); background: rgba(255,255,255,.56); color: var(--text-secondary); font-size: 11px; font-weight: 720; }
-.cosmetics-transfer button:hover:not(:disabled) { background: rgba(255,255,255,.78); color: var(--c-blue); }
+.cosmetics-transfer button { min-height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 11px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--card); color: var(--text-secondary); font-size: 11px; font-weight: 600; transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease); }
+.cosmetics-transfer button:hover:not(:disabled) { border-color: var(--c-accent-line); color: var(--c-accent-hover); }
 .cosmetics-transfer button:disabled { opacity: .5; }
 @media (max-width: 640px) { .cosmetics-transfer { align-items: stretch; flex-direction: column; } .cosmetics-transfer button { justify-content: center; } }

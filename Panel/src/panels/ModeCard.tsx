@@ -9,7 +9,7 @@ import type { GameMode } from "../lib/api";
 import "./ModeCard.css";
 
 export default function ModeCard() {
-  const { mode, config, csgoPath, applyMode, reportError, modePending } = useStore();
+  const { mode, config, csgoPath, applyMode, reportError } = useStore();
   const toast = useToast();
   const t = useT();
   const [pending, setPending] = useState<GameMode | null>(null);
@@ -22,12 +22,6 @@ export default function ModeCard() {
   // Optimistic: show the clicked option immediately; revert if the op fails.
   const current: GameMode | null =
     pending ?? mode?.current ?? ((config?.mode as GameMode | null) ?? null);
-
-  // Yellow while CS2 is running and a change is pending a restart — either the
-  // user switched mode this session (modePending) or the boot-time apply was
-  // skipped because CS2 held gameinfo.gi (mode.pending). In the latter case
-  // `current` (above) still reflects the real on-disk mode.
-  const tone = mode?.cs2_running && (modePending || mode.pending) ? "yellow" : "green";
 
   const onChange = async (m: GameMode) => {
     setPending(m);
@@ -53,10 +47,7 @@ export default function ModeCard() {
         value={current}
         onChange={onChange}
         disabled={!csgoPath}
-        options={OPTIONS.map((o) => ({
-          ...o,
-          tone: o.value === current ? (tone as "green" | "yellow") : undefined,
-        }))}
+        options={OPTIONS}
       />
       <button className="mode__launch" disabled={!csgoPath} onClick={launch}>
         {current === "online"

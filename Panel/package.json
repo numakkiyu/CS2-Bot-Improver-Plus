@@ -1,11 +1,12 @@
 {
   "name": "cs2-bot-improver-plus-panel",
   "private": true,
-  "version": "1.4.2+5",
+  "version": "1.4.2-preview.1+6",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build"
+    "build": "tsc && vite build",
+    "test:stickers": "node ../scripts/test-sticker-editor.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.1.1",

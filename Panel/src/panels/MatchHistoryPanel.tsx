@@ -81,7 +81,7 @@ export default function MatchHistoryPanel() {
   return <div className="match-page match-history-page">
     <header className="workspace__head match-page__head">
       <div className="match-page__title">
-        <span className="workspace__eyebrow">PLUS MATCH</span>
+        <span className="workspace__eyebrow">LOCAL ARENA MATCH</span>
         <h1>{t("match.history")}</h1>
         <p>{t("match.historySubtitle")}</p>
       </div>
