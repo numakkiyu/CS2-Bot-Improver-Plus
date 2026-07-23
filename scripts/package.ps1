@@ -388,12 +388,12 @@ foreach ($name in @("addons", "cfg", "overrides", "plus-payload-manifest.json"))
 $pluginZip = Join-Path $OutputDirectory "CS2BotImproverPlus-plugin-$releaseTag-windows.zip"
 Compress-Archive -Path (Join-Path $pluginStage "*") -DestinationPath $pluginZip -CompressionLevel Optimal
 
-$releaseBase = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/download/$releaseTag"
+$releaseBase = "https://github.com/numakkiyu/Local-Arena/releases/download/$releaseTag"
 $latest = [ordered]@{
     schema_version = 1
     release_version = $displayVersion
     published_at = [DateTimeOffset]::UtcNow.ToString("o")
-    release_notes_url = "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/tag/$releaseTag"
+    release_notes_url = "https://github.com/numakkiyu/Local-Arena/releases/tag/$releaseTag"
     components = [ordered]@{
         panel = [ordered]@{
             version = $displayVersion

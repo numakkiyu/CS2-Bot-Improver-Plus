@@ -1,9 +1,10 @@
-# Contributing to CS2BotImproverPlus
+# Contributing to Local Arena
 
 ## Scope
 
-CS2BotImproverPlus follows `ed0ard/CS2-Bot-Improver` as its upstream. Keep changes focused on the Plus feature set or
-on compatibility with a current CS2 release. Avoid unrelated rewrites that make upstream synchronization harder.
+Local Arena is independently maintained. Selected AGPL-3.0 components are derived from
+`ed0ard/CS2-Bot-Improver` and may receive audited compatibility updates from that source. Keep changes focused on
+Local Arena or compatibility with a current CS2 release, and preserve source attribution when adapting upstream code.
 
 ## Development Rules
 
