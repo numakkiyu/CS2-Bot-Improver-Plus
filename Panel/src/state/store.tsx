@@ -64,7 +64,7 @@ type Store = {
   refreshFiles: () => Promise<void>;
   refreshDifficulty: () => Promise<void>;
   refreshAll: (silent?: boolean) => Promise<void>;
-  updateConfig: (patch: Partial<AppConfig>) => Promise<void>;
+  updateConfig: (patch: Partial<AppConfig>) => Promise<boolean>;
   chooseDirectory: (path: string) => Promise<void>;
   getInstallPlan: () => Promise<InstallPlan | null>;
   verifyInstallation: () => Promise<InstallationInspection | null>;
@@ -386,13 +386,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const updateConfig = useCallback(
     async (patch: Partial<AppConfig>) => {
       const base = configRef.current;
-      if (!base) return;
+      if (!base) return false;
       const next = { ...base, ...patch };
       setConfig(next);
       try {
         await api.saveConfig(next);
+        return true;
       } catch (e) {
+        setConfig(base);
         reportError(e);
+        return false;
       }
     },
     [reportError]

@@ -516,9 +516,10 @@ fn read_manifest_document(payload_root: &Path) -> Result<PayloadManifest> {
     let path = payload_root.join(MANIFEST_FILE);
     let bytes = fs::read(&path).map_err(|_| {
         if payload_root.join(PANEL_UPDATE_MARKER).is_file() {
-            AppError::payload(
-                "This is the Panel-only online-update component, not the complete installer. Download and extract CS2BotImproverPlus-v1.4.2.5-windows.zip for a first installation."
-            )
+            AppError::payload(format!(
+                "This is the Panel-only online-update component, not the complete installer. Download and extract CS2BotImproverPlus-v{}-windows.zip for a first installation.",
+                crate::app_version::display()
+            ))
         } else {
             AppError::payload(format!(
                 "The complete plugin payload is missing. Keep CS2BotImproverPlus.exe beside addons, cfg, overrides, and {}. Expected: {}",
@@ -2082,11 +2083,10 @@ mod tests {
 
         assert_eq!(error.code, "E1301");
         assert!(error.detail.contains("Panel-only online-update component"));
-        assert!(
-            error
-                .detail
-                .contains("CS2BotImproverPlus-v1.4.2.5-windows.zip")
-        );
+        assert!(error.detail.contains(&format!(
+            "CS2BotImproverPlus-v{}-windows.zip",
+            crate::app_version::display()
+        )));
         fs::remove_dir_all(base).unwrap();
     }
 

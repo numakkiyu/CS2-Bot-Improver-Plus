@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$PackageRoot,
-    [string]$ExpectedPackageVersion = "1.4.2.5"
+    [string]$ExpectedPackageVersion = "1.4.2.6-Preview.1"
 )
 
 $ErrorActionPreference = "Stop"
@@ -176,10 +176,19 @@ $requiredSources = @(
     "Panel/src/panels/GlovePresetModal.tsx",
     "Panel/src/panels/WeaponPresetModal.tsx",
     "Panel/src/panels/MusicKitPresetModal.tsx",
+    "Panel/src/panels/StickersPanel.tsx",
+    "Panel/src/panels/StickersPanel.css",
+    "Panel/src/data/stickerCatalog.json",
+    "Panel/src/data/stickerCatalog.source.json",
+    "Panel/src/data/stickerWeaponIds.json",
+    "Panel/src/lib/stickerEditor.ts",
+    "scripts/generate-sticker-catalog.mjs",
+    "scripts/test-sticker-editor.mjs",
     "addons/counterstrikesharp/plugins/BotRandomizer/BotRandomizer.cs",
     "addons/counterstrikesharp/plugins/BotControllerImpl/BotControllerImplPlugin.cs",
     "addons/counterstrikesharp/plugins/BotRandomizer/bot_randomizer_options.json",
     "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.cs",
+    "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_weapon_ids.json",
     "addons/counterstrikesharp/plugins/BotHiderImpl/BotHiderImplPlugin.cs"
 )
 foreach ($relative in $requiredSources) {
@@ -194,9 +203,11 @@ if ($giveHookStart -lt 0 -or $nextMethodStart -le $giveHookStart) {
 }
 else {
     $giveHook = $playerCosmetics.Substring($giveHookStart, $nextMethodStart - $giveHookStart)
-    if ($giveHook -match "AttributeManager|\bApplyPreset(?:ForCurrentDefinition)?\(|AcceptInput" -or
-        $giveHook -notmatch "ScheduleApplyPipeline\(player!\.Handle, CosmeticApplyPhase\.Guns\)") {
-        Add-Failure "PlayerCosmetics must not invoke native econ setters inside GiveNamedItem post-hook."
+    if ($giveHook -notmatch "hook\.GetReturn<CBasePlayerWeapon>\(\)" -or
+        $giveHook -notmatch "ApplyPresetForCurrentDefinition\(weapon, team\.Value\)" -or
+        $giveHook -notmatch "_applyTracker\.Complete\(playerHandle, generation, CosmeticApplyPhase\.Guns\)" -or
+        $giveHook -notmatch "ScheduleApplyCallbacks\(playerHandle, generation\)") {
+        Add-Failure "PlayerCosmetics no longer applies the returned weapon before first transmit with bounded retry fallback."
     }
 }
 if ($playerCosmetics -notmatch "Server\.NextFrame\(\(\) => RunApplyPipeline\(playerHandle, generation, false\)\)" -or
@@ -209,6 +220,12 @@ if ($playerCosmetics -notmatch "Server\.NextFrame\(\(\) => RunApplyPipeline\(pla
 if ($playerCosmetics -notmatch "private static bool HasReadyAttributeLists\(CEconItemView item\)" -or
     ([regex]::Matches($playerCosmetics, "HasReadyAttributeLists\(item\)").Count -lt 3)) {
     Add-Failure "PlayerCosmetics native attribute handles are not validated at every write entry point."
+}
+if ($playerCosmetics -notmatch '"sticker slot \{sticker\.Slot\}"' -or
+    $playerCosmetics -notmatch "BitConverter\.Int32BitsToSingle" -or
+    $playerCosmetics -notmatch "TryMarkReequip\(player\.Handle, generation\)" -or
+    ([regex]::Matches($playerCosmetics, 'ExecuteClientCommand\("lastinv"\)').Count -ne 2)) {
+    Add-Failure "PlayerCosmetics sticker attributes or single-generation re-equip fallback are incomplete."
 }
 if ($playerCosmetics -match "RegisterListener<Listeners\.OnEntitySpawned>" -or
     $playerCosmetics -match "TryApplyDroppedKnife" -or
@@ -225,6 +242,10 @@ $jsonFiles = @(
     "Panel/src/data/skinImages.json",
     "Panel/src/data/skinNames.json",
     "Panel/src/data/weaponSkins.json",
+    "Panel/src/data/stickerCatalog.json",
+    "Panel/src/data/stickerWeaponIds.json",
+    "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_ids.json",
+    "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_weapon_ids.json",
     "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/player_gun_presets.json",
     "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/player_knife_presets.json",
     "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/skins_en.json",
@@ -240,6 +261,36 @@ $catalogB = Join-Path $repo "addons/counterstrikesharp/plugins/PlayerKnifeCustom
 if ((Get-FileHash -LiteralPath $catalogA -Algorithm SHA256).Hash -ne
     (Get-FileHash -LiteralPath $catalogB -Algorithm SHA256).Hash) {
     Add-Failure "Panel and plugin weapon catalogs are not identical."
+}
+
+$stickerSourcePath = Join-Path $repo "Panel/src/data/stickerCatalog.source.json"
+try {
+    $stickerSource = Get-Content -LiteralPath $stickerSourcePath -Raw | ConvertFrom-Json
+    $stickerPanel = Join-Path $repo "Panel/src/data/stickerCatalog.json"
+    $stickerPlugin = Join-Path $repo "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_ids.json"
+    $stickerWeaponPanel = Join-Path $repo "Panel/src/data/stickerWeaponIds.json"
+    $stickerWeaponPlugin = Join-Path $repo "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_weapon_ids.json"
+    $stickerGenerator = Get-Content -LiteralPath (Join-Path $repo "scripts/generate-sticker-catalog.mjs") -Raw
+    $panelHash = (Get-FileHash -LiteralPath $stickerPanel -Algorithm SHA256).Hash.ToLowerInvariant()
+    $pluginHash = (Get-FileHash -LiteralPath $stickerPlugin -Algorithm SHA256).Hash.ToLowerInvariant()
+    $weaponPanelHash = (Get-FileHash -LiteralPath $stickerWeaponPanel -Algorithm SHA256).Hash.ToLowerInvariant()
+    $weaponPluginHash = (Get-FileHash -LiteralPath $stickerWeaponPlugin -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($stickerSource.schema_version -ne 1 -or
+        $stickerSource.outputs.count -ne $counts["Panel/src/data/stickerCatalog.json"] -or
+        $counts["Panel/src/data/stickerCatalog.json"] -ne $counts["addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_ids.json"] -or
+        $panelHash -ne [string]$stickerSource.outputs.panel_sha256 -or
+        $pluginHash -ne [string]$stickerSource.outputs.plugin_ids_sha256 -or
+        $counts["Panel/src/data/stickerWeaponIds.json"] -ne $stickerSource.capabilities.supported_weapon_count -or
+        $counts["Panel/src/data/stickerWeaponIds.json"] -ne $counts["addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_weapon_ids.json"] -or
+        $weaponPanelHash -ne [string]$stickerSource.outputs.weapon_ids_sha256 -or
+        $weaponPluginHash -ne [string]$stickerSource.outputs.weapon_ids_sha256 -or
+        $stickerGenerator -notmatch [regex]::Escape([string]$stickerSource.commit) -or
+        $stickerGenerator -notmatch [regex]::Escape([string]$stickerSource.capabilities.commit)) {
+        Add-Failure "Sticker catalog source commits, counts, capabilities, or deterministic hashes do not match generated outputs."
+    }
+}
+catch {
+    Add-Failure "Sticker catalog metadata is invalid: $($_.Exception.Message)"
 }
 
 $matchCatalog = Get-Content -LiteralPath (Join-Path $repo "addons/counterstrikesharp/plugins/PlusMatchCoordinator/match_catalog.json") -Raw | ConvertFrom-Json
@@ -310,6 +361,8 @@ if ($PackageRoot) {
         "addons/counterstrikesharp/plugins/BotState/BotState.dll",
         "addons/counterstrikesharp/plugins/NadeSystem/NadeSystem.dll",
         "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/PlayerKnifeCustomizer.dll",
+        "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_ids.json",
+        "addons/counterstrikesharp/plugins/PlayerKnifeCustomizer/sticker_weapon_ids.json",
         "addons/counterstrikesharp/plugins/RoundDamageRecap/RoundDamageRecap.dll",
         "addons/counterstrikesharp/plugins/PlusMatchCoordinator/PlusMatchCoordinator.dll",
         "addons/counterstrikesharp/plugins/PlusMatchCoordinator/MatchCore.dll",

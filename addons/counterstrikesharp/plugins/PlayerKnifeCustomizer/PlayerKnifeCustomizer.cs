@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
@@ -12,6 +13,74 @@ using CounterStrikeSharp.API.Modules.Utils;
 using Microsoft.Extensions.Logging;
 
 namespace PlayerKnifeCustomizer;
+
+public readonly record struct StickerAttribute(string Name, float Value);
+
+public static class StickerFailurePolicy
+{
+    public static bool ShouldRestoreBaseSkin(bool stickerApplySucceeded) => !stickerApplySucceeded;
+}
+
+public static class StickerAttributePlanner
+{
+    public static float EncodeUInt32(uint value) => BitConverter.Int32BitsToSingle(unchecked((int)value));
+
+    public static bool TryBuild(
+        ushort defIndex,
+        bool enabled,
+        IEnumerable<StickerPreset>? stickers,
+        IReadOnlySet<uint> validIds,
+        IReadOnlySet<ushort> validWeaponIds,
+        out List<StickerAttribute> attributes,
+        out string error)
+    {
+        attributes = new List<StickerAttribute>();
+        error = string.Empty;
+        var ordered = (stickers ?? []).OrderBy(sticker => sticker.Slot).ToArray();
+        if (ordered.Length == 0) return true;
+        if (defIndex is >= 500 and <= 526)
+            return Fail("knife stickers are not supported", out error);
+        if (ordered.Length > 5)
+            return Fail("a weapon cannot have more than five stickers", out error);
+        if (!validWeaponIds.Contains(defIndex))
+            return Fail("stickers are not supported for this weapon", out error);
+        if (!enabled) return true;
+
+        var slots = new HashSet<byte>();
+        foreach (var sticker in ordered)
+        {
+            if (sticker.Slot > 4 || !slots.Add(sticker.Slot))
+                return Fail("sticker slots must be unique and between 0 and 4", out error);
+            if (sticker.Id == 0 || !validIds.Contains(sticker.Id))
+                return Fail("unknown sticker id", out error);
+            if (!float.IsFinite(sticker.Wear) || sticker.Wear is < 0f or > 1f ||
+                !float.IsFinite(sticker.Scale) || sticker.Scale is < 0.1f or > 2f ||
+                !float.IsFinite(sticker.Rotation) || sticker.Rotation is < 0f or > 360f ||
+                !float.IsFinite(sticker.OffsetX) || sticker.OffsetX is < -1f or > 1f ||
+                !float.IsFinite(sticker.OffsetY) || sticker.OffsetY is < -1f or > 1f)
+                return Fail("sticker values are outside the supported range", out error);
+
+            string prefix = $"sticker slot {sticker.Slot}";
+            attributes.Add(new StickerAttribute($"{prefix} id", EncodeUInt32(sticker.Id)));
+            if (sticker.CustomPosition)
+            {
+                attributes.Add(new StickerAttribute($"{prefix} schema", 0f));
+                attributes.Add(new StickerAttribute($"{prefix} offset x", sticker.OffsetX));
+                attributes.Add(new StickerAttribute($"{prefix} offset y", sticker.OffsetY));
+            }
+            attributes.Add(new StickerAttribute($"{prefix} wear", sticker.Wear));
+            attributes.Add(new StickerAttribute($"{prefix} scale", sticker.Scale));
+            attributes.Add(new StickerAttribute($"{prefix} rotation", sticker.Rotation));
+        }
+        return true;
+
+        static bool Fail(string message, out string target)
+        {
+            target = message;
+            return false;
+        }
+    }
+}
 
 public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
 {
@@ -28,23 +97,30 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     };
 
     private readonly Dictionary<ushort, HashSet<int>> _validPaints = new();
+    private readonly HashSet<uint> _validStickers = new();
+    private readonly HashSet<ushort> _validStickerWeapons = new();
     private readonly Dictionary<ushort, List<WeaponSkinEntry>> _skinCatalog = new();
     private readonly HashSet<(ushort DefIndex, int Paint)> _legacyPaints = new();
     private KnifeConfig _config = new();
     private MemoryFunctionVoid<nint, string, float>? _setAttrByName;
     private ulong _nextItemId = 0xC5200000;
     private readonly ApplyErrorThrottle _applyErrorThrottle = new(TimeSpan.FromSeconds(30));
-    private bool _loadedLegacyConfig;
-    private bool _loadedLegacyGunConfig;
+    private int _loadedConfigSchema = KnifeConfig.CurrentSchemaVersion;
+    private int _loadedGunConfigSchema = KnifeConfig.CurrentSchemaVersion;
+    private bool _stickersSanitizedDuringLoad;
     private readonly ApplyGenerationTracker _applyTracker = new();
 
     private string ConfigPath => Path.Combine(ModuleDirectory, "player_knife_presets.json");
     private string GunConfigPath => Path.Combine(ModuleDirectory, "player_gun_presets.json");
     private string CatalogPath => Path.Combine(ModuleDirectory, "weapon_skins.json");
+    private string StickerCatalogPath => Path.Combine(ModuleDirectory, "sticker_ids.json");
+    private string StickerWeaponCatalogPath => Path.Combine(ModuleDirectory, "sticker_weapon_ids.json");
 
     public override void Load(bool hotReload)
     {
         LoadCatalog();
+        LoadStickerCatalog();
+        LoadStickerWeaponCatalog();
         LoadConfig();
 
         AddCommand("css_cs2bi_knives_reload", "Reload player knife presets", OnReloadCommand);
@@ -91,10 +167,13 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             var itemServices = hook.GetParam<CCSPlayer_ItemServices>(0);
             var player = GetPlayerFromItemServices(itemServices);
             if (!CanApplyToPlayer(player)) return HookResult.Continue;
-
-            // The returned weapon's econ data may not be initialized inside
-            // this post-hook. Resolve all entities and attributes later.
-            ScheduleApplyPipeline(player!.Handle, CosmeticApplyPhase.Guns);
+            nint playerHandle = player!.Handle;
+            long generation = _applyTracker.Begin(playerHandle, CosmeticApplyPhase.Guns);
+            var weapon = hook.GetReturn<CBasePlayerWeapon>();
+            var team = GetCosmeticTeam(player);
+            if (weapon is { IsValid: true } && team.HasValue && ApplyPresetForCurrentDefinition(weapon, team.Value))
+                _applyTracker.Complete(playerHandle, generation, CosmeticApplyPhase.Guns);
+            ScheduleApplyCallbacks(playerHandle, generation);
         }
         catch (Exception ex)
         {
@@ -202,7 +281,11 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     {
         if (playerHandle == nint.Zero || phases == CosmeticApplyPhase.None) return;
         long generation = _applyTracker.Begin(playerHandle, phases);
+        ScheduleApplyCallbacks(playerHandle, generation);
+    }
 
+    private void ScheduleApplyCallbacks(nint playerHandle, long generation)
+    {
         Server.NextFrame(() => RunApplyPipeline(playerHandle, generation, false));
         for (int index = 0; index < ApplyPipelineContext.RetryDelays.Length; index++)
         {
@@ -245,8 +328,11 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             () => TryApplyDefaultKnife(readyPawn, readyTeam), "knife pipeline");
         TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Gloves,
             () => TryApplyGlove(playerHandle, readyPawn, readyTeam), "glove pipeline");
+        bool gunsPending = _applyTracker.IsPending(playerHandle, generation, CosmeticApplyPhase.Guns);
         TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Guns,
             () => TryApplyGunPresets(readyPawn, readyTeam), "gun pipeline");
+        if (gunsPending && !_applyTracker.IsPending(playerHandle, generation, CosmeticApplyPhase.Guns))
+            TryControlledReequip(player, readyPawn, readyTeam, generation);
         TryApplyPhase(playerHandle, generation, CosmeticApplyPhase.Music,
             () => { ApplyMusicKit(player); return true; }, "music pipeline");
         if (finalAttempt) _applyTracker.MarkRetryExhausted(playerHandle, generation);
@@ -311,6 +397,24 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         return ready;
     }
 
+    private void TryControlledReequip(CCSPlayerController player, CCSPlayerPawn pawn, CosmeticTeam team, long generation)
+    {
+        if (!_config.StickersEnabled) return;
+        var active = pawn.WeaponServices?.ActiveWeapon.Value;
+        if (active == null || !active.IsValid || IsKnifeName(active.DesignerName)) return;
+        ushort defIndex = active.AttributeManager?.Item?.ItemDefinitionIndex ?? 0;
+        if (!TryGetPreset(defIndex, team, out var preset) || (preset.Stickers?.Count ?? 0) == 0) return;
+        if (!_applyTracker.TryMarkReequip(player.Handle, generation)) return;
+
+        player.ExecuteClientCommand("lastinv");
+        nint playerHandle = player.Handle;
+        Server.NextFrame(() =>
+        {
+            var current = ResolvePlayer(playerHandle);
+            if (CanApplyToPlayer(current)) current!.ExecuteClientCommand("lastinv");
+        });
+    }
+
     private bool ApplyPresetForCurrentDefinition(CBasePlayerWeapon weapon, CosmeticTeam team)
     {
         ushort defIndex = weapon.AttributeManager?.Item?.ItemDefinitionIndex ?? 0;
@@ -349,6 +453,8 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             SetTextureAttributes(item.NetworkedDynamicAttributes.Handle, preset);
             SetTextureAttributes(item.AttributeList.Handle, preset);
             if (preset.StatTrakEnabled && !preset.SouvenirEnabled) ApplyStatTrak(weapon, preset);
+            if (StickerFailurePolicy.ShouldRestoreBaseSkin(TryApplyStickers(defIndex, item, preset)))
+                RestoreBaseAttributes(weapon, item, preset);
 
             Utilities.SetStateChanged(weapon, "CEconEntity", "m_AttributeManager");
             bool legacyModel = _legacyPaints.Contains((defIndex, preset.Paint));
@@ -411,6 +517,40 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         _setAttrByName!.Invoke(handle, "set item texture prefab", paint);
         _setAttrByName.Invoke(handle, "set item texture seed", seed);
         _setAttrByName.Invoke(handle, "set item texture wear", wear);
+    }
+
+    private bool TryApplyStickers(ushort defIndex, CEconItemView item, KnifePreset preset)
+    {
+        if (!StickerAttributePlanner.TryBuild(
+                defIndex, _config.StickersEnabled, preset.Stickers, _validStickers, _validStickerWeapons,
+                out var attributes, out string error))
+        {
+            LogApplyError($"stickers for defindex {defIndex}", new InvalidDataException(error));
+            return false;
+        }
+        if (attributes.Count == 0) return true;
+
+        try
+        {
+            nint handle = item.NetworkedDynamicAttributes.Handle;
+            foreach (var attribute in attributes)
+                _setAttrByName!.Invoke(handle, attribute.Name, attribute.Value);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LogApplyError($"stickers for defindex {defIndex}", ex);
+            return false;
+        }
+    }
+
+    private void RestoreBaseAttributes(CBasePlayerWeapon weapon, CEconItemView item, KnifePreset preset)
+    {
+        item.AttributeList.Attributes.RemoveAll();
+        item.NetworkedDynamicAttributes.Attributes.RemoveAll();
+        SetTextureAttributes(item.NetworkedDynamicAttributes.Handle, preset);
+        SetTextureAttributes(item.AttributeList.Handle, preset);
+        if (preset.StatTrakEnabled && !preset.SouvenirEnabled) ApplyStatTrak(weapon, preset);
     }
 
     private void ApplyStatTrak(CBasePlayerWeapon weapon, KnifePreset preset)
@@ -510,8 +650,9 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     {
         try
         {
-            _loadedLegacyConfig = false;
-            _loadedLegacyGunConfig = false;
+            _loadedConfigSchema = KnifeConfig.CurrentSchemaVersion;
+            _loadedGunConfigSchema = KnifeConfig.CurrentSchemaVersion;
+            _stickersSanitizedDuringLoad = false;
             if (!File.Exists(ConfigPath))
             {
                 _config = new KnifeConfig();
@@ -521,23 +662,31 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             }
 
             string text = File.ReadAllText(ConfigPath);
+            bool stickersSanitized;
             using (var document = JsonDocument.Parse(text))
             {
-                bool isV2 = document.RootElement.TryGetProperty("schema_version", out var schema)
-                    && schema.GetInt32() >= KnifeConfig.CurrentSchemaVersion
-                    && document.RootElement.TryGetProperty("loadouts", out _);
-                if (isV2)
+                _loadedConfigSchema = document.RootElement.TryGetProperty("schema_version", out var schema)
+                    ? schema.GetInt32() : 1;
+                if (_loadedConfigSchema is < 1 or > KnifeConfig.CurrentSchemaVersion)
+                    throw new InvalidDataException($"Unsupported cosmetics schema {_loadedConfigSchema}");
+                bool isTeamSchema = _loadedConfigSchema is 2 or 3 && document.RootElement.TryGetProperty("loadouts", out _);
+                if (_loadedConfigSchema is 2 or 3 && !isTeamSchema)
+                    throw new InvalidDataException($"Cosmetics schema {_loadedConfigSchema} has no team loadouts");
+                text = SanitizeConfigStickerFields(text, gunFile: false, out stickersSanitized);
+                if (isTeamSchema)
                     _config = JsonSerializer.Deserialize<KnifeConfig>(text, JsonOptions) ?? new KnifeConfig();
                 else
                 {
                     var legacy = JsonSerializer.Deserialize<LegacyKnifeConfig>(text, JsonOptions) ?? new LegacyKnifeConfig();
                     _config = KnifeConfig.FromLegacy(legacy);
-                    _loadedLegacyConfig = true;
                 }
             }
             LoadGunConfig();
             _config.Normalize();
             _applyErrorThrottle.Reset();
+            if (_loadedConfigSchema < KnifeConfig.CurrentSchemaVersion ||
+                _loadedGunConfigSchema < KnifeConfig.CurrentSchemaVersion || stickersSanitized || _stickersSanitizedDuringLoad)
+                SaveConfig();
         }
         catch (Exception ex)
         {
@@ -550,12 +699,12 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     private void SaveConfig()
     {
         _config.Normalize();
-        BackupLegacyFile(ConfigPath, _loadedLegacyConfig);
-        BackupLegacyFile(GunConfigPath, _loadedLegacyGunConfig);
+        BackupVersionedFile(ConfigPath, _loadedConfigSchema);
+        BackupVersionedFile(GunConfigPath, _loadedGunConfigSchema);
         WriteJsonAtomic(ConfigPath, _config);
         SaveGunConfig();
-        _loadedLegacyConfig = false;
-        _loadedLegacyGunConfig = false;
+        _loadedConfigSchema = KnifeConfig.CurrentSchemaVersion;
+        _loadedGunConfigSchema = KnifeConfig.CurrentSchemaVersion;
     }
 
     private void LoadGunConfig()
@@ -566,9 +715,12 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         {
             string text = File.ReadAllText(GunConfigPath);
             using var document = JsonDocument.Parse(text);
-            bool isV2 = document.RootElement.TryGetProperty("schema_version", out var schema)
-                && schema.GetInt32() >= KnifeConfig.CurrentSchemaVersion;
-            if (isV2)
+            _loadedGunConfigSchema = document.RootElement.TryGetProperty("schema_version", out var schema)
+                ? schema.GetInt32() : 1;
+            if (_loadedGunConfigSchema is < 1 or > KnifeConfig.CurrentSchemaVersion)
+                throw new InvalidDataException($"Unsupported gun cosmetics schema {_loadedGunConfigSchema}");
+            text = SanitizeConfigStickerFields(text, gunFile: true, out bool stickersSanitized);
+            if (_loadedGunConfigSchema is 2 or 3)
             {
                 var guns = JsonSerializer.Deserialize<TeamGunConfig>(text, JsonOptions) ?? new TeamGunConfig();
                 _config.Loadouts.Ct.GunPresets = guns.Ct ?? new Dictionary<ushort, KnifePreset>();
@@ -580,9 +732,9 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
                 var legacy = JsonSerializer.Deserialize<Dictionary<ushort, KnifePreset>>(text, JsonOptions)
                     ?? new Dictionary<ushort, KnifePreset>();
                 _config.ApplyLegacyGuns(legacy);
-                _loadedLegacyGunConfig = true;
             }
             _config.Normalize();
+            _stickersSanitizedDuringLoad |= stickersSanitized;
         }
         catch (Exception ex)
         {
@@ -595,6 +747,66 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         WriteJsonAtomic(GunConfigPath, TeamGunConfig.From(_config));
     }
 
+    private string SanitizeConfigStickerFields(string text, bool gunFile, out bool changed)
+    {
+        JsonNode root = JsonNode.Parse(text) ?? throw new InvalidDataException("Cosmetics configuration is empty");
+        changed = false;
+        if (gunFile)
+        {
+            if (_loadedGunConfigSchema is 2 or 3)
+            {
+                changed |= SanitizePresetMap(root["ct"], allowStickers: true);
+                changed |= SanitizePresetMap(root["t"], allowStickers: true);
+            }
+            else
+                changed |= SanitizePresetMap(root, allowStickers: true);
+        }
+        else
+        {
+            changed |= SanitizePresetMap(root["presets"], allowStickers: false);
+            changed |= SanitizePresetMap(root["gun_presets"], allowStickers: true);
+            foreach (string side in new[] { "ct", "t" })
+            {
+                JsonNode? loadout = root["loadouts"]?[side];
+                changed |= SanitizePresetMap(loadout?["knife_presets"], allowStickers: false);
+                changed |= SanitizePresetMap(loadout?["gun_presets"], allowStickers: true);
+            }
+        }
+        return root.ToJsonString(JsonOptions);
+    }
+
+    private bool SanitizePresetMap(JsonNode? node, bool allowStickers)
+    {
+        if (node is not JsonObject presets) return false;
+        bool changed = false;
+        foreach (var (key, value) in presets.ToArray())
+        {
+            if (value is not JsonObject preset || !preset.TryGetPropertyValue("stickers", out JsonNode? stickerNode))
+                continue;
+            bool valid = false;
+            if (allowStickers && ushort.TryParse(key, out ushort defIndex) && stickerNode is JsonArray)
+            {
+                try
+                {
+                    var stickers = stickerNode.Deserialize<List<StickerPreset>>(JsonOptions) ?? new List<StickerPreset>();
+                    valid = StickerAttributePlanner.TryBuild(
+                        defIndex, true, stickers, _validStickers, _validStickerWeapons, out _, out _);
+                }
+                catch (JsonException)
+                {
+                    valid = false;
+                }
+            }
+            else if (!allowStickers && stickerNode is JsonArray array && array.Count == 0)
+                valid = true;
+
+            if (valid) continue;
+            preset["stickers"] = new JsonArray();
+            changed = true;
+        }
+        return changed;
+    }
+
     private static void WriteJsonAtomic<T>(string path, T value)
     {
         string temp = path + ".tmp";
@@ -602,10 +814,11 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
         File.Move(temp, path, true);
     }
 
-    private static void BackupLegacyFile(string path, bool legacy)
+    private static void BackupVersionedFile(string path, int sourceSchema)
     {
-        if (!legacy || !File.Exists(path)) return;
-        string backup = path + ".v1.bak";
+        if (sourceSchema >= KnifeConfig.CurrentSchemaVersion || !File.Exists(path)) return;
+        int version = Math.Max(1, sourceSchema);
+        string backup = path + $".v{version}.bak";
         if (!File.Exists(backup)) File.Copy(path, backup);
     }
 
@@ -656,6 +869,50 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
             : int.TryParse(element.GetString(), out int value) ? value : 0;
     }
 
+    private void LoadStickerCatalog()
+    {
+        _validStickers.Clear();
+        if (!File.Exists(StickerCatalogPath)) return;
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(StickerCatalogPath));
+            foreach (var entry in document.RootElement.EnumerateArray())
+            {
+                if (!entry.TryGetProperty("id", out var idElement)) continue;
+                uint id = idElement.ValueKind == JsonValueKind.Number
+                    ? idElement.GetUInt32()
+                    : uint.TryParse(idElement.GetString(), out uint value) ? value : 0;
+                if (id > 0) _validStickers.Add(id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("[PlayerKnifeCustomizer] Sticker catalog load failed: {Message}", ex.Message);
+        }
+    }
+
+    private void LoadStickerWeaponCatalog()
+    {
+        _validStickerWeapons.Clear();
+        if (!File.Exists(StickerWeaponCatalogPath)) return;
+        try
+        {
+            using var document = JsonDocument.Parse(File.ReadAllText(StickerWeaponCatalogPath));
+            foreach (var entry in document.RootElement.EnumerateArray())
+            {
+                if (!entry.TryGetProperty("id", out var idElement)) continue;
+                ushort id = idElement.ValueKind == JsonValueKind.Number
+                    ? idElement.GetUInt16()
+                    : ushort.TryParse(idElement.GetString(), out ushort value) ? value : (ushort)0;
+                if (id > 0) _validStickerWeapons.Add(id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("[PlayerKnifeCustomizer] Sticker weapon catalog load failed: {Message}", ex.Message);
+        }
+    }
+
     private WeaponSkinEntry? FindSkin(ushort defIndex, int paint) =>
         _skinCatalog.TryGetValue(defIndex, out var skins)
             ? skins.FirstOrDefault(skin => skin.Paint == paint)
@@ -664,14 +921,16 @@ public sealed class PlayerKnifeCustomizerPlugin : BasePlugin
     private void OnReloadCommand(CCSPlayerController? player, CommandInfo command)
     {
         LoadCatalog();
+        LoadStickerCatalog();
+        LoadStickerWeaponCatalog();
         LoadConfig();
         string restart = _config.Enabled && _setAttrByName == null ? "; restart CS2 to initialize runtime hooks" : string.Empty;
-        command.ReplyToCommand($"[PlayerKnifeCustomizer] reloaded; enabled={_config.Enabled}, ct_knives={_config.Loadouts.Ct.KnifePresets.Count}, t_knives={_config.Loadouts.T.KnifePresets.Count}, ct_guns={_config.Loadouts.Ct.GunPresets.Count}, t_guns={_config.Loadouts.T.GunPresets.Count}, music={_config.MusicKitId}{restart}");
+        command.ReplyToCommand($"[PlayerKnifeCustomizer] reloaded; enabled={_config.Enabled}, stickers={_config.StickersEnabled}, sticker_catalog={_validStickers.Count}, ct_knives={_config.Loadouts.Ct.KnifePresets.Count}, t_knives={_config.Loadouts.T.KnifePresets.Count}, ct_guns={_config.Loadouts.Ct.GunPresets.Count}, t_guns={_config.Loadouts.T.GunPresets.Count}, music={_config.MusicKitId}{restart}");
     }
 
     private void OnStatusCommand(CCSPlayerController? player, CommandInfo command)
     {
-        command.ReplyToCommand($"[PlayerKnifeCustomizer] enabled={_config.Enabled}, signature={(_setAttrByName == null ? "missing" : "loaded")}, ct_knives={_config.Loadouts.Ct.KnifePresets.Count}, t_knives={_config.Loadouts.T.KnifePresets.Count}, ct_guns={_config.Loadouts.Ct.GunPresets.Count}, t_guns={_config.Loadouts.T.GunPresets.Count}, music={_config.MusicKitId}, catalog={_skinCatalog.Values.Sum(skins => skins.Count)}, active_generations={_applyTracker.ActiveCount}, schedules={_applyTracker.Schedules}, phase_completions={_applyTracker.PhaseCompletions}, retry_exhaustions={_applyTracker.RetryExhaustions}, context_invalidations={_applyTracker.ContextInvalidations}");
+        command.ReplyToCommand($"[PlayerKnifeCustomizer] enabled={_config.Enabled}, stickers={_config.StickersEnabled}, signature={(_setAttrByName == null ? "missing" : "loaded")}, ct_knives={_config.Loadouts.Ct.KnifePresets.Count}, t_knives={_config.Loadouts.T.KnifePresets.Count}, ct_guns={_config.Loadouts.Ct.GunPresets.Count}, t_guns={_config.Loadouts.T.GunPresets.Count}, music={_config.MusicKitId}, catalog={_skinCatalog.Values.Sum(skins => skins.Count)}, sticker_catalog={_validStickers.Count}, active_generations={_applyTracker.ActiveCount}, schedules={_applyTracker.Schedules}, phase_completions={_applyTracker.PhaseCompletions}, retry_exhaustions={_applyTracker.RetryExhaustions}, context_invalidations={_applyTracker.ContextInvalidations}");
     }
 
     private void LogApplyError(string operation, Exception ex)
@@ -704,6 +963,7 @@ public sealed class ApplyGenerationTracker
         public nint PawnHandle { get; set; }
         public int? Team { get; set; }
         public bool ExhaustionRecorded { get; set; }
+        public bool ReequipIssued { get; set; }
     }
 
     private readonly Dictionary<nint, State> _states = new();
@@ -767,6 +1027,14 @@ public sealed class ApplyGenerationTracker
             return false;
         state.ExhaustionRecorded = true;
         RetryExhaustions++;
+        return true;
+    }
+
+    public bool TryMarkReequip(nint playerHandle, long generation)
+    {
+        if (!_states.TryGetValue(playerHandle, out var state) || state.Generation != generation || state.ReequipIssued)
+            return false;
+        state.ReequipIssued = true;
         return true;
     }
 
@@ -870,7 +1138,7 @@ public sealed class TeamLoadout
 
 public sealed class KnifeConfig
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     [JsonPropertyName("schema_version")]
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
@@ -892,6 +1160,9 @@ public sealed class KnifeConfig
 
     [JsonPropertyName("shared_weapon_links")]
     public Dictionary<ushort, bool> SharedWeaponLinks { get; set; } = new();
+
+    [JsonPropertyName("stickers_enabled")]
+    public bool StickersEnabled { get; set; }
 
     public static KnifeConfig FromLegacy(LegacyKnifeConfig legacy)
     {
@@ -1082,17 +1353,23 @@ public sealed class KnifePreset
     [JsonPropertyName("souvenir_enabled")]
     public bool SouvenirEnabled { get; set; }
 
+    [JsonPropertyName("stickers")]
+    public List<StickerPreset> Stickers { get; set; } = new();
+
     public KnifePreset Clone() => new()
     {
         Paint = Paint, Seed = Seed, Wear = Wear, NameTag = NameTag,
         StatTrakEnabled = StatTrakEnabled, StatTrakCount = StatTrakCount,
         SouvenirEnabled = SouvenirEnabled,
+        Stickers = (Stickers ?? []).Select(sticker => sticker.Clone()).ToList(),
     };
 
     public bool ValueEquals(KnifePreset other) => Paint == other.Paint && Seed == other.Seed
         && Wear.Equals(other.Wear) && NameTag == other.NameTag
         && StatTrakEnabled == other.StatTrakEnabled && StatTrakCount == other.StatTrakCount
-        && SouvenirEnabled == other.SouvenirEnabled;
+        && SouvenirEnabled == other.SouvenirEnabled
+        && (Stickers ?? []).Count == (other.Stickers ?? []).Count
+        && (Stickers ?? []).Zip(other.Stickers ?? []).All(pair => pair.First.ValueEquals(pair.Second));
 
     public void Normalize()
     {
@@ -1101,7 +1378,38 @@ public sealed class KnifePreset
         StatTrakCount = Math.Max(0, StatTrakCount);
         if (SouvenirEnabled) StatTrakEnabled = false;
         if (NameTag?.Length > 20) NameTag = NameTag[..20];
+        Stickers ??= new List<StickerPreset>();
+        Stickers = Stickers.OrderBy(sticker => sticker.Slot).ToList();
     }
+}
+
+public sealed class StickerPreset
+{
+    [JsonPropertyName("slot")] public byte Slot { get; set; }
+    [JsonPropertyName("id")] public uint Id { get; set; }
+    [JsonPropertyName("wear")] public float Wear { get; set; }
+    [JsonPropertyName("scale")] public float Scale { get; set; } = 1f;
+    [JsonPropertyName("rotation")] public float Rotation { get; set; }
+    [JsonPropertyName("offset_x")] public float OffsetX { get; set; }
+    [JsonPropertyName("offset_y")] public float OffsetY { get; set; }
+    [JsonPropertyName("custom_position")] public bool CustomPosition { get; set; }
+
+    public StickerPreset Clone() => new()
+    {
+        Slot = Slot,
+        Id = Id,
+        Wear = Wear,
+        Scale = Scale,
+        Rotation = Rotation,
+        OffsetX = OffsetX,
+        OffsetY = OffsetY,
+        CustomPosition = CustomPosition,
+    };
+
+    public bool ValueEquals(StickerPreset other) => Slot == other.Slot && Id == other.Id
+        && Wear.Equals(other.Wear) && Scale.Equals(other.Scale) && Rotation.Equals(other.Rotation)
+        && OffsetX.Equals(other.OffsetX) && OffsetY.Equals(other.OffsetY)
+        && CustomPosition == other.CustomPosition;
 }
 
 public sealed class WeaponSkinEntry

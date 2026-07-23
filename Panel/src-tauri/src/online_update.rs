@@ -1,4 +1,4 @@
-use crate::{AppError, Result, app_storage, atomic_fs, installer, logging, update_core};
+use crate::{AppError, Result, app_storage, app_version, atomic_fs, installer, logging, update_core};
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{Read, Write};
@@ -9,7 +9,6 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 
-pub const CURRENT_VERSION: &str = "1.4.2.5";
 pub const MANIFEST_URL: &str =
     "https://github.com/numakkiyu/CS2-Bot-Improver-Plus/releases/latest/download/latest.json";
 const SIGNATURE_URL: &str =
@@ -112,7 +111,7 @@ fn update_root() -> Result<PathBuf> {
 fn client(timeout: Duration) -> Result<reqwest::blocking::Client> {
     reqwest::blocking::Client::builder()
         .timeout(timeout)
-        .user_agent(format!("CS2BotImproverPlus/{CURRENT_VERSION}"))
+        .user_agent(format!("CS2BotImproverPlus/{}", app_version::display()))
         .https_only(true)
         .build()
         .map_err(|error| AppError::update(format!("Cannot initialize update client: {error}")))
@@ -215,7 +214,7 @@ fn component_state(
     let compatible = component
         .and_then(|value| {
             Some(
-                update_core::DisplayVersion::parse(CURRENT_VERSION).ok()?
+                update_core::DisplayVersion::parse(app_version::display()).ok()?
                     >= update_core::DisplayVersion::parse(&value.min_panel_version).ok()?,
             )
         })
@@ -277,18 +276,21 @@ pub fn snapshot(plugin_version: Option<&str>) -> Result<OnlineUpdateSnapshot> {
         .progress
         .as_ref()
         .filter(|value| value.component == "plugin");
+    let plugin_current_version = plugin_version
+        .map(str::to_owned)
+        .unwrap_or_else(|| app_version::display().to_owned());
     Ok(OnlineUpdateSnapshot {
         checked_at: cached.as_ref().map(|value| value.1),
         release_version: manifest.map(|value| value.release_version.clone()),
         release_notes_url: manifest.map(|value| value.release_notes_url.clone()),
         panel: component_state(
-            CURRENT_VERSION,
+            app_version::display(),
             manifest.map(|value| &value.components.panel),
             panel_progress,
             state.last_error.clone(),
         ),
         plugin: component_state(
-            plugin_version.unwrap_or(CURRENT_VERSION),
+            &plugin_current_version,
             manifest.map(|value| &value.components.plugin),
             plugin_progress,
             state.last_error.clone(),
@@ -379,7 +381,7 @@ fn download_component(
     name: &str,
 ) -> Result<(update_core::RemoteComponent, PathBuf)> {
     let component = selected_component(name)?;
-    if update_core::DisplayVersion::parse(CURRENT_VERSION).map_err(AppError::update)?
+    if update_core::DisplayVersion::parse(app_version::display()).map_err(AppError::update)?
         < update_core::DisplayVersion::parse(&component.min_panel_version)
             .map_err(AppError::update)?
     {

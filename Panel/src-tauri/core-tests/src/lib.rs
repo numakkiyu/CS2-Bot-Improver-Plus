@@ -23,6 +23,8 @@ impl AppError {
 
 #[path = "../../src/app_storage.rs"]
 mod app_storage;
+#[path = "../../src/app_version.rs"]
+mod app_version;
 #[path = "../../src/atomic_fs.rs"]
 mod atomic_fs;
 #[path = "../../src/diagnostics.rs"]

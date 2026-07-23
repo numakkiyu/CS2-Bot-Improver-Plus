@@ -3,6 +3,7 @@ import { Minus, Settings, X } from "lucide-react";
 import { useT } from "../i18n";
 import { isPanelTauriRuntime } from "../lib/runtime";
 import { useStore } from "../state/store";
+import { APP_DISPLAY_VERSION } from "../lib/version";
 import "./TitleBar.css";
 
 type Props = {
@@ -11,7 +12,7 @@ type Props = {
   showSettings?: boolean;
 };
 
-export default function TitleBar({ title = "CS2BotImproverPlus v1.4.2.5", onSettings, showSettings = true }: Props) {
+export default function TitleBar({ title = `CS2BotImproverPlus v${APP_DISPLAY_VERSION}`, onSettings, showSettings = true }: Props) {
   const appWindow = isPanelTauriRuntime ? getCurrentWindow() : null;
   const t = useT();
   const { reportError } = useStore();

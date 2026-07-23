@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "repository": "ByMykel/CSGO-API",
+  "commit": "342d49698a77ca5d2da69c4ecd236358c866a364",
+  "capabilities": {
+    "repository": "SteamTracking/GameTracking-CS2",
+    "commit": "88d56841a2a4effc0aa7478cccb8981e56a3f006",
+    "items_game_sha256": "571abc3742e333e9f6ebdfb84cd108c14f6d328bfb5b4eb5154828c152e17116",
+    "supported_weapon_count": 35
+  },
+  "inputs": {
+    "en_sha256": "6b966b978d88bba5f0a1b62dac72f5b90ea8f919994cb3367de2f8b452c1d84e",
+    "zh_cn_sha256": "175211669b0ac1814bb2a3e53d7249d437ce55ebce4110552aacc5ea7e56ec41"
+  },
+  "outputs": {
+    "count": 10555,
+    "panel_sha256": "9ce049dbc6b9fa707992a50ed9ca870fd7c0d33b4992fe0c2f881cebad728229",
+    "plugin_ids_sha256": "06bc5b8d5885c4fa1975155ab755febb5e2f2e46a09d6f0c4bda40127ec30cc8",
+    "weapon_ids_sha256": "2bbbbf26a1d26b700dba7ea5f1aa092b0966fe8963aae89bbc21f8bd7e7a2a94"
+  }
+}

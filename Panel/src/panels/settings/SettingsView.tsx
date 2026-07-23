@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
-import { Code2, Download, FileCheck2, FolderOpen, Info, Languages, type LucideIcon } from "lucide-react";
+import { Code2, Download, FileCheck2, FlaskConical, FolderOpen, Info, Languages, type LucideIcon } from "lucide-react";
 import { BackIcon, ChevronRight } from "../../components/icons";
 import DevsPage from "./DevsPage";
 import LanguagesPage from "./LanguagesPage";
 import DirectoryPage from "./DirectoryPage";
 import InstallationPage from "./InstallationPage";
 import OnlineUpdatePage from "./OnlineUpdatePage";
+import ExperimentalPage from "./ExperimentalPage";
 import { api, type OnlineUpdateSnapshot } from "../../lib/api";
 import { useStore } from "../../state/store";
 import { LANGUAGES } from "../../data/languages";
 import { useT, type I18nKey } from "../../i18n";
 import "./settings.css";
 
-type Page = "root" | "devs" | "languages" | "directory" | "installation" | "updates";
+type Page = "root" | "devs" | "languages" | "directory" | "installation" | "updates" | "experimental";
 
 const TITLE_KEYS: Record<Page, I18nKey> = {
   root: "set.title",
@@ -21,6 +22,7 @@ const TITLE_KEYS: Record<Page, I18nKey> = {
   directory: "set.directory",
   installation: "set.installation",
   updates: "set.updates",
+  experimental: "experimental.title",
 };
 
 const DESC_KEYS: Record<Exclude<Page, "root">, I18nKey> = {
@@ -29,6 +31,7 @@ const DESC_KEYS: Record<Exclude<Page, "root">, I18nKey> = {
   directory: "set.directoryDesc",
   languages: "set.languagesDesc",
   devs: "set.devsDesc",
+  experimental: "experimental.settingsDesc",
 };
 
 const ICONS: Record<Exclude<Page, "root">, LucideIcon> = {
@@ -37,6 +40,7 @@ const ICONS: Record<Exclude<Page, "root">, LucideIcon> = {
   directory: FolderOpen,
   languages: Languages,
   devs: Code2,
+  experimental: FlaskConical,
 };
 
 type Tone = "green" | "yellow" | "blue" | "neutral";
@@ -68,6 +72,9 @@ export default function SettingsView({ onClose }: { onClose?: () => void }) {
       : { text: t("set.noCsgo"), tone: "yellow" },
     languages: language ? { text: language.native, tone: "blue" } : null,
     devs: null,
+    experimental: config?.experimental_features_enabled
+      ? { text: t("cosmetics.enabled"), tone: "yellow" }
+      : { text: t("cosmetics.disabled"), tone: "neutral" },
   };
 
   return (
@@ -85,7 +92,7 @@ export default function SettingsView({ onClose }: { onClose?: () => void }) {
         {page === "root" && (
           <>
             <div className="settings-list">
-              {(["updates", "installation", "directory", "languages", "devs"] as const).map((p) => {
+              {(["updates", "installation", "directory", "languages", "experimental", "devs"] as const).map((p) => {
                 const Icon = ICONS[p];
                 const status = STATUS[p];
                 return (
@@ -117,6 +124,7 @@ export default function SettingsView({ onClose }: { onClose?: () => void }) {
         {page === "directory" && <DirectoryPage />}
         {page === "installation" && <InstallationPage />}
         {page === "updates" && <OnlineUpdatePage />}
+        {page === "experimental" && <ExperimentalPage />}
       </div>
     </div>
   );
